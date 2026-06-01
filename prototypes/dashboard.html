@@ -328,6 +328,26 @@
     .send-btn { width: 34px; height: 34px; border: none; border-radius: 999px; background: var(--primary); color: var(--on-primary); cursor: pointer; display: grid; place-items: center; margin-bottom: 4px; flex-shrink: 0; }
     .composer-hint { text-align: center; font-size: 10px; color: var(--on-surface-variant); margin-top: 6px; }
 
+    .composer-foot { max-width: 680px; margin: 6px auto 0; display: flex; align-items: center; gap: 12px; }
+    .workspace-wrap { position: relative; flex-shrink: 0; }
+    .workspace-chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 999px; border: 1px solid var(--outline-variant);
+      background: var(--surface-container); color: var(--on-surface-variant); font: inherit; font-size: 11px; cursor: pointer; }
+    .workspace-chip:hover { background: var(--surface-high); color: var(--on-surface); }
+    .workspace-chip > .material-symbols-outlined { font-size: 15px; color: var(--secondary); }
+    .workspace-chip .ws-caret { font-size: 14px; color: var(--on-surface-variant); }
+    .workspace-chip .ws-path { color: var(--on-surface); }
+    .ws-popover { display: none; position: absolute; bottom: calc(100% + 8px); left: 0; width: 280px; z-index: 60;
+      background: var(--surface-highest); border: 1px solid var(--outline-variant); border-radius: 12px; padding: 12px; box-shadow: 0 12px 36px rgba(0,0,0,0.4); }
+    .ws-popover.open { display: block; }
+    .ws-pop-title { font-size: 12px; font-weight: 500; margin-bottom: 8px; }
+    .ws-pop-path { display: flex; align-items: center; gap: 6px; padding: 8px 10px; border-radius: 8px; background: var(--surface-low); border: 1px solid var(--outline-variant); font-size: 12px; }
+    .ws-pop-path .material-symbols-outlined { font-size: 16px; color: var(--secondary); }
+    .ws-pop-hint { font-size: 11px; color: var(--on-surface-variant); line-height: 1.5; margin: 8px 0 10px; }
+    .ws-pop-change { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; padding: 8px; border-radius: 999px;
+      border: 1px solid var(--outline-variant); background: var(--surface-container); color: var(--primary); font: inherit; font-size: 12px; font-weight: 500; cursor: pointer; }
+    .ws-pop-change:hover { background: var(--surface-high); }
+    .composer-foot .composer-hint { flex: 1; justify-content: flex-end; }
+
     .chat-starters { margin: 0 auto 10px; padding: 12px 14px; background: var(--surface-container); border: 1px solid var(--outline-variant); border-radius: 14px; }
     .chat-starters[hidden] { display: none; }
     .chat-starters-head { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--on-surface-variant); margin-bottom: 10px; }
@@ -1091,8 +1111,8 @@
                     <div class="msg-role">NodeAI</div>
                     <div class="msg-body">
                       <p data-i18n="demoAssist1">Reading local files, then updating the doc.</p>
-                      <div class="tool-card"><span class="material-symbols-outlined">folder_open</span><div><div class="tool-name" data-i18n="toolRead">Read file</div><div class="tool-detail">~/NodeAI/README.md · 248 lines</div></div></div>
-                      <div class="tool-card"><span class="material-symbols-outlined">edit_document</span><div><div class="tool-name" data-i18n="toolWrite">Write file</div><div class="tool-detail">README.md · +Install section</div></div></div>
+                      <div class="tool-card"><span class="material-symbols-outlined">folder_open</span><div><div class="tool-name" data-i18n="toolRead">Read file</div><div class="tool-detail">~/Documents/NodeAI/README.md · 248 lines</div></div></div>
+                      <div class="tool-card"><span class="material-symbols-outlined">edit_document</span><div><div class="tool-name" data-i18n="toolWrite">Write file</div><div class="tool-detail">~/Documents/NodeAI/README.md · +Install section</div></div></div>
                       <p data-i18n="demoAssist2">Done. No duplicate deps in Cargo.toml.</p>
                       <div class="msg-actions">
                         <button type="button" class="remember-btn" id="demoRememberBtn"><span class="material-symbols-outlined" style="font-size:14px">bookmark_add</span><span data-i18n="rememberThis">记住这条</span></button>
@@ -1126,7 +1146,23 @@
                   </div>
                 </div>
               </div>
-              <p class="composer-hint" style="display:flex;align-items:center;justify-content:center;gap:4px"><span class="material-symbols-outlined" style="font-size:14px">info</span><span data-i18n="composerHint">支持文件与图片 · 实时用量见托盘或总览</span></p>
+              <div class="composer-foot">
+                <div class="workspace-wrap">
+                  <button type="button" class="workspace-chip" id="workspaceChip" data-i18n-tip="tipWorkspace">
+                    <span class="material-symbols-outlined">folder</span>
+                    <span class="ws-label" data-i18n="wsLabel">工作区</span>
+                    <span class="ws-path mono" id="wsPathChip">~/Documents/NodeAI</span>
+                    <span class="material-symbols-outlined ws-caret">expand_more</span>
+                  </button>
+                  <div class="ws-popover" id="wsPopover">
+                    <div class="ws-pop-title" data-i18n="wsPopTitle">Agent 文件写在这里</div>
+                    <div class="ws-pop-path"><span class="material-symbols-outlined">folder_open</span><span class="mono" id="wsPathPop">~/Documents/NodeAI</span></div>
+                    <p class="ws-pop-hint" data-i18n="wsPopHint">对话里 Agent 读写文件默认放此文件夹 · 写入/删除会先确认 · 不会碰系统目录与密钥。</p>
+                    <button type="button" class="ws-pop-change" id="wsChangeBtn"><span class="material-symbols-outlined" style="font-size:16px">drive_folder_upload</span><span data-i18n="wsChange">更改文件夹…</span></button>
+                  </div>
+                </div>
+                <p class="composer-hint" style="display:flex;align-items:center;gap:4px;margin:0"><span class="material-symbols-outlined" style="font-size:14px">info</span><span data-i18n="composerHint">支持文件与图片 · 实时用量见托盘或总览</span></p>
+              </div>
             </div>
           </div>
 
@@ -1542,6 +1578,7 @@
                   <option value="zh">中文</option><option value="en">English</option><option value="bilingual">中英混合</option>
                 </select>
               </div>
+              <div class="setting"><div><h4 data-i18n="setWorkspace">Agent 工作区</h4><p style="font-size:12px;color:var(--on-surface-variant)" data-i18n="setWorkspaceSub">对话里 Agent 读写文件的默认文件夹 · 写入/删除会先确认</p><p class="mono" id="setWorkspacePath" style="font-size:11px;color:var(--secondary);margin-top:6px">~/Documents/NodeAI</p></div><button class="btn-outlined" type="button" id="setWorkspaceChange" data-i18n="wsChangeShort">更改</button></div>
               <div class="setting"><div><h4 data-i18n="setCrossMem">跨应用记忆</h4><p style="font-size:12px;color:var(--on-surface-variant)" data-i18n="setCrossMemSub">Cursor 等可读取已保存的偏好与项目上下文</p></div><button class="switch on" type="button" id="swCrossMem"></button></div>
               <div class="setting"><div><h4 data-i18n="setCursorWrite">允许 Cursor 写入记忆</h4><p style="font-size:12px;color:var(--on-surface-variant)" data-i18n="setCursorWriteSub">默认关闭，避免 Agent 自动污染</p></div><button class="switch" type="button" id="swCursorWrite"></button></div>
               <div class="setting-group" data-i18n="setGrpRoute">路由与转换</div>
@@ -2449,6 +2486,10 @@
         statusLive: '●', statusWait: '○', statusNew: '◉',
         composerPh: '输入问题，可附加文件或图片…',
         composerHint: '支持文件与图片 · 实时用量见托盘或总览',
+        wsLabel: '工作区', wsPopTitle: 'Agent 文件写在这里', wsChange: '更改文件夹…', wsChangeShort: '更改',
+        wsPopHint: '对话里 Agent 读写文件默认放此文件夹 · 写入/删除会先确认 · 不会碰系统目录与密钥。',
+        setWorkspace: 'Agent 工作区', setWorkspaceSub: '对话里 Agent 读写文件的默认文件夹 · 写入/删除会先确认',
+        tipWorkspace: 'Agent 文件写到哪里', toastWsChanged: '工作区已改为 {p}',
         chatLiveLink: '总览',
         hubTitle: '总览', savedFoot: '相比不压缩', tokenToday: '今日用量', daysLeft: '~18 天',
         spend7d: '7 日', byApp: '占比', appTraffic: '实时', showSteps: '步骤',
@@ -2692,6 +2733,10 @@
         statusLive: '●', statusWait: '○', statusNew: '◉',
         composerPh: 'Ask anything — attach files or images…',
         composerHint: 'Files & images · live usage in tray or Overview',
+        wsLabel: 'Workspace', wsPopTitle: 'Agent writes files here', wsChange: 'Change folder…', wsChangeShort: 'Change',
+        wsPopHint: 'Agent reads/writes files in this folder by default · writes/deletes ask first · never touches system dirs or keys.',
+        setWorkspace: 'Agent workspace', setWorkspaceSub: 'Default folder for Agent file read/write · writes/deletes ask first',
+        tipWorkspace: 'Where Agent writes files', toastWsChanged: 'Workspace set to {p}',
         chatLiveLink: 'Overview',
         hubTitle: 'Overview', savedFoot: 'vs. no savings', tokenToday: 'Today', daysLeft: '~18 days',
         spend7d: '7 days', byApp: 'Share', appTraffic: 'Live', showSteps: 'Steps',
@@ -3067,6 +3112,23 @@
       document.getElementById('moreMenu')?.classList.remove('open');
       document.getElementById('hudPopover')?.classList.remove('open');
       document.getElementById('trayPopover')?.classList.remove('open');
+      document.getElementById('wsPopover')?.classList.remove('open');
+    }
+
+    let agentWorkspace = localStorage.getItem('nodeai-workspace') || '~/Documents/NodeAI';
+    const WS_DEMO_PATHS = ['~/Documents/NodeAI', '~/Projects/my-app', '~/Desktop/工作'];
+    function renderWorkspace() {
+      ['wsPathChip', 'wsPathPop', 'setWorkspacePath'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = agentWorkspace;
+      });
+    }
+    function changeWorkspace() {
+      const i = WS_DEMO_PATHS.indexOf(agentWorkspace);
+      agentWorkspace = WS_DEMO_PATHS[(i + 1) % WS_DEMO_PATHS.length];
+      localStorage.setItem('nodeai-workspace', agentWorkspace);
+      renderWorkspace();
+      showToast(t('toastWsChanged').replace('{p}', agentWorkspace));
     }
 
     function toggleMoreMenu(e) {
@@ -3881,6 +3943,16 @@
       localStorage.setItem('nodeai-onboard-dismissed', '1');
       const c = document.getElementById('onboardCard'); if (c) c.hidden = true;
     });
+    document.getElementById('workspaceChip')?.addEventListener('click', e => {
+      e.stopPropagation();
+      const pop = document.getElementById('wsPopover');
+      const willOpen = !pop.classList.contains('open');
+      closeMenus();
+      pop.classList.toggle('open', willOpen);
+    });
+    document.getElementById('wsChangeBtn')?.addEventListener('click', () => { changeWorkspace(); closeMenus(); });
+    document.getElementById('setWorkspaceChange')?.addEventListener('click', changeWorkspace);
+    renderWorkspace();
 
     function applyTheme(themeId) {
       document.documentElement.setAttribute('data-theme', themeId);
