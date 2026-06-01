@@ -443,8 +443,9 @@
     .cell-bar { height: 4px; background: var(--surface-highest); border-radius: 2px; margin-top: 4px; max-width: 64px; margin-left: auto; margin-right: auto; }
     .cell-fill { height: 100%; border-radius: 2px; }
 
-    .stacked-chart { display: flex; align-items: flex-end; gap: 4px; height: 72px; margin-top: 8px; }
-    .stacked-col { flex: 1; display: flex; flex-direction: column-reverse; height: 100%; border-radius: 4px 4px 0 0; overflow: hidden; min-width: 0; }
+    .stacked-chart { display: flex; align-items: stretch; gap: 4px; height: 84px; margin-top: 8px; }
+    .stacked-col-wrap { height: 100%; justify-content: flex-end; }
+    .stacked-col { flex: 1; width: 100%; display: flex; flex-direction: column-reverse; border-radius: 4px 4px 0 0; overflow: hidden; min-width: 0; }
     .stacked-seg { width: 100%; min-height: 2px; transition: height 400ms; }
     .stacked-lbl { font-size: 9px; color: var(--on-surface-variant); text-align: center; margin-top: 4px; }
 
@@ -1718,7 +1719,7 @@
     const MODELS = [
       { id: 'smart', smart: true, path: 'hosted', name: { zh: '智能选模型', en: 'Auto pick model' }, sub: { zh: '含额度 · 经 NodeAI 云端', en: 'Allowance · via NodeAI cloud' } },
       { id: 'byok-smart', smart: true, path: 'local', name: { zh: '智能 · 我的 Key', en: 'Auto · my keys' }, sub: { zh: '本机直连 · 不经服务器', en: 'On-device · no server' } },
-      { id: 'claude-sonnet-4', path: 'hosted', name: { zh: 'Claude Sonnet 4', en: 'Claude Sonnet 4' }, sub: { zh: '含额度 · 代码与推理', en: 'Allowance · code' } },
+      { id: 'claude-sonnet-4', path: 'hosted', name: { zh: 'Claude Sonnet 4.6', en: 'Claude Sonnet 4.6' }, sub: { zh: '含额度 · 代码与推理', en: 'Allowance · code' } },
       { id: 'gemini-2.5-flash', path: 'hosted', name: { zh: 'Gemini 2.5 Flash', en: 'Gemini 2.5 Flash' }, sub: { zh: '含额度 · 极快', en: 'Allowance · fast' } },
       { id: 'byok-deepseek', path: 'local', name: { zh: 'DeepSeek（我的 Key）', en: 'DeepSeek (my key)' }, sub: { zh: '本地直连', en: 'Local direct' } },
     ];
@@ -2939,10 +2940,10 @@
       badge.textContent = local ? t('pathLocalShort') : t('pathCloudShort');
     }
     const BILLING_MODELS = [
-      { id: 'claude-sonnet-4', color: '#D0BCFF', icon: 'psychology', name: { zh: 'Claude Sonnet 4', en: 'Claude Sonnet 4' } },
+      { id: 'claude-sonnet-4', color: '#D0BCFF', icon: 'psychology', name: { zh: 'Claude Sonnet 4.6', en: 'Claude Sonnet 4.6' } },
       { id: 'gemini-flash', color: '#FFB951', icon: 'bolt', name: { zh: 'Gemini 2.5 Flash', en: 'Gemini 2.5 Flash' } },
-      { id: 'gpt-4o-mini', color: '#A8C7FA', icon: 'smart_toy', name: { zh: 'GPT-4o mini', en: 'GPT-4o mini' } },
-      { id: 'claude-haiku', color: '#CE93D8', icon: 'speed', name: { zh: 'Claude Haiku', en: 'Claude Haiku' } },
+      { id: 'gpt-4o-mini', color: '#A8C7FA', icon: 'smart_toy', name: { zh: 'GPT-4.1 Mini', en: 'GPT-4.1 Mini' } },
+      { id: 'claude-haiku', color: '#CE93D8', icon: 'speed', name: { zh: 'Claude Haiku 3.5', en: 'Claude Haiku 3.5' } },
     ];
     const BILL_PERIODS = {
       today: {
