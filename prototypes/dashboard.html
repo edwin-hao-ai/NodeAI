@@ -250,6 +250,8 @@
     .addr-compact { display: flex; align-items: center; gap: 10px; padding: 12px 14px; background: var(--surface-container); border: 1px solid var(--outline-variant); border-radius: 12px; margin-bottom: 16px; }
     .addr-compact .material-symbols-outlined { color: var(--secondary); font-size: 28px; }
     .addr-compact code { flex: 1; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .addr-compact-tag { flex-shrink: 0; font-size: 10px; padding: 3px 9px; border-radius: 999px; font-weight: 500;
+      background: color-mix(in srgb, var(--savings) 16%, transparent); color: var(--savings); }
 
     .setup-card.compact { padding: 12px 14px; }
     .setup-row { display: flex; align-items: center; gap: 12px; }
@@ -478,6 +480,13 @@
       background: color-mix(in srgb, var(--savings) 8%, var(--surface-container)); }
     .vpn-node-row .material-symbols-outlined:first-child { font-size: 22px; color: var(--on-surface-variant); flex-shrink: 0; }
     .vpn-node-row.active .material-symbols-outlined:first-child { color: var(--savings); }
+    .vpn-node-row.auto { padding: 14px; border-color: var(--outline-variant); background: var(--surface-high); }
+    .vpn-node-row.auto .material-symbols-outlined:first-child { color: var(--savings); }
+    .vpn-node-row.auto.active { border-color: color-mix(in srgb, var(--savings) 55%, var(--outline-variant));
+      background: color-mix(in srgb, var(--savings) 12%, var(--surface-container)); }
+    .vpn-node-badge { display: inline-block; margin-left: 8px; padding: 1px 7px; border-radius: 999px; font-size: 10px; font-weight: 500;
+      vertical-align: middle; background: color-mix(in srgb, var(--savings) 22%, transparent); color: var(--savings); }
+    .vpn-scene-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--on-surface-variant); margin: 12px 2px 4px; }
     .vpn-node-text { flex: 1; min-width: 0; }
     .vpn-node-name { display: block; font-size: 14px; font-weight: 500; }
     .vpn-node-sub { display: block; font-size: 12px; color: var(--on-surface-variant); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -677,6 +686,10 @@
     .remember-btn { display: inline-flex; align-items: center; gap: 4px; margin-top: 8px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--outline-variant);
       background: transparent; color: var(--on-surface-variant); font-size: 12px; cursor: pointer; }
     .remember-btn:hover { background: var(--surface-container-high); color: var(--on-surface); }
+    .local-server-state { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: var(--savings); margin-top: 8px; font-family: 'Roboto Mono', monospace; }
+    .local-server-state .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--savings); box-shadow: 0 0 8px var(--savings); }
+    .local-server-state.paused { color: var(--on-surface-variant); }
+    .local-server-state.paused .dot { background: var(--on-surface-variant); box-shadow: none; }
     .switch { width: 44px; height: 26px; background: var(--surface-highest); border: 2px solid var(--outline-variant); border-radius: 999px; position: relative; cursor: pointer; }
     .switch.on { background: var(--primary); border-color: var(--primary); }
     .switch::after { content: ''; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; background: var(--on-surface-variant); border-radius: 50%; transition: transform 200ms; }
@@ -1170,6 +1183,12 @@
                 <button class="icon-btn primary copy-btn" data-target="baseUrl" type="button" data-i18n-tip="tipCopyAddr"><span class="material-symbols-outlined">content_copy</span></button>
                 <span class="status-pill" style="font-size:10px;padding:2px 8px"><span class="dot"></span></span>
               </div>
+              <div class="addr-compact">
+                <span class="material-symbols-outlined" style="color:var(--savings)">auto_awesome</span>
+                <code id="modelAuto">nodeai-auto</code>
+                <button class="icon-btn primary copy-btn" data-target="modelAuto" type="button" data-i18n-tip="tipCopyModel"><span class="material-symbols-outlined">content_copy</span></button>
+                <span class="addr-compact-tag" data-i18n="modelFieldTag">Model 字段 · 全自动</span>
+              </div>
               <div id="gatewaySetupCards"></div>
               <button class="btn-add-app" id="btnAddApp" type="button"><span class="material-symbols-outlined" style="font-size:20px">add</span><span data-i18n="addApp">添加应用</span></button>
               </div>
@@ -1389,6 +1408,14 @@
               <div class="setting-group" data-i18n="setGrpGateway">连接</div>
               <div class="setting">
                 <div>
+                  <h4 data-i18n="setLocalServer">本地服务</h4>
+                  <p style="font-size:12px;color:var(--on-surface-variant)" data-i18n="setLocalServerSub">默认随 App 常开（Always-on）。仅在需要时暂停本地服务；暂停后 Cursor 等外部应用将无法调用，内置对话不受影响。</p>
+                  <p class="local-server-state" id="setLocalServerState"><span class="dot"></span><span id="setLocalServerStateLbl" data-i18n="setLocalServerOn">运行中 · http://127.0.0.1:8787</span></p>
+                </div>
+                <button class="switch on" type="button" id="swLocalServer" aria-label="local server"></button>
+              </div>
+              <div class="setting">
+                <div>
                   <h4 data-i18n="setGatewayPort">本地端口</h4>
                   <p style="font-size:12px;color:var(--on-surface-variant)" data-i18n="setGatewayPortSub">默认 8787。改端口后，Cursor 等应用里的地址也要一起改</p>
                   <p class="mono" id="setGatewayUrlPreview" style="font-size:11px;color:var(--secondary);margin-top:6px">http://127.0.0.1:8787/v1</p>
@@ -1603,7 +1630,7 @@
       'google/gemini-2.5-pro',
     ];
 
-    let activeIntent = 'chat';
+    let activeIntent = 'auto';
     let activeGatewayModel = 'google/gemini-2.5-flash';
     let smartRouteEnabled = true;
     let routeApplying = false;
@@ -1631,6 +1658,9 @@
     }
 
     function getRouteLineShort() {
+      if (smartRouteEnabled && activeIntent === 'auto') {
+        return `${t('autoRouteTitle')} · ${t('autoRouteLineSub')}`;
+      }
       const intent = INTENTS.find(i => i.id === activeIntent);
       const scene = intent ? intentLabel(intent) : '';
       if (smartRouteEnabled) {
@@ -1758,14 +1788,20 @@
       const liveEl = document.getElementById('vpnLiveLbl');
       const syncedEl = document.getElementById('vpnSyncedLine');
       const card = document.getElementById('vpnStatusCard');
+      const autoMode = smartRouteEnabled && activeIntent === 'auto';
       if (card) card.classList.toggle('route-applying', routeApplying);
       if (nameEl) {
-        nameEl.textContent = smartRouteEnabled
-          ? (intent ? intentLabel(intent) : t('smartRouteTitle'))
-          : (resolved ? resolved.displayName[lang] : activeGatewayModel);
+        nameEl.textContent = autoMode
+          ? t('autoRouteTitle')
+          : (smartRouteEnabled
+            ? (intent ? intentLabel(intent) : t('smartRouteTitle'))
+            : (resolved ? resolved.displayName[lang] : activeGatewayModel));
       }
       if (subEl) {
-        if (smartRouteEnabled && resolved) {
+        if (autoMode) {
+          subEl.textContent = t('autoRouteSub');
+          subEl.hidden = false;
+        } else if (smartRouteEnabled && resolved) {
           subEl.textContent = resolved.displayName[lang];
           subEl.hidden = false;
         } else if (!smartRouteEnabled && intent) {
@@ -1869,7 +1905,16 @@
       if (!list) return;
       if (label) label.textContent = smartRouteEnabled ? t('vpnListSmart') : t('vpnListFixed');
       if (smartRouteEnabled) {
-        list.innerHTML = INTENTS.map(i => {
+        const autoActive = activeIntent === 'auto';
+        const autoRow = `<button type="button" class="vpn-node-row auto ${autoActive ? 'active' : ''}" data-intent="auto">
+            <span class="material-symbols-outlined">auto_awesome</span>
+            <span class="vpn-node-text">
+              <span class="vpn-node-name">${t('autoNodeName')}<span class="vpn-node-badge">${t('autoNodeBadge')}</span></span>
+              <span class="vpn-node-sub">${t('autoNodeSub')}</span>
+            </span>
+            ${autoActive ? '<span class="material-symbols-outlined vpn-node-check">check_circle</span>' : '<span class="vpn-node-check" aria-hidden="true"></span>'}
+          </button>`;
+        const sceneRows = INTENTS.map(i => {
           const m = gatewayModelById(i.defaultModel);
           const active = i.id === activeIntent;
           return `<button type="button" class="vpn-node-row ${active ? 'active' : ''}" data-intent="${i.id}">
@@ -1881,6 +1926,7 @@
             ${active ? '<span class="material-symbols-outlined vpn-node-check">check_circle</span>' : '<span class="vpn-node-check" aria-hidden="true"></span>'}
           </button>`;
         }).join('');
+        list.innerHTML = autoRow + `<div class="vpn-scene-label">${t('vpnSceneLabel')}</div>` + sceneRows;
         list.querySelectorAll('[data-intent]').forEach(btn => btn.addEventListener('click', () => selectIntent(btn.dataset.intent)));
       } else {
         const curated = CURATED_MODEL_IDS.map(id => gatewayModelById(id)).filter(Boolean);
@@ -1960,6 +2006,8 @@
         vpnConnected: '已连接',
         vpnListSmart: '选择线路',
         vpnListFixed: '选择模型',
+        autoRouteTitle: '全自动', autoRouteSub: '按每条请求自动判断 · 多模型协作', autoRouteLineSub: '按任务自动选模型',
+        autoNodeName: '全自动', autoNodeBadge: '默认', autoNodeSub: '按请求自动判断，无需挑场景', vpnSceneLabel: '或钉住一个场景',
         vpnSyncedApps: '{n} 个应用已走此线路',
         hist1: '完善 README 安装说明', hist2: '重构路由模块', tokenFlow: '实时用量', you: '你',
         demoUser: '帮我在 README.md 里加上安装说明，并检查重复依赖。',
@@ -2044,6 +2092,8 @@
         compressLbl: '智能压缩', conciseLbl: '简洁回复', routeLbl: '智能选模型',
         setGrpChat: '对话与偏好', setReplyLang: '默认回复语言', setReplyLangSub: '新对话的默认说明，可在每条对话里单独改',
         setGrpGateway: '连接', setGatewayPort: '本地端口', setGatewayPortSub: '默认 8787。改端口后，Cursor 等应用里的地址也要一起改',
+        setLocalServer: '本地服务', setLocalServerSub: '默认随 App 常开（Always-on）。仅在需要时暂停本地服务；暂停后 Cursor 等外部应用将无法调用，内置对话不受影响。',
+        setLocalServerOn: '运行中 · http://127.0.0.1:8787', setLocalServerOff: '已暂停 · 外部应用暂时无法调用',
         toastPortSaved: '端口已更新 · 请在外部应用中同步地址', toastPortInvalid: '端口需在 1024–65535 之间',
         setCrossMem: '跨应用记忆', setCrossMemSub: 'Cursor 等可读取已保存的偏好与项目上下文',
         setGrpSave: '省钱',
@@ -2081,7 +2131,7 @@
         tipAttachImage: '附加图片 — 截图、设计稿等',
         tipRemoveAttach: '移除附件',
         tipSend: '发送消息',
-        tipCopyAddr: '复制连接地址',
+        tipCopyAddr: '复制连接地址', tipCopyModel: '复制 Model 值', modelFieldTag: 'Model 字段 · 全自动',
         tipCopyCode: '复制该应用的专用接入码',
         tipShowSteps: '查看连接步骤',
         tipBillTabToday: '查看今日账单汇总',
@@ -2137,9 +2187,9 @@
         modelsAdvanced: '固定某模型（高级）',
         gwStep0Title: '在 NodeAI 选好线路',
         gwStep0Sub: '连接前确认线路 — 所有应用都会走这一条',
-        gwCursorHintTitle: 'Model 可留空',
-        gwCursorHintBody: 'Cursor 里的 Model 字段不必填具体型号 — 线路由 NodeAI「选模型」统一控制。',
-        gwCursorPlaceholder: '（可留空）',
+        gwCursorHintTitle: 'Model 填 nodeai-auto',
+        gwCursorHintBody: 'Cursor 里 Model 推荐填 nodeai-auto，交给 NodeAI 全自动选模型；也可填某个具体型号来钉死它，或留空（按线路走）。',
+        gwCursorPlaceholder: 'nodeai-auto',
         trayRouteLbl: '线路：',
         vpnActive: '当前线路', vpnOpenChat: '去对话',
         vpnLive: '已生效 · 全应用', vpnLiveSmart: '已生效 · 全应用', vpnLiveFixed: '已切换 · 固定线路',
@@ -2154,8 +2204,8 @@
         priceIn: '输入 / 1M', priceOut: '输出 / 1M', priceEst: '预估本条',
         modelsCatalogTitle: '模型目录', modelsBonusLbl: '内置能力',
         gwRouteTitle: '8787 当前线路', gwRouteApps: '已连接的应用都会走这条线路，无需在每个应用里单独选模型。',
-        gwRouteHint: '粘贴时只需填地址 + 接入码；模型名可留空或填任意兼容值，以 NodeAI 为准。',
-        gwChangeRoute: '换线路', gwModelNoteText: 'Cursor / Cline 等应用的 Model 设置不用改 — 线路在 NodeAI「选模型」里统一切换，8787 会自动转发。',
+        gwRouteHint: '粘贴时填地址 + 接入码；Model 推荐 nodeai-auto（全自动）。填具体型号会钉死它，留空或填不认识的值则按线路走。',
+        gwChangeRoute: '换线路', gwModelNoteText: 'Cursor / Cline 等应用的 Model 填 nodeai-auto 即可 — 线路在 NodeAI「选模型」里统一切换，8787 会自动转发。',
         flowRoute: '当前线路',
         trayRouteSmart: '线路：智能 ·', trayRouteFixed: '线路：',
         intentSection: '使用场景',
@@ -2184,6 +2234,8 @@
         vpnConnected: 'Connected',
         vpnListSmart: 'Choose route',
         vpnListFixed: 'Choose model',
+        autoRouteTitle: 'Auto', autoRouteSub: 'Classifies each request · multi-model', autoRouteLineSub: 'auto-picks per task',
+        autoNodeName: 'Auto', autoNodeBadge: 'Default', autoNodeSub: 'Decides per request — no scene needed', vpnSceneLabel: 'Or pin a scene',
         vpnSyncedApps: '{n} apps on this route',
         hist1: 'README install docs', hist2: 'Refactor routing', tokenFlow: 'Live usage', you: 'You',
         demoUser: 'Add install instructions to README.md and check duplicate dependencies.',
@@ -2270,6 +2322,8 @@
         compressLbl: 'Smart compress', conciseLbl: 'Concise replies', routeLbl: 'Auto model',
         setGrpChat: 'Chat & preferences', setReplyLang: 'Default reply language', setReplyLangSub: 'Default note for new chats; editable per thread',
         setGrpGateway: 'Connection', setGatewayPort: 'Local port', setGatewayPortSub: 'Default 8787. After changing, update Base URL in Cursor & other apps',
+        setLocalServer: 'Local service', setLocalServerSub: 'On by default while the app runs (Always-on). Pause only when you need to; external apps like Cursor cannot call while paused — built-in chat is unaffected.',
+        setLocalServerOn: 'Running · http://127.0.0.1:8787', setLocalServerOff: 'Paused · external apps cannot call',
         toastPortSaved: 'Port updated · sync address in external apps', toastPortInvalid: 'Port must be 1024–65535',
         setCrossMem: 'Cross-app memory', setCrossMemSub: 'Cursor etc. can read saved prefs & project context',
         setPrune: 'Context prune', setPruneSub: 'Summarize old messages in long chats',
@@ -2305,7 +2359,7 @@
         tipAttachImage: 'Attach image — screenshots, mockups, etc.',
         tipRemoveAttach: 'Remove attachment',
         tipSend: 'Send message',
-        tipCopyAddr: 'Copy gateway address',
+        tipCopyAddr: 'Copy gateway address', tipCopyModel: 'Copy Model value', modelFieldTag: 'Model field · Auto',
         tipCopyCode: 'Copy this app\'s access code',
         tipShowSteps: 'Show setup steps',
         tipBillTabToday: 'Today\'s billing summary',
@@ -2345,9 +2399,9 @@
         modelsAdvanced: 'Pin a model (advanced)',
         gwStep0Title: 'Pick your route in NodeAI first',
         gwStep0Sub: 'Confirm before connecting — all apps use this route',
-        gwCursorHintTitle: 'Model can be empty',
-        gwCursorHintBody: 'Leave Cursor Model blank — NodeAI Models page controls the active route.',
-        gwCursorPlaceholder: '(optional)',
+        gwCursorHintTitle: 'Set Model to nodeai-auto',
+        gwCursorHintBody: 'Set Cursor Model to nodeai-auto to let NodeAI auto-pick; or enter a specific model to pin it, or leave blank to follow the route.',
+        gwCursorPlaceholder: 'nodeai-auto',
         trayRouteLbl: 'Route:',
         vpnActive: 'Active route', vpnOpenChat: 'Open chat',
         vpnLive: 'Live · all apps', vpnLiveSmart: 'Live · all apps', vpnLiveFixed: 'Switched · fixed route',
@@ -2362,8 +2416,8 @@
         priceIn: 'Input / 1M', priceOut: 'Output / 1M', priceEst: 'Est. per turn',
         modelsCatalogTitle: 'Model catalog', modelsBonusLbl: 'Built-in perks',
         gwRouteTitle: '8787 active route', gwRouteApps: 'All connected apps use this route — no per-app model setup.',
-        gwRouteHint: 'Paste address + access code only; model field can be empty — NodeAI decides.',
-        gwChangeRoute: 'Change route', gwModelNoteText: 'Do not change Model in Cursor/Cline — switch routes in NodeAI Models; 8787 forwards automatically.',
+        gwRouteHint: 'Paste address + access code; set Model to nodeai-auto. A specific model pins it; blank or unknown values follow the route.',
+        gwChangeRoute: 'Change route', gwModelNoteText: 'Set Model to nodeai-auto in Cursor/Cline — switch routes in NodeAI Models; 8787 forwards automatically.',
         flowRoute: 'Active route',
         trayRouteSmart: 'Route: auto ·', trayRouteFixed: 'Route:',
         intentSection: 'Use case',
@@ -3479,6 +3533,13 @@
       renderContextStrip();
     });
     document.querySelectorAll('.switch').forEach(s => s.addEventListener('click', () => { if (!s.disabled) s.classList.toggle('on'); }));
+    document.getElementById('swLocalServer')?.addEventListener('click', () => {
+      const on = document.getElementById('swLocalServer').classList.contains('on');
+      const state = document.getElementById('setLocalServerState');
+      const lbl = document.getElementById('setLocalServerStateLbl');
+      if (state) state.classList.toggle('paused', !on);
+      if (lbl) lbl.textContent = on ? t('setLocalServerOn') : t('setLocalServerOff');
+    });
 
     document.getElementById('btnAttachFile').addEventListener('click', () => document.getElementById('fileInput').click());
     document.getElementById('btnAttachImage').addEventListener('click', () => document.getElementById('imageInput').click());
