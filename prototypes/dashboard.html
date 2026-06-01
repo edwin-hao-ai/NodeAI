@@ -438,24 +438,38 @@
     .side-link.secondary { color: var(--on-surface-variant); font-size: 13px; }
     .side-link.secondary.active { color: var(--on-surface); }
     #view-models { min-height: 0; overflow: hidden; }
-    .models-vpn-page { flex: 1; min-height: 0; max-width: 440px; width: 100%; margin: 0 auto; padding: 24px 16px 48px;
-      overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch;
-      display: flex; flex-direction: column; gap: 20px; position: relative; }
+    .models-vpn-page { flex: 1; min-height: 0; width: 100%; max-width: 1000px; margin: 0 auto; padding: 28px 28px 28px;
+      position: relative; display: grid; grid-template-columns: minmax(300px, 364px) 1fr; gap: 28px; align-items: stretch; overflow: hidden; }
+    @media (max-width: 900px) { .models-vpn-page { grid-template-columns: 1fr; gap: 20px; padding: 24px 16px 40px; overflow-y: auto; } }
     .vpn-page-bg { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 0; }
-    .bg-orb { position: absolute; border-radius: 50%; filter: blur(72px); opacity: 0.55; animation: orbFloat 14s ease-in-out infinite; }
-    .bg-orb.o1 { width: 180px; height: 180px; top: -40px; left: -30px; background: var(--mesh-a); }
-    .bg-orb.o2 { width: 140px; height: 140px; bottom: 20%; right: -20px; background: var(--mesh-b); animation-delay: -5s; }
+    .bg-orb { position: absolute; border-radius: 50%; filter: blur(80px); opacity: 0.6; animation: orbFloat 16s ease-in-out infinite; }
+    .bg-orb.o1 { width: 280px; height: 280px; top: -60px; left: -40px; background: var(--mesh-a); }
+    .bg-orb.o2 { width: 220px; height: 220px; bottom: -40px; right: 8%; background: var(--mesh-b); animation-delay: -6s; }
     .models-vpn-page > :not(.vpn-page-bg) { position: relative; z-index: 1; }
-    .vpn-connect-hero { text-align: center; padding: 8px 0 4px; }
+    .vpn-hero-col { display: flex; flex-direction: column; justify-content: center; gap: 14px; min-height: 0; }
+    .vpn-list-col { display: flex; flex-direction: column; min-height: 0; gap: 10px; }
+    .vpn-list-col .vpn-node-list { flex: 1; min-height: 0; overflow-y: auto; padding-right: 4px; }
+    .vpn-list-col .section-label-sm { margin: 2px 2px 0; }
+    @media (max-width: 900px) {
+      .vpn-hero-col { justify-content: flex-start; }
+      .vpn-list-col { min-height: auto; }
+      .vpn-list-col .vpn-node-list { overflow: visible; }
+    }
+    .vpn-connect-hero { text-align: center; padding: 30px 22px 26px; border-radius: 22px; position: relative; overflow: hidden;
+      background: linear-gradient(165deg, color-mix(in srgb, var(--savings) 9%, var(--surface-low)) 0%, var(--surface-low) 60%);
+      border: 1px solid var(--outline-variant); transition: border-color 400ms, box-shadow 400ms; }
+    .vpn-connect-hero.live { border-color: color-mix(in srgb, var(--savings) 38%, var(--outline-variant));
+      box-shadow: 0 10px 36px color-mix(in srgb, var(--savings) 11%, transparent); }
+    .vpn-connect-hero.route-applying { opacity: 0.94; }
     .vpn-connect-hero.route-applying .vpn-power-ring { animation: vpnPulse 900ms ease infinite; }
     @keyframes vpnPulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.7; transform: scale(0.94); } }
-    .vpn-connect-hero .vpn-power-ring { width: 72px; height: 72px; margin: 0 auto 12px; }
-    .vpn-connect-hero .vpn-power-ring .material-symbols-outlined { font-size: 32px; }
-    .vpn-state-lbl { font-size: 12px; font-weight: 500; color: var(--savings); margin-bottom: 6px; display: flex; align-items: center; justify-content: center; gap: 6px; }
-    .vpn-route-title { font-size: 26px; font-weight: 500; line-height: 1.2; margin-bottom: 4px; }
+    .vpn-connect-hero .vpn-power-ring { width: 88px; height: 88px; margin: 0 auto 18px; }
+    .vpn-connect-hero .vpn-power-ring .material-symbols-outlined { font-size: 40px; }
+    .vpn-state-lbl { font-size: 12px; font-weight: 500; color: var(--savings); margin-bottom: 8px; display: flex; align-items: center; justify-content: center; gap: 6px; }
+    .vpn-route-title { font-size: 30px; font-weight: 500; line-height: 1.2; margin-bottom: 6px; }
     .vpn-route-model { font-size: 14px; color: var(--on-surface-variant); margin-bottom: 6px; }
     .vpn-synced-line { font-size: 11px; color: var(--on-surface-variant); }
-    .vpn-node-list { display: flex; flex-direction: column; gap: 4px; }
+    .vpn-node-list { display: flex; flex-direction: column; gap: 6px; }
     .vpn-node-row { display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px 14px; border-radius: 14px;
       border: 1px solid transparent; background: var(--surface-container); cursor: pointer; font: inherit; color: inherit;
       text-align: left; transition: background 150ms, border-color 150ms; }
@@ -470,8 +484,11 @@
     .vpn-node-meta { font-size: 10px; color: var(--on-surface-variant); font-family: 'Roboto Mono', monospace; flex-shrink: 0; text-align: right; }
     .vpn-node-check { font-size: 20px; color: var(--savings); flex-shrink: 0; }
     .vpn-footer-bar { display: flex; flex-direction: column; gap: 10px; padding-top: 4px; }
-    .vpn-smart-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 14px;
-      border-radius: 12px; background: var(--surface-container); border: 1px solid var(--outline-variant); font-size: 13px; }
+    .vpn-smart-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 14px;
+      border-radius: 14px; background: var(--surface-container); border: 1px solid var(--outline-variant); font-size: 13px; }
+    .vpn-smart-row-text { display: flex; align-items: center; gap: 10px; min-width: 0; }
+    .vpn-smart-row-text > span:last-child { display: flex; flex-direction: column; line-height: 1.3; }
+    .vpn-smart-row-text small { font-size: 11px; color: var(--on-surface-variant); font-weight: 400; }
     .vpn-status-card { padding: 14px 16px; border-radius: 14px; position: relative;
       background: linear-gradient(135deg, color-mix(in srgb, var(--primary) 14%, var(--surface-container)), var(--surface-container));
       border: 1px solid color-mix(in srgb, var(--primary) 35%, var(--outline-variant)); transition: box-shadow 400ms, border-color 400ms; }
@@ -750,7 +767,9 @@
     .settings-advanced { display: none; margin-top: 4px; }
     .settings-advanced.open { display: block; }
 
-    .connect-banner { display: none; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; margin: 0 16px 8px;
+    .chat-topstack { max-width: 680px; width: 100%; margin: 0 auto; padding: 12px 20px 0; display: flex; flex-direction: column; gap: 8px; flex-shrink: 0; }
+    .chat-topstack:empty { display: none; }
+    .connect-banner { display: none; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; margin: 0;
       background: color-mix(in srgb, var(--secondary) 12%, var(--surface-container)); border: 1px solid color-mix(in srgb, var(--secondary) 35%, var(--outline-variant)); border-radius: 10px; font-size: 13px; }
     .connect-banner.show { display: flex; }
     .connect-banner p { margin: 0; color: var(--on-surface-variant); font-size: 12px; line-height: 1.45; }
@@ -759,13 +778,13 @@
     .btn-connect { padding: 7px 14px; border-radius: 999px; border: none; background: var(--primary); color: var(--on-primary); font: inherit; font-size: 12px; font-weight: 500; cursor: pointer; white-space: nowrap; }
     .btn-connect.ghost { background: transparent; border: 1px solid var(--outline-variant); color: var(--on-surface); }
 
-    .context-strip { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0 16px 10px; padding: 8px 12px; border-radius: 10px;
+    .context-strip { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0; padding: 8px 12px; border-radius: 10px;
       background: color-mix(in srgb, var(--secondary) 8%, var(--surface-container)); border: 1px solid var(--outline-variant); font-size: 12px; color: var(--on-surface-variant); }
     .context-strip strong { color: var(--on-surface); font-weight: 500; }
     .context-strip-actions { margin-left: auto; display: flex; gap: 10px; align-items: center; flex-shrink: 0; }
     .context-strip-actions button { border: none; background: none; color: var(--primary); font: inherit; font-size: 11px; cursor: pointer; padding: 0; white-space: nowrap; }
     .context-strip-actions button:hover { text-decoration: underline; }
-    .chat-ctx-advanced { margin: 0 16px 10px; display: none; }
+    .chat-ctx-advanced { margin: 0; display: none; }
     .chat-ctx-advanced.open { display: block; }
     .chat-ctx-advanced textarea { width: 100%; min-height: 52px; resize: vertical; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--outline-variant);
       background: var(--surface-low); color: var(--on-surface); font: inherit; font-size: 12px; line-height: 1.5; }
@@ -791,8 +810,8 @@
     .celebrate-stat { font-size: 28px; font-weight: 500; color: var(--savings); margin: 8px 0 16px; }
     .celebrate-sheet .btn-primary-celebrate { width: 100%; padding: 12px; border: none; border-radius: 999px; background: var(--primary); color: var(--on-primary); font: inherit; font-size: 14px; font-weight: 500; cursor: pointer; }
 
-    .roi-banner { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; margin: 0 16px 0;
-      background: color-mix(in srgb, var(--savings) 10%, var(--surface-container)); border: 1px solid color-mix(in srgb, var(--savings) 28%, var(--outline-variant));
+    .roi-banner { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 12px; margin: 0;
+      background: color-mix(in srgb, var(--savings) 8%, var(--surface-container)); border: 1px solid color-mix(in srgb, var(--savings) 24%, var(--outline-variant));
       border-radius: 10px; font-size: 12px; flex-shrink: 0; }
     .roi-banner strong { color: var(--savings); }
     .roi-banner button { border: none; background: transparent; color: var(--on-surface-variant); cursor: pointer; padding: 4px; }
@@ -883,22 +902,25 @@
           <div class="view active" id="view-models">
             <div class="models-vpn-page">
               <div class="vpn-page-bg" aria-hidden="true"><span class="bg-orb o1"></span><span class="bg-orb o2"></span></div>
-              <div class="vpn-connect-hero live" id="vpnStatusCard">
-                <div class="vpn-power-ring" aria-hidden="true"><span class="material-symbols-outlined">shield</span></div>
-                <p class="vpn-state-lbl"><span class="vpn-status-dot"></span><span id="vpnLiveLbl" data-i18n="vpnConnected">已连接</span></p>
-                <h1 class="vpn-route-title" id="vpnModelName">日常对话</h1>
-                <p class="vpn-route-model" id="vpnModelSub">Gemini 2.5 Flash</p>
-                <p class="vpn-synced-line" id="vpnSyncedLine"></p>
-              </div>
-              <div>
-                <div class="section-label-sm" id="vpnListLabel" data-i18n="vpnListSmart">选择线路</div>
-                <div class="vpn-node-list" id="vpnNodeList"></div>
-              </div>
-              <div class="vpn-footer-bar">
+              <div class="vpn-hero-col">
+                <div class="vpn-connect-hero live" id="vpnStatusCard">
+                  <div class="vpn-power-ring" aria-hidden="true"><span class="material-symbols-outlined">shield</span></div>
+                  <p class="vpn-state-lbl"><span class="vpn-status-dot"></span><span id="vpnLiveLbl" data-i18n="vpnConnected">已连接</span></p>
+                  <h1 class="vpn-route-title" id="vpnModelName">日常对话</h1>
+                  <p class="vpn-route-model" id="vpnModelSub">Gemini 2.5 Flash</p>
+                  <p class="vpn-synced-line" id="vpnSyncedLine"></p>
+                </div>
                 <div class="vpn-smart-row">
-                  <span data-i18n="smartRouteTitle">智能选模型</span>
+                  <span class="vpn-smart-row-text">
+                    <span class="material-symbols-outlined" style="font-size:18px;color:var(--savings)">auto_awesome</span>
+                    <span><span data-i18n="smartRouteTitle">智能选模型</span><small data-i18n="smartRouteHint">按任务自动挑模型</small></span>
+                  </span>
                   <button type="button" class="toggle-smart on" id="toggleSmartRoute" aria-pressed="true" aria-label="toggle smart route"></button>
                 </div>
+              </div>
+              <div class="vpn-list-col">
+                <div class="section-label-sm" id="vpnListLabel" data-i18n="vpnListSmart">选择线路</div>
+                <div class="vpn-node-list" id="vpnNodeList"></div>
                 <details class="models-advanced">
                   <summary data-i18n="modelsAdvanced">固定某模型…</summary>
                   <div class="gateway-model-list" id="curatedModelList"></div>
@@ -909,20 +931,6 @@
 
           <!-- CHAT -->
           <div class="view" id="view-chat">
-            <div class="roi-banner" id="roiBanner">
-              <span><span data-i18n="roiBannerPre">本月预计净省</span> <strong class="mono" id="roiBannerVal">+¥191</strong> <span data-i18n="roiBannerPost">（已含 ¥29 专业版）</span></span>
-              <button type="button" id="roiBannerClose" aria-label="close"><span class="material-symbols-outlined" style="font-size:18px">close</span></button>
-            </div>
-            <div class="connect-banner" id="connectBanner">
-              <div>
-                <strong data-i18n="connectBannerTitle">想接 Cursor？随时去「连接应用」</strong>
-                <p data-i18n="connectBannerSub">不连接也能聊。接上后可在「总览」或菜单栏托盘看谁在调用</p>
-              </div>
-              <div class="connect-banner-actions">
-                <button type="button" class="btn-connect ghost" id="connectBannerDismiss" data-i18n="connectLater">稍后</button>
-                <button type="button" class="btn-connect" id="connectBannerGo" data-i18n="connectNow">去连接</button>
-              </div>
-            </div>
             <header class="chat-header">
               <button class="route-readonly-chip" id="chatRouteChip" type="button" data-i18n-tip="tipRouteReadonly">
                 <span class="material-symbols-outlined">route</span>
@@ -935,17 +943,33 @@
                 <span data-i18n="chatLiveLink">总览</span>
               </button>
             </header>
-            <div class="context-strip" id="contextStrip">
-              <span class="material-symbols-outlined" style="font-size:16px;color:var(--secondary)">neurology</span>
-              <span><strong data-i18n="ctxStripLbl">AI 已知道：</strong><span id="contextStripSummary">中文回复 · NodeAI 项目</span></span>
-              <div class="context-strip-actions">
-                <button type="button" id="contextGoMemory" data-i18n="ctxStripMemory">查看记忆</button>
-                <button type="button" id="contextStripToggle" data-i18n="ctxStripCustom">仅改这条对话…</button>
+            <div class="chat-topstack">
+              <div class="roi-banner" id="roiBanner">
+                <span><span class="material-symbols-outlined" style="font-size:16px;color:var(--savings);vertical-align:-3px">savings</span> <span data-i18n="roiBannerPre">本月预计净省</span> <strong class="mono" id="roiBannerVal">+¥191</strong> <span data-i18n="roiBannerPost">（已含 ¥29 专业版）</span></span>
+                <button type="button" id="roiBannerClose" aria-label="close"><span class="material-symbols-outlined" style="font-size:18px">close</span></button>
               </div>
-            </div>
-            <div class="chat-ctx-advanced" id="chatCtxAdvanced">
-              <textarea id="chatCtxInput" rows="2" placeholder=""></textarea>
-              <p class="chat-ctx-hint" data-i18n="chatCtxHint">可选：只影响当前对话，不会写入「记忆」页。长期偏好请用「记住这条」。</p>
+              <div class="connect-banner" id="connectBanner">
+                <div>
+                  <strong data-i18n="connectBannerTitle">想接 Cursor？随时去「连接应用」</strong>
+                  <p data-i18n="connectBannerSub">不连接也能聊。接上后可在「总览」或菜单栏托盘看谁在调用</p>
+                </div>
+                <div class="connect-banner-actions">
+                  <button type="button" class="btn-connect ghost" id="connectBannerDismiss" data-i18n="connectLater">稍后</button>
+                  <button type="button" class="btn-connect" id="connectBannerGo" data-i18n="connectNow">去连接</button>
+                </div>
+              </div>
+              <div class="context-strip" id="contextStrip">
+                <span class="material-symbols-outlined" style="font-size:16px;color:var(--secondary)">neurology</span>
+                <span><strong data-i18n="ctxStripLbl">AI 已知道：</strong><span id="contextStripSummary">中文回复 · NodeAI 项目</span></span>
+                <div class="context-strip-actions">
+                  <button type="button" id="contextGoMemory" data-i18n="ctxStripMemory">查看记忆</button>
+                  <button type="button" id="contextStripToggle" data-i18n="ctxStripCustom">仅改这条对话…</button>
+                </div>
+              </div>
+              <div class="chat-ctx-advanced" id="chatCtxAdvanced">
+                <textarea id="chatCtxInput" rows="2" placeholder=""></textarea>
+                <p class="chat-ctx-hint" data-i18n="chatCtxHint">可选：只影响当前对话，不会写入「记忆」页。长期偏好请用「记住这条」。</p>
+              </div>
             </div>
             <div class="chat-body">
               <div class="chat-scroll" id="chatScroll">
@@ -2122,7 +2146,7 @@
         vpnIntentSmart: '场景：{scene} · NodeAI 自动选模型',
         vpnAppsFoot: '{apps} 等 {n} 个应用均走此线路（含 Cursor 与内置对话）',
         vpnAppsFootNone: '连接应用后，所有请求均走此线路',
-        smartRouteTitle: '智能选模型', smartRouteSub: '按场景自动选便宜够用的模型 · 简单任务更省',
+        smartRouteTitle: '智能选模型', smartRouteSub: '按场景自动选便宜够用的模型 · 简单任务更省', smartRouteHint: '按任务自动挑模型',
         smartExplainTitle: '「{scene}」场景已启用',
         smartExplainBody: '你只需选场景，NodeAI 会按任务自动选够用的最便宜模型，不必盯具体型号。',
         smartExplainSave: '今日已通过选模型省',
@@ -2330,7 +2354,7 @@
         vpnIntentSmart: 'Scene: {scene} · NodeAI picks model',
         vpnAppsFoot: '{apps} — {n} apps on this route (incl. Cursor & chat)',
         vpnAppsFootNone: 'Connected apps will use this route',
-        smartRouteTitle: 'Auto pick model', smartRouteSub: 'Pick the cheapest model that fits the scene',
+        smartRouteTitle: 'Auto pick model', smartRouteSub: 'Pick the cheapest model that fits the scene', smartRouteHint: 'Picks a model per task',
         smartExplainTitle: '「{scene}」 scene active',
         smartExplainBody: 'Pick a scene only — NodeAI routes each task to the cheapest model that fits. No need to track model names.',
         smartExplainSave: 'Saved today via routing',
