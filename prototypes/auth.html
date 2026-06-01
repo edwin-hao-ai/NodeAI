@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="slate-dark" data-lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NodeAI — 登录</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet">
+  <style>
+    :root, [data-theme="slate-dark"] {
+      --primary: #8AB4F8; --on-primary: #041E49; --primary-container: #004A77; --on-primary-container: #D3E3FD;
+      --secondary: #6DD58C; --savings: #6DD58C;
+      --surface: #141218; --surface-low: #1D1B20; --surface-container: #211F26; --surface-high: #2B2930; --surface-highest: #36343B;
+      --on-surface: #E6E1E5; --on-surface-variant: #CAC4D0; --outline-variant: #49454F;
+      --error: #FFB4AB; --scene-bg: #0f0e12;
+    }
+    [data-theme="slate-light"] {
+      --primary: #1A73E8; --on-primary: #FFF; --primary-container: #D3E3FD; --on-primary-container: #041E49;
+      --secondary: #188038; --savings: #188038;
+      --surface: #FFF; --surface-low: #F8F9FA; --surface-container: #F1F3F4; --surface-high: #E8EAED; --surface-highest: #DADCE0;
+      --on-surface: #202124; --on-surface-variant: #5F6368; --outline-variant: #DADCE0;
+      --scene-bg: #E8EAED;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Roboto', system-ui, sans-serif; background: var(--scene-bg); color: var(--on-surface); min-height: 100vh; font-size: 14px; line-height: 1.5; }
+    .mono { font-family: 'Roboto Mono', monospace; font-variant-numeric: tabular-nums; }
+    .material-symbols-outlined { font-family: 'Material Symbols Outlined'; font-size: 20px; line-height: 1; vertical-align: middle; }
+    .savings-text { color: var(--savings); }
+
+    .topbar { display: flex; justify-content: space-between; align-items: center; padding: 12px 20px; }
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 500; font-size: 15px; }
+    .brand-icon { width: 32px; height: 32px; border-radius: 8px; background: var(--primary-container); display: grid; place-items: center; color: var(--on-primary-container); }
+    .top-actions { display: flex; gap: 8px; align-items: center; }
+    .ghost-btn { padding: 6px 12px; border-radius: 999px; border: 1px solid var(--outline-variant); background: transparent; color: inherit; font: inherit; font-size: 12px; cursor: pointer; }
+    .ghost-btn:hover { background: var(--surface-container); }
+
+    .layout { display: grid; grid-template-columns: 1fr 1fr; min-height: calc(100vh - 56px); max-width: 1100px; margin: 0 auto; padding: 0 24px 40px; gap: 48px; align-items: center; }
+    @media (max-width: 860px) { .layout { grid-template-columns: 1fr; .hero-panel { display: none; } } }
+
+    .hero-panel { padding: 24px 0; }
+    .hero-panel h1 { font-size: 28px; font-weight: 500; line-height: 1.25; margin-bottom: 12px; }
+    .hero-panel p { color: var(--on-surface-variant); margin-bottom: 24px; max-width: 420px; }
+    .value-list { display: flex; flex-direction: column; gap: 14px; margin-bottom: 28px; }
+    .value-item { display: flex; gap: 12px; align-items: flex-start; }
+    .value-icon { width: 36px; height: 36px; border-radius: 10px; background: var(--surface-container); border: 1px solid var(--outline-variant); display: grid; place-items: center; flex-shrink: 0; color: var(--primary); }
+    .value-item strong { display: block; font-size: 13px; margin-bottom: 2px; }
+    .value-item span { font-size: 12px; color: var(--on-surface-variant); }
+    .roi-card { padding: 16px 18px; border-radius: 14px; background: color-mix(in srgb, var(--savings) 10%, var(--surface-container)); border: 1px solid color-mix(in srgb, var(--savings) 30%, var(--outline-variant)); }
+    .roi-card .roi-big { font-size: 22px; font-weight: 500; color: var(--savings); margin: 6px 0; }
+    .roi-sub { font-size: 12px; color: var(--on-surface-variant); }
+
+    .auth-card { background: var(--surface); border: 1px solid var(--outline-variant); border-radius: 16px; padding: 28px 28px 24px; box-shadow: 0 20px 60px rgba(0,0,0,0.35); max-width: 420px; width: 100%; margin-left: auto; }
+    .auth-panel { display: none; }
+    .auth-panel.active { display: block; }
+    .auth-head { margin-bottom: 22px; }
+    .auth-head h2 { font-size: 20px; font-weight: 500; margin-bottom: 6px; }
+    .auth-head p { font-size: 13px; color: var(--on-surface-variant); }
+    .field { margin-bottom: 14px; }
+    .field label { display: block; font-size: 12px; font-weight: 500; margin-bottom: 6px; color: var(--on-surface-variant); }
+    .field input { width: 100%; padding: 11px 14px; border-radius: 10px; border: 1px solid var(--outline-variant); background: var(--surface-low); color: var(--on-surface); font: inherit; font-size: 14px; }
+    .field input:focus { outline: 2px solid var(--primary); border-color: transparent; }
+    .field-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; font-size: 12px; }
+    .field-row a, .link { color: var(--primary); text-decoration: none; cursor: pointer; background: none; border: none; font: inherit; padding: 0; }
+    .field-row a:hover, .link:hover { text-decoration: underline; }
+    .check-row { display: flex; align-items: flex-start; gap: 8px; font-size: 12px; color: var(--on-surface-variant); margin-bottom: 16px; }
+    .check-row input { margin-top: 3px; accent-color: var(--primary); }
+
+    .btn-primary { width: 100%; padding: 12px 16px; border: none; border-radius: 999px; background: var(--primary); color: var(--on-primary); font: inherit; font-size: 14px; font-weight: 500; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
+    .btn-primary:hover { filter: brightness(1.05); }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-outlined { width: 100%; padding: 11px 16px; border-radius: 999px; border: 1px solid var(--outline-variant); background: transparent; color: inherit; font: inherit; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
+    .btn-outlined:hover { background: var(--surface-container); }
+    .divider { display: flex; align-items: center; gap: 12px; margin: 18px 0; color: var(--on-surface-variant); font-size: 12px; }
+    .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--outline-variant); }
+    .oauth-row { display: flex; gap: 10px; }
+    .oauth-btn { flex: 1; padding: 10px; border-radius: 10px; border: 1px solid var(--outline-variant); background: var(--surface-low); color: inherit; font: inherit; font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
+    .oauth-btn:hover { background: var(--surface-container); }
+    .auth-foot { margin-top: 18px; text-align: center; font-size: 13px; color: var(--on-surface-variant); }
+
+    .steps { display: flex; gap: 6px; margin-bottom: 20px; }
+    .step-dot { flex: 1; height: 4px; border-radius: 2px; background: var(--outline-variant); }
+    .step-dot.done { background: var(--primary); }
+    .step-dot.active { background: var(--primary); box-shadow: 0 0 8px color-mix(in srgb, var(--primary) 50%, transparent); }
+
+    .persona-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+    .persona-opt { padding: 14px 12px; border-radius: 12px; border: 2px solid var(--outline-variant); background: var(--surface-low); cursor: pointer; text-align: left; color: inherit; font: inherit; }
+    .persona-opt.selected { border-color: var(--primary); background: color-mix(in srgb, var(--primary) 8%, var(--surface-low)); }
+    .persona-opt .material-symbols-outlined { font-size: 24px; color: var(--primary); margin-bottom: 6px; display: block; }
+    .persona-opt strong { font-size: 13px; display: block; }
+    .persona-opt span { font-size: 11px; color: var(--on-surface-variant); }
+
+    .plan-preview { padding: 14px; border-radius: 12px; border: 1px solid var(--outline-variant); background: var(--surface-container); margin-bottom: 16px; }
+    .plan-preview-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .plan-badge { font-size: 10px; font-weight: 500; padding: 2px 8px; border-radius: 999px; background: var(--primary-container); color: var(--on-primary-container); }
+    .plan-price { font-size: 24px; font-weight: 500; }
+    .plan-price small { font-size: 13px; font-weight: 400; color: var(--on-surface-variant); }
+    .plan-features { font-size: 12px; color: var(--on-surface-variant); display: flex; flex-direction: column; gap: 4px; margin-top: 10px; }
+    .plan-features li { list-style: none; display: flex; gap: 6px; align-items: center; }
+    .plan-features .material-symbols-outlined { font-size: 16px; color: var(--savings); }
+
+    .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(60px); background: var(--surface-highest);
+      border: 1px solid var(--outline-variant); padding: 10px 20px; border-radius: 999px; font-size: 13px; opacity: 0;
+      transition: transform 300ms, opacity 300ms; z-index: 300; }
+    .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-icon"><span class="material-symbols-outlined">shield</span></div>
+      NodeAI
+    </div>
+    <div class="top-actions">
+      <button class="ghost-btn" id="themeBtn" type="button" title="Theme"><span class="material-symbols-outlined">dark_mode</span></button>
+      <button class="ghost-btn" id="langBtn" type="button">EN</button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="hero-panel">
+      <h1 data-i18n="heroTitle">桌面 AI Token 中枢 — 聊、连、省</h1>
+      <p data-i18n="heroSub">打开就能对话；成长后可接 Cursor、加自己的 API。九类能力、压缩、路由、记忆，统一一张账单。</p>
+      <div class="value-list">
+        <div class="value-item">
+          <div class="value-icon"><span class="material-symbols-outlined">chat</span></div>
+          <div><strong data-i18n="val1t">打开就能聊</strong><span data-i18n="val1d">含额度的好模型 · 不必先装 Codex / Claude Code</span></div>
+        </div>
+        <div class="value-item">
+          <div class="value-icon"><span class="material-symbols-outlined">hub</span></div>
+          <div><strong data-i18n="val2t">Token 中枢</strong><span data-i18n="val2d">九类 API · 格式自动转换 · 本地一个地址给所有 App</span></div>
+        </div>
+        <div class="value-item">
+          <div class="value-icon"><span class="material-symbols-outlined">savings</span></div>
+          <div><strong data-i18n="val3t">默认省钱</strong><span data-i18n="val3d">压缩 + 智能选模型 + 自动换路 · 账单分项可验证</span></div>
+        </div>
+        <div class="value-item">
+          <div class="value-icon"><span class="material-symbols-outlined">neurology</span></div>
+          <div><strong data-i18n="val4t">会一起成长</strong><span data-i18n="val4d">记忆 · 添加自有模型 · 接 Cursor / OpenClaw 等进阶能力</span></div>
+        </div>
+      </div>
+      <div class="roi-card">
+        <div style="font-size:12px;color:var(--on-surface-variant)" data-i18n="roiLbl">典型用户每月预计节省</div>
+        <div class="roi-big mono" id="heroRoi">¥191+</div>
+        <div class="roi-sub" data-i18n="roiSub">相比直接调用各模型 · 含压缩与路由优化</div>
+      </div>
+    </aside>
+
+    <main>
+      <!-- Login -->
+      <div class="auth-card auth-panel active" id="panel-login">
+        <div class="auth-head">
+          <h2 data-i18n="loginTitle">登录 NodeAI</h2>
+          <p data-i18n="loginSub">继续管理你的 AI 用量与连接的应用</p>
+        </div>
+        <form id="formLogin">
+          <div class="field">
+            <label data-i18n="email">邮箱</label>
+            <input type="email" id="loginEmail" autocomplete="email" placeholder="you@example.com" required />
+          </div>
+          <div class="field">
+            <label data-i18n="password">密码</label>
+            <input type="password" id="loginPass" autocomplete="current-password" required />
+          </div>
+          <div class="field-row">
+            <label class="check-row" style="margin:0"><input type="checkbox" checked /> <span data-i18n="remember">记住我</span></label>
+            <button type="button" class="link" data-i18n="forgot">忘记密码？</button>
+          </div>
+          <button class="btn-primary" type="submit"><span data-i18n="loginBtn">登录</span><span class="material-symbols-outlined">arrow_forward</span></button>
+        </form>
+        <div class="divider" data-i18n="or">或</div>
+        <div class="oauth-row">
+          <button class="oauth-btn" type="button" id="btnGoogle"><span class="material-symbols-outlined">account_circle</span> Google</button>
+          <button class="oauth-btn" type="button" id="btnGithub"><span class="material-symbols-outlined">code</span> GitHub</button>
+        </div>
+        <p class="auth-foot"><span data-i18n="noAccount">还没有账号？</span> <button type="button" class="link" id="goRegister" data-i18n="registerLink">免费注册</button></p>
+        <div class="divider" style="margin-top:20px" data-i18n="or">或</div>
+        <button class="btn-outlined" type="button" id="btnByokOnly" style="width:100%;justify-content:center;margin-top:12px">
+          <span class="material-symbols-outlined" style="font-size:18px">offline_pin</span>
+          <span data-i18n="byokOnlyBtn">仅用我的 API Key · 无需登录</span>
+        </button>
+        <p style="font-size:11px;color:var(--on-surface-variant);text-align:center;margin-top:8px;line-height:1.5" data-i18n="byokOnlyHint">推理在桌面本地完成，不经 NodeAI 服务器 · Key 仅存本机</p>
+      </div>
+
+      <!-- Register -->
+      <div class="auth-card auth-panel" id="panel-register">
+        <div class="steps"><div class="step-dot active"></div><div class="step-dot"></div></div>
+        <div class="auth-head">
+          <h2 data-i18n="regTitle">创建账号</h2>
+          <p data-i18n="regSub">注册即含 14 天专业版试用 · 无需信用卡</p>
+        </div>
+        <form id="formRegister">
+          <div class="field">
+            <label data-i18n="name">称呼</label>
+            <input type="text" id="regName" autocomplete="name" data-i18n-placeholder="namePh" required />
+          </div>
+          <div class="field">
+            <label data-i18n="email">邮箱</label>
+            <input type="email" id="regEmail" autocomplete="email" required />
+          </div>
+          <div class="field">
+            <label data-i18n="password">密码</label>
+            <input type="password" id="regPass" autocomplete="new-password" minlength="8" required />
+          </div>
+          <label class="check-row">
+            <input type="checkbox" id="regTerms" required />
+            <span data-i18n-html="terms">同意 <a href="#">服务条款</a> 与 <a href="#">隐私政策</a></span>
+          </label>
+          <button class="btn-primary" type="submit"><span data-i18n="regBtn">继续</span><span class="material-symbols-outlined">arrow_forward</span></button>
+        </form>
+        <p class="auth-foot"><span data-i18n="hasAccount">已有账号？</span> <button type="button" class="link" id="goLogin" data-i18n="loginLink">登录</button></p>
+      </div>
+
+      <!-- Onboarding -->
+      <div class="auth-card auth-panel" id="panel-onboard">
+        <div class="steps"><div class="step-dot done"></div><div class="step-dot active"></div><div class="step-dot"></div></div>
+        <div class="auth-head">
+          <h2 data-i18n="obTitle">你主要怎么用 AI？</h2>
+          <p data-i18n="obSub">我们会据此推荐套餐和默认设置（可随时改）</p>
+        </div>
+        <div class="persona-grid" id="personaGrid">
+          <button type="button" class="persona-opt selected" data-persona="chat">
+            <span class="material-symbols-outlined">chat</span>
+            <strong data-i18n="pChat">主要在 NodeAI 里聊</strong>
+            <span data-i18n="pChatD">写文档、问问题、改文件</span>
+          </button>
+          <button type="button" class="persona-opt" data-persona="ide">
+            <span class="material-symbols-outlined">code</span>
+            <strong data-i18n="pIde">主要在 Cursor 等 IDE</strong>
+            <span data-i18n="pIdeD">写代码、Agent 调用</span>
+          </button>
+          <button type="button" class="persona-opt" data-persona="both">
+            <span class="material-symbols-outlined">sync_alt</span>
+            <strong data-i18n="pBoth">两边都用</strong>
+            <span data-i18n="pBothD">对话 + IDE 要一张账单</span>
+          </button>
+          <button type="button" class="persona-opt" data-persona="byok">
+            <span class="material-symbols-outlined">offline_pin</span>
+            <strong data-i18n="pByok">只用我自己的 Key</strong>
+            <span data-i18n="pByokD">本地直连模型服务商 · 零登录 · 数据不经 NodeAI 服务器</span>
+          </button>
+          <button type="button" class="persona-opt" data-persona="team">
+            <span class="material-symbols-outlined">groups</span>
+            <strong data-i18n="pTeam">帮团队管费用</strong>
+            <span data-i18n="pTeamD">按应用分摊、预算告警</span>
+          </button>
+        </div>
+        <div class="field">
+          <label data-i18n="prefReplyLang">默认回复语言</label>
+          <select id="prefReplyLang" style="width:100%;padding:11px 14px;border-radius:10px;border:1px solid var(--outline-variant);background:var(--surface-low);color:inherit;font:inherit;font-size:14px">
+            <option value="zh">中文</option>
+            <option value="en">English</option>
+            <option value="bilingual">中英混合</option>
+          </select>
+        </div>
+        <p style="font-size:12px;color:var(--on-surface-variant);margin:-6px 0 14px;line-height:1.5" data-i18n="prefNote">会写入记忆库（偏好）· 对话里也可「记住这条」</p>
+        <div class="plan-preview" id="byokPlanBlock" style="display:none;margin-bottom:16px">
+          <div style="font-size:13px;font-weight:500;margin-bottom:6px" data-i18n="byokPlanTitle">本地模式</div>
+          <p style="font-size:12px;color:var(--on-surface-variant);line-height:1.5;margin:0" data-i18n="byokPlanD">添加模型来源即可用 · 压缩/路由在桌面 · 零云端推理</p>
+        </div>
+        <div class="plan-preview" id="planPreviewBlock">
+          <div class="plan-preview-head">
+            <div><span class="plan-badge" data-i18n="trialBadge">14 天试用</span></div>
+            <div class="plan-price">¥29<small data-i18n="perMo">/月</small></div>
+          </div>
+          <div style="font-size:13px;font-weight:500" data-i18n="recPlan">推荐：专业版</div>
+          <ul class="plan-features">
+            <li><span class="material-symbols-outlined">check</span><span data-i18n="pf1">含 ¥48/月 AI 额度 + 九类 API 中枢</span></li>
+            <li><span class="material-symbols-outlined">check</span><span data-i18n="pf2">记忆 · 压缩 · 格式转换 · 添加自有模型</span></li>
+            <li><span class="material-symbols-outlined">check</span><span data-i18n="pf3">无限外部应用 + 完整账单 · 月费 ¥29</span></li>
+          </ul>
+        </div>
+        <div class="roi-card" style="margin-bottom:16px" id="roiPreviewBlock">
+          <div style="font-size:12px;color:var(--on-surface-variant)" data-i18n="obRoiLbl">按你的用法，预计每月可省</div>
+          <div class="roi-big mono" id="obRoi">¥220</div>
+          <div class="roi-sub" id="obRoiSub" data-i18n="obRoiSub">减去套餐费后仍为正 · 详见账单页</div>
+        </div>
+        <button class="btn-primary" type="button" id="btnFinish"><span data-i18n="finishBtn">进入 NodeAI</span><span class="material-symbols-outlined">rocket_launch</span></button>
+        <p class="auth-foot"><button type="button" class="link" id="skipOnboard" data-i18n="skip">跳过，先看界面</button></p>
+      </div>
+    </main>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const I18N = {
+      zh: {
+        heroTitle: '桌面 AI Token 中枢 — 聊、连、省',
+        heroSub: '打开就能对话；成长后可接 Cursor、加自己的 API。九类能力、压缩、路由、记忆，统一一张账单。',
+        val1t: '打开就能聊', val1d: '含额度的好模型 · 不必先装 Codex / Claude Code',
+        val2t: 'Token 中枢', val2d: '九类 API · 格式自动转换 · 本地一个地址给所有 App',
+        val3t: '默认省钱', val3d: '压缩 + 智能选模型 + 自动换路 · 账单分项可验证',
+        val4t: '会一起成长', val4d: '记忆 · 添加自有模型 · 接 Cursor / OpenClaw 等进阶能力',
+        roiLbl: '典型用户每月预计净省', roiSub: '相比直连接模型 · 已减专业版 ¥29',
+        loginTitle: '登录 NodeAI', loginSub: '继续管理你的 AI 用量与连接的应用',
+        email: '邮箱', password: '密码', remember: '记住我', forgot: '忘记密码？',
+        loginBtn: '登录', or: '或', noAccount: '还没有账号？', registerLink: '免费注册',
+        byokOnlyBtn: '仅用我的 API Key · 无需登录', byokOnlyHint: '推理在桌面本地完成，不经 NodeAI 服务器 · Key 仅存本机',
+        toastByokLocal: '已进入本地模式',
+        regTitle: '创建账号', regSub: '注册即含 14 天专业版试用 · 无需信用卡',
+        name: '称呼', namePh: '例如：小美', regBtn: '继续', hasAccount: '已有账号？', loginLink: '登录',
+        terms: '同意 <a href="#">服务条款</a> 与 <a href="#">隐私政策</a>',
+        obTitle: '你主要怎么用 AI？', obSub: '我们会据此推荐套餐和默认设置（可随时改）',
+        pChat: '主要在 NodeAI 里聊', pChatD: '写文档、问问题、改文件',
+        pIde: '主要在 Cursor 等 IDE', pIdeD: '写代码、Agent 调用',
+        pBoth: '两边都用', pBothD: '对话 + IDE 要一张账单',
+        pByok: '只用我自己的 Key', pByokD: '本地直连模型服务商 · 零登录 · 数据不经 NodeAI 服务器',
+        pTeam: '帮团队管费用', pTeamD: '按应用分摊、预算告警',
+        byokPlanTitle: '本地模式', byokPlanD: '添加模型来源即可用 · 压缩/选模型在本机 · 不经云端推理',
+        trialBadge: '14 天试用', perMo: '/月', recPlan: '推荐：专业版',
+        pf1: '含 ¥48/月 AI 额度 + 九类 API 中枢', pf2: '记忆 · 压缩 · 格式转换 · 添加自有模型', pf3: '无限外部应用 + 完整账单 · 月费 ¥29',
+        prefReplyLang: '默认回复语言', prefNote: '会写入记忆库（偏好）· 对话里也可「记住这条」',
+        obRoiLbl: '按你的用法，预计每月净省（减 ¥29 后）', obRoiSub: '重度 IDE 用户通常仍为正 · 详见账单页',
+        finishBtn: '进入 NodeAI', skip: '跳过，先看界面',
+        toastLogin: '登录成功', toastReg: '账号已创建', toastForgot: '重置链接已发送（演示）',
+        toastOAuth: '第三方登录（演示）',
+      },
+      en: {
+        heroTitle: 'Desktop AI token hub — chat, connect, save',
+        heroSub: 'Chat on day one; connect Cursor or add your keys as you grow. Nine API kinds, compress, route, memory — one bill.',
+        val1t: 'Chat first', val1d: 'Allowance-backed models · no Codex / Claude Code required',
+        val2t: 'Token hub', val2d: '9 API kinds · auto format translation · one local URL for all apps',
+        val3t: 'Savings by default', val3d: 'Compress + smart route + auto reroute · verifiable line items',
+        val4t: 'Grows with you', val4d: 'Memory · add your model sources · Cursor / OpenClaw when ready',
+        roiLbl: 'Typical monthly net savings', roiSub: 'vs. direct model calls · after ¥29 Pro',
+        loginTitle: 'Sign in to NodeAI', loginSub: 'Manage usage and connected apps',
+        email: 'Email', password: 'Password', remember: 'Remember me', forgot: 'Forgot password?',
+        loginBtn: 'Sign in', or: 'or', noAccount: 'No account?', registerLink: 'Sign up free',
+        byokOnlyBtn: 'Use my API key only · no sign-in', byokOnlyHint: 'Inference stays on device — keys in Keychain only',
+        toastByokLocal: 'Local mode enabled',
+        regTitle: 'Create account', regSub: '14-day Pro trial · no credit card',
+        name: 'Name', namePh: 'e.g. Alex', regBtn: 'Continue', hasAccount: 'Have an account?', loginLink: 'Sign in',
+        terms: 'I agree to the <a href="#">Terms</a> and <a href="#">Privacy Policy</a>',
+        obTitle: 'How do you mainly use AI?', obSub: 'We\'ll suggest a plan and defaults (change anytime)',
+        pChat: 'Mostly in NodeAI chat', pChatD: 'Docs, Q&A, file edits',
+        pIde: 'Mostly in Cursor / IDE', pIdeD: 'Coding & agent calls',
+        pBoth: 'Both', pBothD: 'Chat + IDE on one bill',
+        pByok: 'My keys only', pByokD: 'Direct to provider · no sign-in · no NodeAI server',
+        pTeam: 'Team cost control', pTeamD: 'Per-app split & budget alerts',
+        byokPlanTitle: 'Local mode', byokPlanD: 'Add a source and go · compress/route on device · zero cloud inference',
+        trialBadge: '14-day trial', perMo: '/mo', recPlan: 'Recommended: Pro',
+        pf1: '¥48/mo allowance + 9-kind API hub', pf2: 'Memory · compress · format translate · your model sources', pf3: 'Unlimited apps + full billing · ¥29/mo',
+        prefReplyLang: 'Default reply language', prefNote: 'Saved to memory (prefs) · use Remember this in chat',
+        obRoiLbl: 'Est. monthly net save (after ¥29)', obRoiSub: 'Heavy IDE users usually still positive · see Billing',
+        finishBtn: 'Open NodeAI', skip: 'Skip — preview app',
+        toastLogin: 'Signed in', toastReg: 'Account created', toastForgot: 'Reset link sent (demo)',
+        toastOAuth: 'OAuth sign-in (demo)',
+      }
+    };
+    const ROI = { chat: 95, ide: 240, both: 220, team: 380, byok: 0 };
+    const PRO_PRICE = 29;
+    let lang = localStorage.getItem('nodeai-lang') || 'zh';
+    let persona = 'chat';
+
+    function t(k) { return I18N[lang][k] || k; }
+    function showPanel(id) {
+      document.querySelectorAll('.auth-panel').forEach(p => p.classList.remove('active'));
+      document.getElementById('panel-' + id)?.classList.add('active');
+    }
+    function applyI18n() {
+      document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en';
+      document.documentElement.dataset.lang = lang;
+      document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
+      document.querySelectorAll('[data-i18n-html]').forEach(el => { el.innerHTML = t(el.dataset.i18nHtml); });
+      document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.dataset.i18nPlaceholder); });
+      document.getElementById('langBtn').textContent = lang === 'zh' ? 'EN' : '中文';
+      updateObRoi();
+    }
+    function showToast(msg) {
+      const el = document.getElementById('toast');
+      el.textContent = msg;
+      el.classList.add('show');
+      setTimeout(() => el.classList.remove('show'), 2200);
+    }
+    function finishByokLocal() {
+      const replyLang = document.getElementById('prefReplyLang')?.value || 'zh';
+      const ctxMap = {
+        zh: '本地模式 · 回复用中文',
+        en: 'Local mode · Reply in English',
+        bilingual: 'Local mode · 中文回复 · English comments',
+      };
+      localStorage.setItem('nodeai-user', JSON.stringify({
+        name: lang === 'zh' ? '本地用户' : 'Local user',
+        email: 'local@nodeai',
+        mode: 'byok-only',
+        persona: 'byok',
+        prefs: { replyLang, chatContext: ctxMap[replyLang] || ctxMap.zh },
+      }));
+      localStorage.setItem('nodeai-cursor-connected', '1');
+      window.location.href = 'dashboard.html?mode=local';
+    }
+    function finishAuth() {
+      const replyLang = document.getElementById('prefReplyLang')?.value || 'zh';
+      const ctxMap = {
+        zh: '项目：NodeAI · 回复用中文 · 代码注释用英文',
+        en: 'Project: NodeAI · Reply in English · concise answers',
+        bilingual: 'Project: NodeAI · 回复中文 · comments in English',
+      };
+      const mode = persona === 'byok' ? 'byok-only' : 'hosted';
+      localStorage.setItem('nodeai-user', JSON.stringify({
+        name: document.getElementById('regName')?.value || 'Demo',
+        email: document.getElementById('loginEmail')?.value || document.getElementById('regEmail')?.value || 'demo@nodeai.app',
+        plan: mode === 'byok-only' ? 'local' : 'pro-trial',
+        mode,
+        persona,
+        prefs: { replyLang, chatContext: ctxMap[replyLang] },
+      }));
+      const needsConnect = persona === 'ide' || persona === 'both' || persona === 'team';
+      localStorage.setItem('nodeai-cursor-connected', needsConnect ? '0' : '1');
+      window.location.href = mode === 'byok-only' ? 'dashboard.html?mode=local' : (needsConnect ? 'dashboard.html?welcome=connect' : 'dashboard.html');
+    }
+    function updateObRoi() {
+      const byok = persona === 'byok';
+      document.getElementById('planPreviewBlock')?.style.setProperty('display', byok ? 'none' : 'block');
+      document.getElementById('roiPreviewBlock')?.style.setProperty('display', byok ? 'none' : 'block');
+      const planBlock = document.getElementById('byokPlanBlock');
+      if (planBlock) planBlock.style.display = byok ? 'block' : 'none';
+      if (byok) return;
+      const v = ROI[persona] || 220;
+      document.getElementById('obRoi').textContent = '¥' + (v - PRO_PRICE);
+    }
+
+    document.getElementById('langBtn').addEventListener('click', () => {
+      lang = lang === 'zh' ? 'en' : 'zh';
+      localStorage.setItem('nodeai-lang', lang);
+      applyI18n();
+    });
+    document.getElementById('themeBtn').addEventListener('click', () => {
+      const cur = document.documentElement.getAttribute('data-theme');
+      const next = cur === 'slate-light' ? 'slate-dark' : 'slate-light';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('nodeai-theme', next);
+    });
+    document.getElementById('goRegister').addEventListener('click', () => showPanel('register'));
+    document.getElementById('goLogin').addEventListener('click', () => showPanel('login'));
+    document.querySelector('[data-i18n="forgot"]')?.addEventListener('click', () => showToast(t('toastForgot')));
+    document.getElementById('btnGoogle').addEventListener('click', () => { showToast(t('toastOAuth')); setTimeout(finishAuth, 800); });
+    document.getElementById('btnGithub').addEventListener('click', () => { showToast(t('toastOAuth')); setTimeout(finishAuth, 800); });
+    document.getElementById('btnByokOnly')?.addEventListener('click', () => { showToast(t('toastByokLocal')); setTimeout(finishByokLocal, 500); });
+
+    document.getElementById('formLogin').addEventListener('submit', e => {
+      e.preventDefault();
+      showToast(t('toastLogin'));
+      setTimeout(finishAuth, 600);
+    });
+    document.getElementById('formRegister').addEventListener('submit', e => {
+      e.preventDefault();
+      showToast(t('toastReg'));
+      showPanel('onboard');
+    });
+    document.querySelectorAll('.persona-opt').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.persona-opt').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+        persona = btn.dataset.persona;
+        updateObRoi();
+      });
+    });
+    document.getElementById('btnFinish').addEventListener('click', finishAuth);
+    document.getElementById('skipOnboard').addEventListener('click', finishAuth);
+
+    document.documentElement.setAttribute('data-theme', localStorage.getItem('nodeai-theme') || 'slate-dark');
+    applyI18n();
+    if (new URLSearchParams(location.search).get('register') === '1') showPanel('register');
+  </script>
+</body>
+</html>

@@ -1,0 +1,41 @@
+---
+description: NodeAI 用户可见文案 — 禁止开发者术语（原型与设计）
+globs: prototypes/**,DESIGN.md
+alwaysApply: false
+---
+
+# NodeAI UI 文案规则
+
+面向 Persona「小美」：首屏应能 **打开对话 → 得到回答 → 看见今天省了多少钱**，全程不强制懂技术缩写。
+
+## 禁止出现在用户界面
+
+`BYOK`、`RTK`、`Caveman`、`Prune`、`Smart Route`、`Fallback`、`Runtime`、`Provider`、`localhost`、`OpenAI 兼容`、`App Key`、`Gateway`（作名词展示时）
+
+代码内部标识（如 `path: 'local'`、`data-bill-path="byok"`、`isByokOnly()`）可保留。
+
+## 推荐说法（中 / en）
+
+| 内部 | 中文 | English |
+|------|------|---------|
+| BYOK / 自有 Key 路径 | 自有 Key / 我的模型来源 / 本地直连 | My keys / model sources / on device |
+| Smart Route | 智能选模型 | Auto model pick |
+| Fallback | 自动换路 / 限流自动换路 | Auto reroute |
+| RTK | 智能压缩 | Smart compress |
+| Caveman | 简洁回复 | Concise replies |
+| Prune | 上下文整理 | Context prune |
+| Provider | 模型服务商 | Provider / your AI service |
+| Runtime | 本机 / 桌面 | On device |
+| 含额度路径 | 含额度 | Allowance |
+
+## 对话页上下文
+
+- 不要首屏大块「本对话上下文」textarea
+- 用只读条：**「AI 已知道：…」** + 「查看记忆」+ 可选「仅改这条对话…」
+- 长期偏好走 **记忆页 /「记住这条」**，不与 Memory 重复叙事
+
+## i18n
+
+- 所有用户可见字符串走 `data-i18n` + `I18N.zh` / `I18N.en`
+- Tooltip 用 `data-i18n-tip` + `setTooltips()`
+- 改文案时 **中英同步**

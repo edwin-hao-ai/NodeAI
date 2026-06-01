@@ -1,0 +1,37 @@
+---
+description: 每次完成代码修改后提交 Git，保持可回溯的增量历史
+alwaysApply: true
+---
+
+# NodeAI：修改后提交
+
+在本仓库中，**完成一轮有意义的文件修改后，应创建 Git commit**，不要只改文件不提交。
+
+## 何时提交
+
+- 完成一个可独立描述的功能、修复或文档更新后
+- 本会话内多轮小改若属于同一目标，可合并为一次 commit；若目标已切换，分开提交
+- 用户明确说「不要提交」「先别 commit」时，跳过
+
+## 不要提交
+
+- `.env`、密钥、凭证
+- `.DS_Store` 等本地垃圾文件
+
+## 提交流程
+
+1. 并行查看：`git status`、`git diff`、`git log -1 --oneline`（对齐 message 风格）
+2. `git add` 仅相关文件（勿 add  secrets）
+3. 用 HEREDOC 写 1–2 句 commit message，说明 **why**
+4. `git commit` 后 `git status` 确认成功
+5. **不要** 除非用户要求，否则不 `git push`
+
+## JS 原型额外检查
+
+改 `prototypes/dashboard.html` 内联脚本后，提交前用 Node 验证脚本可解析：
+
+```bash
+node -e "const fs=require('fs');const h=fs.readFileSync('prototypes/dashboard.html','utf8');const m=h.match(/<script>([\\s\\S]*)<\\/script>\\s*<\\/body>/);new Function(m[1]);console.log('ok')"
+```
+
+避免 `?.prop = value` 等非法语法导致整页脚本失效。
