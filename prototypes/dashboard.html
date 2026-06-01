@@ -979,6 +979,7 @@
             <button class="side-link" data-view="gateway" type="button" data-i18n-tip="tipNavGateway"><span class="material-symbols-outlined">hub</span><span data-i18n="navGateway">连接</span></button>
             <button class="side-link more-btn" id="sideMore" type="button" data-i18n-tip="tipNavMore"><span class="material-symbols-outlined">more_horiz</span><span data-i18n="navMore">更多</span></button>
             <div class="more-menu" id="moreMenu">
+              <button class="more-item" type="button" id="moreBrowseModels"><span class="material-symbols-outlined">tune</span><span data-i18n="navBrowseModels">浏览模型</span></button>
               <button class="more-item" type="button" data-go="memory"><span class="material-symbols-outlined">neurology</span><span data-i18n="navMemory">记忆</span></button>
               <button class="more-item" type="button" data-go="sources"><span class="material-symbols-outlined">database</span><span data-i18n="navSources">模型来源</span></button>
               <button class="more-item" type="button" data-go="billing"><span class="material-symbols-outlined">receipt_long</span><span data-i18n="navBilling">账单</span></button>
@@ -2372,7 +2373,7 @@
     const I18N = {
       zh: {
         newChat: '新对话', budgetLeft: '预算剩余', savedToday: '今日节省', navChat: '对话', navModels: '选模型', navHub: '总览',
-        navGateway: '连接应用', navBilling: '账单', navMemory: '记忆', navApps: '已连应用', navPlan: '套餐', navMore: '更多', navSettings: '设置', trust: '由', trustOk: '正常',
+        navGateway: '连接应用', navBilling: '账单', navMemory: '记忆', navApps: '已连应用', navPlan: '套餐', navMore: '更多', navSettings: '设置', navBrowseModels: '浏览模型', trust: '由', trustOk: '正常',
         trustVercel: 'AI 基础设施由 Vercel 提供',
         setTheme: '外观主题', setThemeSub: 'Forest · Slate · Indigo',
         vpnConnected: '已连接',
@@ -2613,7 +2614,7 @@
       },
       en: {
         newChat: 'New chat', budgetLeft: 'Budget left', savedToday: 'Saved today', navChat: 'Chat', navModels: 'Models', navHub: 'Overview',
-        navGateway: 'Connect apps', navBilling: 'Billing', navMemory: 'Memory', navApps: 'Connected', navPlan: 'Plan', navMore: 'More', navSettings: 'Settings', trust: 'Powered by', trustOk: 'Healthy',
+        navGateway: 'Connect apps', navBilling: 'Billing', navMemory: 'Memory', navApps: 'Connected', navPlan: 'Plan', navMore: 'More', navSettings: 'Settings', navBrowseModels: 'Browse models', trust: 'Powered by', trustOk: 'Healthy',
         trustVercel: 'AI infrastructure by Vercel',
         setTheme: 'Appearance', setThemeSub: 'Forest · Slate · Indigo',
         vpnConnected: 'Connected',
@@ -3778,7 +3779,8 @@
 
     document.querySelectorAll('.side-link[data-view]').forEach(l => l.addEventListener('click', () => showView(l.dataset.view)));
     document.getElementById('sideMore')?.addEventListener('click', toggleMoreMenu);
-    document.querySelectorAll('.more-item').forEach(item => item.addEventListener('click', () => showView(item.dataset.go)));
+    document.querySelectorAll('.more-item').forEach(item => item.addEventListener('click', () => { if (item.dataset.go) showView(item.dataset.go); }));
+    document.getElementById('moreBrowseModels')?.addEventListener('click', () => { closeMenus(); openModelCatalog(); });
     document.getElementById('hudSummaryBtn')?.addEventListener('click', e => {
       e.stopPropagation();
       document.getElementById('hudPopover')?.classList.toggle('open');
