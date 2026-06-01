@@ -328,6 +328,43 @@
     .send-btn { width: 34px; height: 34px; border: none; border-radius: 999px; background: var(--primary); color: var(--on-primary); cursor: pointer; display: grid; place-items: center; margin-bottom: 4px; flex-shrink: 0; }
     .composer-hint { text-align: center; font-size: 10px; color: var(--on-surface-variant); margin-top: 6px; }
 
+    .chat-starters { margin: 0 auto 10px; padding: 12px 14px; background: var(--surface-container); border: 1px solid var(--outline-variant); border-radius: 14px; }
+    .chat-starters[hidden] { display: none; }
+    .chat-starters-head { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--on-surface-variant); margin-bottom: 10px; }
+    .chat-starters-head .material-symbols-outlined { font-size: 16px; color: var(--savings); }
+    .chat-starters-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+    .starter-chip { padding: 8px 12px; border-radius: 999px; border: 1px solid var(--outline-variant); background: var(--surface-low);
+      color: var(--on-surface); font: inherit; font-size: 12px; cursor: pointer; }
+    .starter-chip:hover { border-color: var(--primary); background: var(--surface-high); }
+
+    .aha-banner { display: flex; align-items: center; gap: 10px; margin-top: 10px; padding: 12px 14px; border-radius: 12px;
+      background: color-mix(in srgb, var(--savings) 12%, var(--surface-container)); border: 1px solid color-mix(in srgb, var(--savings) 38%, var(--outline-variant)); }
+    .aha-banner > .material-symbols-outlined { color: var(--savings); font-size: 24px; flex-shrink: 0; }
+    .aha-text { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.35; }
+    .aha-text strong { font-size: 13px; }
+    .aha-text span { font-size: 11px; color: var(--on-surface-variant); }
+    .aha-go { flex-shrink: 0; padding: 7px 14px; border-radius: 999px; border: none; background: var(--primary); color: var(--on-primary); font: inherit; font-size: 12px; font-weight: 500; cursor: pointer; }
+
+    .onboard-card { background: var(--surface-container); border: 1px solid color-mix(in srgb, var(--primary) 30%, var(--outline-variant)); border-radius: 14px; padding: 14px 16px; margin-bottom: 16px; }
+    .onboard-card[hidden] { display: none; }
+    .onboard-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+    .onboard-head strong { font-size: 14px; }
+    .onboard-progress { font-size: 11px; color: var(--on-surface-variant); margin-left: 10px; font-family: 'Roboto Mono', monospace; }
+    .onboard-dismiss { border: none; background: transparent; color: var(--on-surface-variant); cursor: pointer; padding: 2px; border-radius: 8px; }
+    .onboard-dismiss:hover { background: var(--surface-high); }
+    .onboard-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    @media (max-width: 760px) { .onboard-steps { grid-template-columns: 1fr; } }
+    .onboard-step { display: flex; align-items: center; gap: 10px; padding: 12px; border-radius: 12px; border: 1px solid var(--outline-variant);
+      background: var(--surface-low); color: inherit; font: inherit; cursor: pointer; text-align: left; }
+    .onboard-step:hover { background: var(--surface-high); }
+    .onboard-step.done { opacity: 0.7; cursor: default; }
+    .onboard-step-check { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; flex-shrink: 0;
+      background: var(--surface-highest); color: var(--on-surface-variant); }
+    .onboard-step.done .onboard-step-check { background: color-mix(in srgb, var(--savings) 20%, transparent); color: var(--savings); }
+    .onboard-step-check .material-symbols-outlined { font-size: 18px; }
+    .onboard-step-lbl { flex: 1; min-width: 0; font-size: 12px; }
+    .onboard-step-arrow { font-size: 18px; color: var(--on-surface-variant); }
+
     .route-line { font-size: 11px; align-items: center; gap: 6px; }
     .page-scroll { flex: 1; overflow-y: auto; padding: 20px 24px 28px; }
     .page-head { margin-bottom: 16px; }
@@ -563,6 +600,62 @@
     .models-advanced summary::before { content: '▸ '; display: inline-block; transition: transform 150ms; }
     .models-advanced[open] summary::before { transform: rotate(90deg); }
     .models-advanced .gateway-model-list { padding: 0 10px 10px; }
+    .models-browse-btn { display: flex; align-items: center; gap: 12px; width: 100%; padding: 14px; border-radius: 14px;
+      border: 1px solid var(--outline-variant); background: var(--surface-container); color: inherit; font: inherit; cursor: pointer; text-align: left; }
+    .models-browse-btn:hover { background: var(--surface-high); border-color: var(--primary); }
+    .models-browse-btn > .material-symbols-outlined { color: var(--on-surface-variant); flex-shrink: 0; }
+    .models-browse-text { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.3; }
+    .models-browse-text small { font-size: 11px; color: var(--on-surface-variant); }
+    .models-browse-count { flex-shrink: 0; font-size: 11px; padding: 3px 9px; border-radius: 999px; background: var(--surface-highest); color: var(--on-surface-variant); }
+
+    /* Model catalog modal */
+    .catalog-sheet { max-width: 600px; max-height: 88vh; display: flex; flex-direction: column; padding: 0; overflow: hidden; }
+    .catalog-sheet .modal-head { padding: 18px 20px 12px; margin: 0; }
+    .catalog-head-sub { font-size: 11px; color: var(--on-surface-variant); margin-top: 4px; line-height: 1.4; max-width: 440px; }
+    .catalog-controls { display: flex; gap: 8px; padding: 0 20px 10px; }
+    .catalog-search { flex: 1; display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 10px;
+      background: var(--surface-low); border: 1px solid var(--outline-variant); }
+    .catalog-search:focus-within { border-color: var(--primary); }
+    .catalog-search .material-symbols-outlined { font-size: 18px; color: var(--on-surface-variant); flex-shrink: 0; }
+    .catalog-search input { flex: 1; border: none; background: transparent; color: var(--on-surface); font: inherit; font-size: 13px; outline: none; min-width: 0; }
+    .catalog-search-clear { border: none; background: transparent; color: var(--on-surface-variant); cursor: pointer; padding: 0; display: grid; place-items: center; }
+    .catalog-sort { padding: 8px 10px; border-radius: 10px; border: 1px solid var(--outline-variant); background: var(--surface-low); color: inherit; font: inherit; font-size: 12px; cursor: pointer; flex-shrink: 0; }
+    .catalog-types { display: flex; gap: 6px; padding: 0 20px 8px; flex-wrap: wrap; }
+    .cat-type { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--outline-variant);
+      background: var(--surface-container); color: var(--on-surface-variant); font: inherit; font-size: 12px; cursor: pointer; }
+    .cat-type.active { border-color: var(--primary); color: var(--primary); background: color-mix(in srgb, var(--primary) 10%, var(--surface-container)); }
+    .cat-type-n { font-size: 10px; opacity: 0.7; }
+    .catalog-providers { display: flex; gap: 6px; padding: 0 20px 10px; flex-wrap: wrap; max-height: 76px; overflow-y: auto; }
+    .cat-prov { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 999px; border: 1px solid var(--outline-variant);
+      background: var(--surface-low); color: var(--on-surface-variant); font: inherit; font-size: 11px; cursor: pointer; }
+    .cat-prov.active { border-color: var(--primary); color: var(--on-surface); background: color-mix(in srgb, var(--primary) 12%, var(--surface-low)); }
+    .cat-prov-badge { width: 18px; height: 18px; border-radius: 5px; display: inline-grid; place-items: center; font-size: 10px; font-weight: 500; flex-shrink: 0; }
+    .catalog-list { flex: 1; min-height: 0; overflow-y: auto; padding: 4px 14px 12px; }
+    .cat-group { font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--on-surface-variant); margin: 12px 6px 6px; }
+    .cat-row { display: flex; align-items: stretch; gap: 4px; border-radius: 12px; }
+    .cat-row.active { background: color-mix(in srgb, var(--savings) 8%, transparent); }
+    .cat-row-main { flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid transparent; border-radius: 12px;
+      background: transparent; color: inherit; font: inherit; cursor: pointer; text-align: left; }
+    .cat-row-main:hover { background: var(--surface-high); }
+    .cat-prov-badge.big, .cat-row-main .cat-prov-badge { width: 32px; height: 32px; border-radius: 9px; font-size: 14px; flex-shrink: 0; }
+    .cat-row-info { flex: 1; min-width: 0; }
+    .cat-row-name { font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 6px; }
+    .cat-row-pinned { font-size: 9px; font-weight: 500; padding: 1px 6px; border-radius: 999px; background: color-mix(in srgb, var(--savings) 22%, transparent); color: var(--savings); }
+    .cat-row-id { font-size: 10px; color: var(--on-surface-variant); display: block; margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .cat-row-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
+    .cat-badge, .cat-cap { font-size: 9px; padding: 1px 6px; border-radius: 999px; background: var(--surface-highest); color: var(--on-surface-variant); }
+    .cat-cap { background: color-mix(in srgb, var(--secondary) 14%, var(--surface-highest)); }
+    .cat-row-price { font-size: 11px; color: var(--on-surface-variant); flex-shrink: 0; text-align: right; max-width: 130px; }
+    .cat-fav { border: none; background: transparent; color: var(--on-surface-variant); cursor: pointer; padding: 0 8px; display: grid; place-items: center; flex-shrink: 0; border-radius: 10px; }
+    .cat-fav:hover { color: var(--warn); }
+    .cat-fav.on { color: var(--warn); }
+    .cat-fav .material-symbols-outlined { font-size: 18px; }
+    .cat-empty { text-align: center; font-size: 12px; color: var(--on-surface-variant); padding: 32px 16px; }
+    .catalog-foot { padding: 10px 20px 16px; border-top: 1px solid var(--outline-variant); }
+    .catalog-auto-btn { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 11px; border-radius: 999px;
+      border: 1px solid color-mix(in srgb, var(--savings) 40%, var(--outline-variant)); background: color-mix(in srgb, var(--savings) 10%, var(--surface-container));
+      color: var(--savings); font: inherit; font-size: 13px; font-weight: 500; cursor: pointer; }
+    .catalog-auto-btn:hover { background: color-mix(in srgb, var(--savings) 16%, var(--surface-container)); }
     .models-vpn-foot { font-size: 11px; color: var(--on-surface-variant); line-height: 1.5; }
     .gw-route-step0 { padding: 14px 16px; border-radius: 12px; margin-bottom: 12px;
       background: var(--surface-container); border: 1px solid var(--outline-variant); }
@@ -934,10 +1027,11 @@
               <div class="vpn-list-col">
                 <div class="section-label-sm" id="vpnListLabel" data-i18n="vpnListSmart">选择线路</div>
                 <div class="vpn-node-list" id="vpnNodeList"></div>
-                <details class="models-advanced">
-                  <summary data-i18n="modelsAdvanced">固定某模型…</summary>
-                  <div class="gateway-model-list" id="curatedModelList"></div>
-                </details>
+                <button type="button" class="models-browse-btn" id="openCatalogBtn">
+                  <span class="material-symbols-outlined">tune</span>
+                  <span class="models-browse-text"><span data-i18n="modelsBrowse">固定某模型 · 浏览全部</span><small data-i18n="modelsBrowseSub">按厂商 / 类型 / 价格筛选 · 含搜索</small></span>
+                  <span class="models-browse-count mono" id="modelsBrowseCount">40+</span>
+                </button>
               </div>
             </div>
           </div>
@@ -1008,6 +1102,13 @@
             </div>
 
             <div class="composer-wrap">
+              <div class="chat-starters composer-box" id="chatStarters" hidden>
+                <div class="chat-starters-head">
+                  <span class="material-symbols-outlined">auto_awesome</span>
+                  <span data-i18n="startersHead">不用挑模型，NodeAI 自动选最划算的 · 试试：</span>
+                </div>
+                <div class="chat-starters-chips" id="chatStartersChips"></div>
+              </div>
               <div class="composer-box">
                 <div class="composer">
                   <div class="attach-chips" id="attachChips"></div>
@@ -1031,6 +1132,17 @@
           <div class="view" id="view-hub">
             <div class="page-scroll">
               <div class="page-head compact"><h1 data-i18n="hubTitle">使用总览</h1></div>
+
+              <div class="onboard-card" id="onboardCard" hidden>
+                <div class="onboard-head">
+                  <div>
+                    <strong data-i18n="obCardTitle">认识 NodeAI</strong>
+                    <span class="onboard-progress" id="onboardProgress">0 / 3</span>
+                  </div>
+                  <button type="button" class="onboard-dismiss" id="onboardDismiss" aria-label="dismiss"><span class="material-symbols-outlined" style="font-size:18px">close</span></button>
+                </div>
+                <div class="onboard-steps" id="onboardSteps"></div>
+              </div>
 
               <div class="hub-live-block">
                 <div class="section-head" style="margin-bottom:8px">
@@ -1518,6 +1630,40 @@
     </div>
   </div>
 
+  <div class="modal-backdrop" id="modelCatalogModal" aria-hidden="true">
+    <div class="modal-sheet catalog-sheet" role="dialog">
+      <div class="modal-head">
+        <div>
+          <h3 data-i18n="catalogTitle">浏览全部模型</h3>
+          <p class="catalog-head-sub" data-i18n="catalogSub">由 Vercel 提供 · 全部经统一地址，无需在应用里改 Model</p>
+        </div>
+        <button class="modal-close" type="button" id="catalogClose" aria-label="close"><span class="material-symbols-outlined">close</span></button>
+      </div>
+      <div class="catalog-controls">
+        <div class="catalog-search">
+          <span class="material-symbols-outlined">search</span>
+          <input type="text" id="catalogSearch" data-i18n-placeholder="catalogSearchPh" autocomplete="off" />
+          <button type="button" id="catalogSearchClear" class="catalog-search-clear" aria-label="clear" hidden><span class="material-symbols-outlined" style="font-size:18px">close</span></button>
+        </div>
+        <select id="catalogSort" class="catalog-sort" aria-label="sort">
+          <option value="featured" data-i18n="catSortFeatured">推荐</option>
+          <option value="cheap" data-i18n="catSortCheap">最便宜</option>
+          <option value="fast" data-i18n="catSortFast">最快</option>
+          <option value="context" data-i18n="catSortContext">上下文最长</option>
+        </select>
+      </div>
+      <div class="catalog-types" id="catalogTypes"></div>
+      <div class="catalog-providers" id="catalogProviders"></div>
+      <div class="catalog-list" id="catalogList"></div>
+      <div class="catalog-foot">
+        <button type="button" class="catalog-auto-btn" id="catalogAutoBtn">
+          <span class="material-symbols-outlined">auto_awesome</span>
+          <span data-i18n="catalogAuto">让全自动决定（推荐）</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
   <script>
     const BUDGET = { cap: 48, used: 31.2, today: 3.8, saved: 12.4, tokens: 820000 };
     const PRO_PRICE = 29;
@@ -1594,26 +1740,44 @@
     ];
 
     const GATEWAY_MODELS = [
-      { id: 'anthropic/claude-sonnet-4.6', type: 'lang', provider: 'Anthropic', priceIn: 2.2, priceOut: 11.0, displayName: { zh: 'Claude Sonnet 4.6', en: 'Claude Sonnet 4.6' } },
-      { id: 'anthropic/claude-opus-4', type: 'lang', provider: 'Anthropic', priceIn: 4.5, priceOut: 22.0, displayName: { zh: 'Claude Opus 4', en: 'Claude Opus 4' } },
-      { id: 'openai/gpt-4.1', type: 'lang', provider: 'OpenAI', priceIn: 1.4, priceOut: 5.6, displayName: { zh: 'GPT-4.1', en: 'GPT-4.1' } },
-      { id: 'openai/gpt-4.1-mini', type: 'lang', provider: 'OpenAI', priceIn: 0.28, priceOut: 1.12, displayName: { zh: 'GPT-4.1 Mini', en: 'GPT-4.1 Mini' } },
-      { id: 'google/gemini-2.5-flash', type: 'lang', provider: 'Google', priceIn: 0.35, priceOut: 1.40, displayName: { zh: 'Gemini 2.5 Flash', en: 'Gemini 2.5 Flash' } },
-      { id: 'google/gemini-2.5-pro', type: 'lang', provider: 'Google', priceIn: 1.25, priceOut: 5.0, displayName: { zh: 'Gemini 2.5 Pro', en: 'Gemini 2.5 Pro' } },
-      { id: 'alibaba/qwen3-coder', type: 'lang', provider: 'Alibaba', priceIn: 0.55, priceOut: 2.2, displayName: { zh: 'Qwen3 Coder', en: 'Qwen3 Coder' } },
-      { id: 'alibaba/qwen3-235b', type: 'lang', provider: 'Alibaba', priceIn: 0.9, priceOut: 3.6, displayName: { zh: 'Qwen3 235B', en: 'Qwen3 235B' } },
-      { id: 'deepseek/deepseek-chat-v3', type: 'lang', provider: 'DeepSeek', priceIn: 0.27, priceOut: 1.10, displayName: { zh: 'DeepSeek V3', en: 'DeepSeek V3' } },
-      { id: 'meta/llama-4-maverick', type: 'lang', provider: 'Meta', priceIn: 0.45, priceOut: 1.8, displayName: { zh: 'Llama 4 Maverick', en: 'Llama 4 Maverick' } },
-      { id: 'mistral/mistral-large', type: 'lang', provider: 'Mistral', priceIn: 1.0, priceOut: 3.0, displayName: { zh: 'Mistral Large', en: 'Mistral Large' } },
-      { id: 'xai/grok-3', type: 'lang', provider: 'xAI', priceIn: 1.5, priceOut: 6.0, displayName: { zh: 'Grok 3', en: 'Grok 3' } },
-      { id: 'bfl/flux-2-pro', type: 'image', provider: 'BFL', priceIn: 0, priceOut: 0.45, priceUnit: 'image', displayName: { zh: 'FLUX 2 Pro', en: 'FLUX 2 Pro' } },
-      { id: 'openai/gpt-image-1', type: 'image', provider: 'OpenAI', priceIn: 0, priceOut: 0.32, priceUnit: 'image', displayName: { zh: 'GPT Image 1', en: 'GPT Image 1' } },
-      { id: 'google/imagen-4', type: 'image', provider: 'Google', priceIn: 0, priceOut: 0.28, priceUnit: 'image', displayName: { zh: 'Imagen 4', en: 'Imagen 4' } },
-      { id: 'alibaba/wan-v2.6-t2v', type: 'video', provider: 'Alibaba', priceIn: 0, priceOut: 2.8, priceUnit: 'video', displayName: { zh: 'Wan 2.6 T2V', en: 'Wan 2.6 T2V' } },
-      { id: 'google/veo-2', type: 'video', provider: 'Google', priceIn: 0, priceOut: 3.5, priceUnit: 'video', displayName: { zh: 'Veo 2', en: 'Veo 2' } },
-      { id: 'google/gemini-embedding-001', type: 'embed', provider: 'Google', priceIn: 0.02, priceOut: 0, displayName: { zh: 'Gemini Embedding', en: 'Gemini Embedding' } },
-      { id: 'openai/text-embedding-3-large', type: 'embed', provider: 'OpenAI', priceIn: 0.04, priceOut: 0, displayName: { zh: 'Embedding 3 Large', en: 'Embedding 3 Large' } },
-      { id: 'cohere/embed-v4', type: 'embed', provider: 'Cohere', priceIn: 0.03, priceOut: 0, displayName: { zh: 'Embed v4', en: 'Embed v4' } },
+      { id: 'anthropic/claude-sonnet-4.6', type: 'lang', provider: 'Anthropic', priceIn: 2.2, priceOut: 11.0, ctx: 200000, speed: 'balanced', caps: ['tools','vision','reason','long'], displayName: { zh: 'Claude Sonnet 4.6', en: 'Claude Sonnet 4.6' } },
+      { id: 'anthropic/claude-opus-4', type: 'lang', provider: 'Anthropic', priceIn: 4.5, priceOut: 22.0, ctx: 200000, speed: 'deep', caps: ['tools','vision','reason','long'], displayName: { zh: 'Claude Opus 4', en: 'Claude Opus 4' } },
+      { id: 'anthropic/claude-haiku-3.5', type: 'lang', provider: 'Anthropic', priceIn: 0.8, priceOut: 4.0, ctx: 200000, speed: 'fast', caps: ['tools','vision','long'], displayName: { zh: 'Claude Haiku 3.5', en: 'Claude Haiku 3.5' } },
+      { id: 'openai/gpt-4.1', type: 'lang', provider: 'OpenAI', priceIn: 1.4, priceOut: 5.6, ctx: 1000000, speed: 'balanced', caps: ['tools','vision','long'], displayName: { zh: 'GPT-4.1', en: 'GPT-4.1' } },
+      { id: 'openai/gpt-4.1-mini', type: 'lang', provider: 'OpenAI', priceIn: 0.28, priceOut: 1.12, ctx: 1000000, speed: 'fast', caps: ['tools','vision','long'], displayName: { zh: 'GPT-4.1 Mini', en: 'GPT-4.1 Mini' } },
+      { id: 'openai/o4-mini', type: 'lang', provider: 'OpenAI', priceIn: 1.1, priceOut: 4.4, ctx: 200000, speed: 'deep', caps: ['tools','reason','long'], displayName: { zh: 'o4-mini', en: 'o4-mini' } },
+      { id: 'google/gemini-2.5-flash', type: 'lang', provider: 'Google', priceIn: 0.35, priceOut: 1.40, ctx: 1000000, speed: 'fast', caps: ['tools','vision','long'], displayName: { zh: 'Gemini 2.5 Flash', en: 'Gemini 2.5 Flash' } },
+      { id: 'google/gemini-2.5-pro', type: 'lang', provider: 'Google', priceIn: 1.25, priceOut: 5.0, ctx: 2000000, speed: 'balanced', caps: ['tools','vision','reason','long'], displayName: { zh: 'Gemini 2.5 Pro', en: 'Gemini 2.5 Pro' } },
+      { id: 'alibaba/qwen3-coder', type: 'lang', provider: 'Alibaba', priceIn: 0.55, priceOut: 2.2, ctx: 262144, speed: 'balanced', caps: ['tools','long'], displayName: { zh: 'Qwen3 Coder', en: 'Qwen3 Coder' } },
+      { id: 'alibaba/qwen3-235b', type: 'lang', provider: 'Alibaba', priceIn: 0.9, priceOut: 3.6, ctx: 131072, speed: 'balanced', caps: ['tools','reason','long'], displayName: { zh: 'Qwen3 235B', en: 'Qwen3 235B' } },
+      { id: 'deepseek/deepseek-chat-v3', type: 'lang', provider: 'DeepSeek', priceIn: 0.27, priceOut: 1.10, ctx: 131072, speed: 'balanced', caps: ['tools','long'], displayName: { zh: 'DeepSeek V3', en: 'DeepSeek V3' } },
+      { id: 'deepseek/deepseek-r1', type: 'lang', provider: 'DeepSeek', priceIn: 0.55, priceOut: 2.19, ctx: 131072, speed: 'deep', caps: ['reason','long'], displayName: { zh: 'DeepSeek R1', en: 'DeepSeek R1' } },
+      { id: 'meta/llama-4-maverick', type: 'lang', provider: 'Meta', priceIn: 0.45, priceOut: 1.8, ctx: 1000000, speed: 'fast', caps: ['tools','vision','long'], displayName: { zh: 'Llama 4 Maverick', en: 'Llama 4 Maverick' } },
+      { id: 'meta/llama-4-scout', type: 'lang', provider: 'Meta', priceIn: 0.18, priceOut: 0.59, ctx: 10000000, speed: 'fast', caps: ['tools','long'], displayName: { zh: 'Llama 4 Scout', en: 'Llama 4 Scout' } },
+      { id: 'mistral/mistral-large', type: 'lang', provider: 'Mistral', priceIn: 1.0, priceOut: 3.0, ctx: 131072, speed: 'balanced', caps: ['tools','long'], displayName: { zh: 'Mistral Large', en: 'Mistral Large' } },
+      { id: 'xai/grok-3', type: 'lang', provider: 'xAI', priceIn: 1.5, priceOut: 6.0, ctx: 131072, speed: 'balanced', caps: ['tools','reason','long'], displayName: { zh: 'Grok 3', en: 'Grok 3' } },
+      { id: 'xai/grok-3-mini', type: 'lang', provider: 'xAI', priceIn: 0.3, priceOut: 0.5, ctx: 131072, speed: 'fast', caps: ['tools','long'], displayName: { zh: 'Grok 3 Mini', en: 'Grok 3 Mini' } },
+      { id: 'moonshot/kimi-k2', type: 'lang', provider: 'Moonshot', priceIn: 0.6, priceOut: 2.5, ctx: 200000, speed: 'balanced', caps: ['tools','long'], displayName: { zh: 'Kimi K2', en: 'Kimi K2' } },
+      { id: 'zhipu/glm-4.6', type: 'lang', provider: 'Zhipu', priceIn: 0.5, priceOut: 2.0, ctx: 200000, speed: 'balanced', caps: ['tools','long'], displayName: { zh: 'GLM-4.6', en: 'GLM-4.6' } },
+      { id: 'minimax/minimax-m2', type: 'lang', provider: 'MiniMax', priceIn: 0.3, priceOut: 1.2, ctx: 1000000, speed: 'fast', caps: ['tools','long'], displayName: { zh: 'MiniMax M2', en: 'MiniMax M2' } },
+      { id: 'amazon/nova-pro', type: 'lang', provider: 'Amazon', priceIn: 0.8, priceOut: 3.2, ctx: 300000, speed: 'balanced', caps: ['tools','vision','long'], displayName: { zh: 'Nova Pro', en: 'Nova Pro' } },
+      { id: 'perplexity/sonar-pro', type: 'lang', provider: 'Perplexity', priceIn: 3.0, priceOut: 15.0, ctx: 200000, speed: 'balanced', caps: ['tools','long'], displayName: { zh: 'Sonar Pro', en: 'Sonar Pro' } },
+      { id: 'cohere/command-a', type: 'lang', provider: 'Cohere', priceIn: 2.5, priceOut: 10.0, ctx: 256000, speed: 'balanced', caps: ['tools','long'], displayName: { zh: 'Command A', en: 'Command A' } },
+      { id: 'bfl/flux-2-pro', type: 'image', provider: 'BFL', priceIn: 0, priceOut: 0.45, priceUnit: 'image', speed: 'balanced', caps: [], displayName: { zh: 'FLUX 2 Pro', en: 'FLUX 2 Pro' } },
+      { id: 'bfl/flux-2-schnell', type: 'image', provider: 'BFL', priceIn: 0, priceOut: 0.06, priceUnit: 'image', speed: 'fast', caps: [], displayName: { zh: 'FLUX 2 Schnell', en: 'FLUX 2 Schnell' } },
+      { id: 'openai/gpt-image-1', type: 'image', provider: 'OpenAI', priceIn: 0, priceOut: 0.32, priceUnit: 'image', speed: 'balanced', caps: [], displayName: { zh: 'GPT Image 1', en: 'GPT Image 1' } },
+      { id: 'google/imagen-4', type: 'image', provider: 'Google', priceIn: 0, priceOut: 0.28, priceUnit: 'image', speed: 'balanced', caps: [], displayName: { zh: 'Imagen 4', en: 'Imagen 4' } },
+      { id: 'stability/sd-3.5-large', type: 'image', provider: 'Stability', priceIn: 0, priceOut: 0.13, priceUnit: 'image', speed: 'fast', caps: [], displayName: { zh: 'SD 3.5 Large', en: 'SD 3.5 Large' } },
+      { id: 'ideogram/ideogram-v3', type: 'image', provider: 'Ideogram', priceIn: 0, priceOut: 0.30, priceUnit: 'image', speed: 'balanced', caps: [], displayName: { zh: 'Ideogram v3', en: 'Ideogram v3' } },
+      { id: 'alibaba/wan-v2.6-t2v', type: 'video', provider: 'Alibaba', priceIn: 0, priceOut: 2.8, priceUnit: 'video', speed: 'deep', caps: [], displayName: { zh: 'Wan 2.6 T2V', en: 'Wan 2.6 T2V' } },
+      { id: 'google/veo-2', type: 'video', provider: 'Google', priceIn: 0, priceOut: 3.5, priceUnit: 'video', speed: 'deep', caps: [], displayName: { zh: 'Veo 2', en: 'Veo 2' } },
+      { id: 'kuaishou/kling-2', type: 'video', provider: 'Kling', priceIn: 0, priceOut: 2.4, priceUnit: 'video', speed: 'deep', caps: [], displayName: { zh: 'Kling 2.0', en: 'Kling 2.0' } },
+      { id: 'luma/ray-2', type: 'video', provider: 'Luma', priceIn: 0, priceOut: 3.0, priceUnit: 'video', speed: 'deep', caps: [], displayName: { zh: 'Ray 2', en: 'Ray 2' } },
+      { id: 'google/gemini-embedding-001', type: 'embed', provider: 'Google', priceIn: 0.02, priceOut: 0, ctx: 8192, speed: 'fast', caps: [], displayName: { zh: 'Gemini Embedding', en: 'Gemini Embedding' } },
+      { id: 'openai/text-embedding-3-large', type: 'embed', provider: 'OpenAI', priceIn: 0.04, priceOut: 0, ctx: 8191, speed: 'fast', caps: [], displayName: { zh: 'Embedding 3 Large', en: 'Embedding 3 Large' } },
+      { id: 'cohere/embed-v4', type: 'embed', provider: 'Cohere', priceIn: 0.03, priceOut: 0, ctx: 128000, speed: 'fast', caps: ['long'], displayName: { zh: 'Embed v4', en: 'Embed v4' } },
+      { id: 'voyage/voyage-3', type: 'embed', provider: 'Voyage', priceIn: 0.06, priceOut: 0, ctx: 32000, speed: 'fast', caps: [], displayName: { zh: 'Voyage 3', en: 'Voyage 3' } },
+      { id: 'jina/jina-embed-v3', type: 'embed', provider: 'Jina', priceIn: 0.02, priceOut: 0, ctx: 8192, speed: 'fast', caps: [], displayName: { zh: 'Jina Embed v3', en: 'Jina Embed v3' } },
     ];
 
     const GATEWAY_CHAT_MAP = {
@@ -1877,6 +2041,220 @@
       applyRouteChanged(true);
     }
 
+    /* ---------- Model catalog (advanced browse) ---------- */
+    const PROVIDER_COLOR = {
+      Anthropic: '#D9A066', OpenAI: '#10A37F', Google: '#4285F4', Alibaba: '#FF6A00', DeepSeek: '#4D6BFE',
+      Meta: '#0668E1', Mistral: '#FF7000', xAI: '#8E8E93', Moonshot: '#1F6FEB', Zhipu: '#3859FF', MiniMax: '#E5484D',
+      Amazon: '#FF9900', Perplexity: '#20B8CD', Cohere: '#39594D', BFL: '#111', Stability: '#A855F7', Ideogram: '#EC4899',
+      Kling: '#FF5C8A', Luma: '#22D3EE', Voyage: '#6366F1', Jina: '#EF4444',
+    };
+    const CAP_KEY = { tools: 'capTools', vision: 'capVision', reason: 'capReason', long: 'capLong' };
+    const CATALOG_TYPES = ['all', 'lang', 'image', 'video', 'embed'];
+    const CATALOG_TYPE_KEY = { all: 'catTypeAll', lang: 'modelTypeLang', image: 'modelTypeImage', video: 'modelTypeVideo', embed: 'modelTypeEmbed' };
+    let catalogQuery = '', catalogType = 'all', catalogProvider = 'all', catalogSort = 'featured';
+    let favoriteModels = JSON.parse(localStorage.getItem('nodeai-fav-models') || '[]');
+    let recentModels = JSON.parse(localStorage.getItem('nodeai-recent-models') || '[]');
+
+    function saveFavModels() { localStorage.setItem('nodeai-fav-models', JSON.stringify(favoriteModels)); }
+    function toggleFavModel(id) {
+      if (favoriteModels.includes(id)) favoriteModels = favoriteModels.filter(x => x !== id);
+      else favoriteModels.unshift(id);
+      saveFavModels();
+      renderCatalogList();
+    }
+    function pushRecentModel(id) {
+      recentModels = [id, ...recentModels.filter(x => x !== id)].slice(0, 5);
+      localStorage.setItem('nodeai-recent-models', JSON.stringify(recentModels));
+    }
+    function fmtCtx(n) {
+      if (!n) return '';
+      if (n >= 1000000) return (n / 1000000).toFixed(n % 1000000 ? 1 : 0) + 'M';
+      if (n >= 1000) return Math.round(n / 1000) + 'K';
+      return String(n);
+    }
+    function providerBadge(p) {
+      const c = PROVIDER_COLOR[p] || 'var(--surface-highest)';
+      return `<span class="cat-prov-badge" style="background:color-mix(in srgb, ${c} 22%, var(--surface-highest));color:${c}">${p.slice(0, 1)}</span>`;
+    }
+    function catModelMatches(m) {
+      if (catalogType !== 'all' && m.type !== catalogType) return false;
+      if (catalogProvider !== 'all' && m.provider !== catalogProvider) return false;
+      if (catalogQuery) {
+        const q = catalogQuery.toLowerCase();
+        const hay = (m.displayName.zh + ' ' + m.displayName.en + ' ' + m.id + ' ' + m.provider).toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    }
+    function catSortModels(arr) {
+      const a = arr.slice();
+      if (catalogSort === 'cheap') a.sort((x, y) => (x.priceIn + x.priceOut) - (y.priceIn + y.priceOut));
+      else if (catalogSort === 'fast') { const o = { fast: 0, balanced: 1, deep: 2 }; a.sort((x, y) => (o[x.speed] ?? 1) - (o[y.speed] ?? 1)); }
+      else if (catalogSort === 'context') a.sort((x, y) => (y.ctx || 0) - (x.ctx || 0));
+      else a.sort((x, y) => (CURATED_MODEL_IDS.indexOf(y.id)) - (CURATED_MODEL_IDS.indexOf(x.id)));
+      return a;
+    }
+    function catalogRowHtml(m) {
+      const fav = favoriteModels.includes(m.id);
+      const active = !smartRouteEnabled && m.id === activeGatewayModel;
+      const ctxBadge = m.ctx ? `<span class="cat-badge">${fmtCtx(m.ctx)}</span>` : '';
+      const caps = (m.caps || []).map(c => `<span class="cat-cap">${t(CAP_KEY[c])}</span>`).join('');
+      return `<div class="cat-row ${active ? 'active' : ''}">
+        <button type="button" class="cat-row-main" data-cat-model="${m.id}">
+          ${providerBadge(m.provider)}
+          <span class="cat-row-info">
+            <span class="cat-row-name">${m.displayName[lang]}${active ? ' <span class="cat-row-pinned">'+t('catPinned')+'</span>' : ''}</span>
+            <span class="cat-row-id mono">${m.id}</span>
+            <span class="cat-row-tags">${ctxBadge}${caps}</span>
+          </span>
+          <span class="cat-row-price mono">${fmtModelPrice(m)}</span>
+        </button>
+        <button type="button" class="cat-fav ${fav ? 'on' : ''}" data-fav-model="${m.id}" aria-label="favorite">
+          <span class="material-symbols-outlined ${fav ? 'filled' : ''}">star</span>
+        </button>
+      </div>`;
+    }
+    function renderCatalogTypes() {
+      const wrap = document.getElementById('catalogTypes');
+      if (!wrap) return;
+      wrap.innerHTML = CATALOG_TYPES.map(ty => {
+        const n = ty === 'all' ? GATEWAY_MODELS.length : GATEWAY_MODELS.filter(m => m.type === ty).length;
+        return `<button type="button" class="cat-type ${ty === catalogType ? 'active' : ''}" data-cat-type="${ty}">${t(CATALOG_TYPE_KEY[ty])}<span class="cat-type-n">${n}</span></button>`;
+      }).join('');
+      wrap.querySelectorAll('[data-cat-type]').forEach(b => b.addEventListener('click', () => {
+        catalogType = b.dataset.catType; catalogProvider = 'all';
+        renderCatalogTypes(); renderCatalogProviders(); renderCatalogList();
+      }));
+    }
+    function renderCatalogProviders() {
+      const wrap = document.getElementById('catalogProviders');
+      if (!wrap) return;
+      const pool = GATEWAY_MODELS.filter(m => catalogType === 'all' || m.type === catalogType);
+      const provs = [...new Set(pool.map(m => m.provider))];
+      const chips = [`<button type="button" class="cat-prov ${catalogProvider === 'all' ? 'active' : ''}" data-cat-prov="all">${t('catProvAll')}</button>`]
+        .concat(provs.map(p => `<button type="button" class="cat-prov ${catalogProvider === p ? 'active' : ''}" data-cat-prov="${p}">${providerBadge(p)}${p}</button>`));
+      wrap.innerHTML = chips.join('');
+      wrap.querySelectorAll('[data-cat-prov]').forEach(b => b.addEventListener('click', () => {
+        catalogProvider = b.dataset.catProv;
+        renderCatalogProviders(); renderCatalogList();
+      }));
+    }
+    function renderCatalogList() {
+      const list = document.getElementById('catalogList');
+      if (!list) return;
+      const noFilter = !catalogQuery && catalogType === 'all' && catalogProvider === 'all';
+      let html = '';
+      if (noFilter) {
+        const favs = favoriteModels.map(gatewayModelById).filter(Boolean);
+        const recents = recentModels.map(gatewayModelById).filter(Boolean).filter(m => !favoriteModels.includes(m.id));
+        if (favs.length) html += `<div class="cat-group">${t('catFav')}</div>` + favs.map(catalogRowHtml).join('');
+        if (recents.length) html += `<div class="cat-group">${t('catRecent')}</div>` + recents.map(catalogRowHtml).join('');
+        const curated = CURATED_MODEL_IDS.map(gatewayModelById).filter(Boolean);
+        html += `<div class="cat-group">${t('catFeatured')}</div>` + curated.map(catalogRowHtml).join('');
+        const restIds = new Set([...favoriteModels, ...recentModels, ...CURATED_MODEL_IDS]);
+        const rest = catSortModels(GATEWAY_MODELS.filter(m => !restIds.has(m.id)));
+        html += `<div class="cat-group">${t('catAll')} · ${rest.length}</div>` + rest.map(catalogRowHtml).join('');
+      } else {
+        const matched = catSortModels(GATEWAY_MODELS.filter(catModelMatches));
+        html = matched.length
+          ? `<div class="cat-group">${matched.length} ${t('catResults')}</div>` + matched.map(catalogRowHtml).join('')
+          : `<div class="cat-empty">${t('catNoResult')}</div>`;
+      }
+      list.innerHTML = html;
+      list.querySelectorAll('[data-cat-model]').forEach(b => b.addEventListener('click', () => {
+        const id = b.dataset.catModel;
+        pushRecentModel(id);
+        selectGatewayModel(id);
+        closeModelCatalog();
+        showToast(t('toastModelPinned').replace('{m}', gatewayModelById(id)?.displayName[lang] || id));
+      }));
+      list.querySelectorAll('[data-fav-model]').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); toggleFavModel(b.dataset.favModel); }));
+    }
+    function openModelCatalog() {
+      catalogQuery = ''; catalogType = 'all'; catalogProvider = 'all'; catalogSort = 'featured';
+      const s = document.getElementById('catalogSearch'); if (s) s.value = '';
+      const sc = document.getElementById('catalogSearchClear'); if (sc) sc.hidden = true;
+      const sort = document.getElementById('catalogSort'); if (sort) sort.value = 'featured';
+      renderCatalogTypes(); renderCatalogProviders(); renderCatalogList();
+      document.getElementById('modelCatalogModal')?.classList.add('open');
+    }
+    function closeModelCatalog() { document.getElementById('modelCatalogModal')?.classList.remove('open'); }
+
+    /* ---------- Onboarding: starters, first-reply aha, hub checklist ---------- */
+    const STARTER_PROMPTS = {
+      chat: { zh: ['帮我把这段话润色得更专业', '写一条产品发布朋友圈文案', '把这份会议记录总结成要点'], en: ['Polish this paragraph', 'Write a launch post', 'Summarize these meeting notes'] },
+      ide: { zh: ['解释这段报错并给出修复', '把这个函数重构得更易读', '给这段代码补单元测试'], en: ['Explain this error & fix it', 'Refactor this function', 'Add unit tests for this'] },
+      both: { zh: ['帮我整理 README 安装说明', '把需求拆成开发任务清单', '审查这段代码的安全问题'], en: ['Write README install docs', 'Break this into dev tasks', 'Review this code for security'] },
+      byok: { zh: ['写个快排试试', '总结这个网页链接的要点', '翻译这段技术文档'], en: ['Write a quicksort', 'Summarize this URL', 'Translate this tech doc'] },
+      team: { zh: ['本月哪个应用花得最多？', '写预算告警的策略说明', '对比 Sonnet 与 Flash 性价比'], en: ['Which app spent most this month?', 'Draft a budget-alert policy', 'Compare Sonnet vs Flash value'] },
+    };
+    function firstChatDone() { return localStorage.getItem('nodeai-first-chat-done') === '1'; }
+    function renderChatStarters() {
+      const box = document.getElementById('chatStarters');
+      const chips = document.getElementById('chatStartersChips');
+      if (!box || !chips) return;
+      if (firstChatDone()) { box.hidden = true; return; }
+      const persona = (USER.persona && STARTER_PROMPTS[USER.persona]) ? USER.persona : 'both';
+      const items = STARTER_PROMPTS[persona][lang] || STARTER_PROMPTS[persona].zh;
+      chips.innerHTML = items.map(s => `<button type="button" class="starter-chip">${s}</button>`).join('');
+      chips.querySelectorAll('.starter-chip').forEach(b => b.addEventListener('click', () => {
+        const inp = document.getElementById('chatInput');
+        if (inp) { inp.value = b.textContent; inp.focus(); }
+      }));
+      box.hidden = false;
+    }
+    function appendAhaReply() {
+      const wrap = document.getElementById('chatMessages');
+      if (!wrap) return;
+      const div = document.createElement('div');
+      div.className = 'msg assistant';
+      div.innerHTML = `<div class="msg-role">NodeAI</div><div class="msg-body">
+        <p>${t('ahaReply')}</p>
+        <div class="aha-banner">
+          <span class="material-symbols-outlined">celebration</span>
+          <div class="aha-text"><strong>${t('ahaTitle')}</strong><span>${t('ahaSub').replace('{v}', '¥' + BUDGET.saved.toFixed(2))}</span></div>
+          <button type="button" class="aha-go" id="ahaGoHub">${t('ahaGo')}</button>
+        </div>
+      </div>`;
+      wrap.appendChild(div);
+      document.getElementById('ahaGoHub')?.addEventListener('click', () => showView('hub'));
+      document.getElementById('chatScroll').scrollTop = 9999;
+    }
+    function markStep(key) {
+      const done = JSON.parse(localStorage.getItem('nodeai-onboard-steps') || '{}');
+      done[key] = true;
+      localStorage.setItem('nodeai-onboard-steps', JSON.stringify(done));
+    }
+    function renderHubChecklist() {
+      const card = document.getElementById('onboardCard');
+      if (!card) return;
+      if (localStorage.getItem('nodeai-onboard-dismissed') === '1') { card.hidden = true; return; }
+      markStep('viewSavings');
+      const done = JSON.parse(localStorage.getItem('nodeai-onboard-steps') || '{}');
+      const state = {
+        sendMsg: firstChatDone(),
+        viewSavings: !!done.viewSavings,
+        connect: isCursorConnected() || isByokOnly(),
+      };
+      const steps = [
+        { k: 'sendMsg', icon: 'chat', label: t('obStep1'), go: 'chat' },
+        { k: 'viewSavings', icon: 'savings', label: t('obStep2'), go: 'hub' },
+        { k: 'connect', icon: 'cable', label: t('obStep3'), go: 'gateway' },
+      ];
+      const n = steps.filter(s => state[s.k]).length;
+      if (n >= 3) { card.hidden = true; return; }
+      document.getElementById('onboardProgress').textContent = n + ' / 3';
+      document.getElementById('onboardSteps').innerHTML = steps.map(s => `
+        <button type="button" class="onboard-step ${state[s.k] ? 'done' : ''}" data-ob-go="${s.go}">
+          <span class="onboard-step-check"><span class="material-symbols-outlined">${state[s.k] ? 'check_circle' : s.icon}</span></span>
+          <span class="onboard-step-lbl">${s.label}</span>
+          ${state[s.k] ? '' : '<span class="material-symbols-outlined onboard-step-arrow">chevron_right</span>'}
+        </button>`).join('');
+      document.getElementById('onboardSteps').querySelectorAll('[data-ob-go]').forEach(b =>
+        b.addEventListener('click', () => showView(b.dataset.obGo)));
+      card.hidden = false;
+    }
+
     function gatewayModelRowHtml(m, opts = {}) {
       const { selected = false } = opts;
       return `
@@ -1947,14 +2325,8 @@
 
     function renderModelsHub() {
       renderVpnNodeList();
-      const list = document.getElementById('curatedModelList');
-      if (list) {
-        const curated = CURATED_MODEL_IDS.map(id => gatewayModelById(id)).filter(Boolean);
-        list.innerHTML = curated.map(m => gatewayModelRowHtml(m, {
-          selected: !smartRouteEnabled && m.id === activeGatewayModel,
-        })).join('');
-        bindGatewayModelRows(list);
-      }
+      const countEl = document.getElementById('modelsBrowseCount');
+      if (countEl) countEl.textContent = GATEWAY_MODELS.length + '+';
       syncVpnStatus();
     }
 
@@ -2185,6 +2557,19 @@
         routeApplying: '应用中…',
         vpnSyncedLine: '{line} · {n} 个应用已同步',
         modelsAdvanced: '固定某模型（高级）',
+        modelsBrowse: '固定某模型 · 浏览全部', modelsBrowseSub: '按厂商 / 类型 / 价格筛选 · 含搜索',
+        catalogTitle: '浏览全部模型', catalogSub: '由 Vercel 提供 · 全部经统一地址，无需在应用里改 Model',
+        catalogSearchPh: '搜索模型、厂商或 slug…',
+        catSortFeatured: '推荐', catSortCheap: '最便宜', catSortFast: '最快', catSortContext: '上下文最长',
+        catTypeAll: '全部', catProvAll: '全部厂商',
+        catFav: '我的常用', catRecent: '最近用', catFeatured: '精选', catAll: '全部模型', catResults: '个结果', catNoResult: '没有匹配的模型，换个关键词试试',
+        catPinned: '已固定', catalogAuto: '让全自动决定（推荐）',
+        capTools: '工具调用', capVision: '视觉', capReason: '推理', capLong: '长上下文',
+        toastModelPinned: '已固定 {m} · 全应用生效',
+        startersHead: '不用挑模型，NodeAI 自动选最划算的 · 试试：',
+        ahaReply: '（演示）已根据你的问题选好模型并作答 · NodeAI 在后台自动压缩与选模型。',
+        ahaTitle: '第一次对话完成', ahaSub: '今天已为你省下 {v} · 去总览看明细', ahaGo: '看总览',
+        obCardTitle: '认识 NodeAI', obStep1: '发出第一条消息', obStep2: '看看今天省了多少', obStep3: '连接 Cursor（可选）',
         gwStep0Title: '在 NodeAI 选好线路',
         gwStep0Sub: '连接前确认线路 — 所有应用都会走这一条',
         gwCursorHintTitle: 'Model 填 nodeai-auto',
@@ -2397,6 +2782,19 @@
         routeApplying: 'Applying…',
         vpnSyncedLine: '{line} · {n} apps synced',
         modelsAdvanced: 'Pin a model (advanced)',
+        modelsBrowse: 'Pin a model · browse all', modelsBrowseSub: 'Filter by provider / type / price · with search',
+        catalogTitle: 'Browse all models', catalogSub: 'Powered by Vercel · all via one URL, no Model change in apps',
+        catalogSearchPh: 'Search model, provider or slug…',
+        catSortFeatured: 'Recommended', catSortCheap: 'Cheapest', catSortFast: 'Fastest', catSortContext: 'Longest context',
+        catTypeAll: 'All', catProvAll: 'All providers',
+        catFav: 'Favorites', catRecent: 'Recent', catFeatured: 'Featured', catAll: 'All models', catResults: 'results', catNoResult: 'No matching model — try another keyword',
+        catPinned: 'Pinned', catalogAuto: 'Let Auto decide (recommended)',
+        capTools: 'Tools', capVision: 'Vision', capReason: 'Reasoning', capLong: 'Long ctx',
+        toastModelPinned: 'Pinned {m} · applies to all apps',
+        startersHead: 'No need to pick a model — NodeAI auto-picks best value · Try:',
+        ahaReply: '(demo) Picked a model for your question and answered · NodeAI compresses & routes in the background.',
+        ahaTitle: 'First chat done', ahaSub: 'Saved {v} today · see details in Overview', ahaGo: 'Overview',
+        obCardTitle: 'Get to know NodeAI', obStep1: 'Send your first message', obStep2: 'See today’s savings', obStep3: 'Connect Cursor (optional)',
         gwStep0Title: 'Pick your route in NodeAI first',
         gwStep0Sub: 'Confirm before connecting — all apps use this route',
         gwCursorHintTitle: 'Set Model to nodeai-auto',
@@ -3370,7 +3768,8 @@
       });
       document.getElementById('sideMore')?.classList.toggle('active', !primary.includes(name));
       if (name === 'models') renderModelsHub();
-      if (name === 'hub') { buildBarChart(); renderHubApps(); renderHubModels(); renderBonusGrid(); renderAppLive(); }
+      if (name === 'chat') renderChatStarters();
+      if (name === 'hub') { buildBarChart(); renderHubApps(); renderHubModels(); renderBonusGrid(); renderAppLive(); renderHubChecklist(); }
       if (name === 'billing') renderBilling();
       if (name === 'plan') renderPlan();
       if (name === 'gateway') { setGatewayTab('setup'); syncAllRouteUI(); }
@@ -3452,6 +3851,32 @@
       smartRouteEnabled = !smartRouteEnabled;
       renderModelsHub();
       applyRouteChanged(true);
+    });
+
+    document.getElementById('openCatalogBtn')?.addEventListener('click', openModelCatalog);
+    document.getElementById('catalogClose')?.addEventListener('click', closeModelCatalog);
+    document.getElementById('modelCatalogModal')?.addEventListener('click', e => { if (e.target.id === 'modelCatalogModal') closeModelCatalog(); });
+    document.getElementById('catalogSearch')?.addEventListener('input', e => {
+      catalogQuery = e.target.value.trim();
+      const clr = document.getElementById('catalogSearchClear'); if (clr) clr.hidden = !catalogQuery;
+      renderCatalogList();
+    });
+    document.getElementById('catalogSearchClear')?.addEventListener('click', () => {
+      catalogQuery = '';
+      const s = document.getElementById('catalogSearch'); if (s) { s.value = ''; s.focus(); }
+      document.getElementById('catalogSearchClear').hidden = true;
+      renderCatalogList();
+    });
+    document.getElementById('catalogSort')?.addEventListener('change', e => { catalogSort = e.target.value; renderCatalogList(); });
+    document.getElementById('catalogAutoBtn')?.addEventListener('click', () => {
+      smartRouteEnabled = true; activeIntent = 'auto';
+      renderModelsHub();
+      applyRouteChanged(true);
+      closeModelCatalog();
+    });
+    document.getElementById('onboardDismiss')?.addEventListener('click', () => {
+      localStorage.setItem('nodeai-onboard-dismissed', '1');
+      const c = document.getElementById('onboardCard'); if (c) c.hidden = true;
     });
 
     function applyTheme(themeId) {
@@ -3561,6 +3986,14 @@
       inp.value = '';
       clearAttachments();
       document.getElementById('chatScroll').scrollTop = 9999;
+      const wasFirst = !firstChatDone();
+      const starters = document.getElementById('chatStarters');
+      if (starters) starters.hidden = true;
+      if (wasFirst) {
+        localStorage.setItem('nodeai-first-chat-done', '1');
+        markStep('sendMsg');
+        setTimeout(appendAhaReply, 650);
+      }
     });
 
     function copyText(s) { navigator.clipboard.writeText(s).then(() => showToast(t('toastCopied'))); }
