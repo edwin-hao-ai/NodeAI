@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { DEMO } from "../data/demo";
 import { getStarterPrompts } from "../data/chatStarters";
+import { requestChatCompletion } from "../lib/chat";
 import { useApp } from "../state/AppContext";
 
 type ChatMessage =
@@ -33,6 +34,8 @@ export function ChatView() {
     workspace,
     firstChatDone,
     markFirstChatDone,
+    gatewayBaseUrl,
+    activeGatewayModel,
   } = useApp();
 
   const [ctxOpen, setCtxOpen] = useState(false);
@@ -63,7 +66,7 @@ export function ChatView() {
   }, [firstChatDone]);
 
   const sendMessage = useCallback(
-    (text: string) => {
+    async (text: string) => {
       const trimmed = text.trim();
       if (!trimmed || sending) return;
 
@@ -76,37 +79,52 @@ export function ChatView() {
       setSending(true);
       scrollToBottom();
 
-      window.setTimeout(() => {
-        if (wasFirst) {
-          markOnboardSendMsg();
-          markFirstChatDone();
-          setExtraMessages((msgs) => [
-            ...msgs,
-            {
-              id: `a-${Date.now()}`,
-              role: "assistant",
-              text: tr("ahaReply"),
-              aha: true,
-            },
-          ]);
-        } else {
-          setExtraMessages((msgs) => [
-            ...msgs,
-            {
-              id: `a-${Date.now()}`,
-              role: "assistant",
-              text:
-                lang === "zh"
-                  ? "（演示）已收到你的消息，NodeAI 会按当前线路自动选模型并作答。"
-                  : "(demo) Got your message — NodeAI will pick a model on your current route.",
-            },
-          ]);
-        }
-        setSending(false);
-        scrollToBottom();
-      }, 650);
+      const proxyReply = await requestChatCompletion(
+        gatewayBaseUrl,
+        trimmed,
+        activeGatewayModel,
+      );
+      const fallbackReply =
+        lang === "zh"
+          ? "（演示）已收到你的消息，NodeAI 会按当前线路自动选模型并作答。"
+          : "(demo) Got your message — NodeAI will pick a model on your current route.";
+      const assistantText = proxyReply ?? (wasFirst ? tr("ahaReply") : fallbackReply);
+
+      if (wasFirst) {
+        markOnboardSendMsg();
+        markFirstChatDone();
+        setExtraMessages((msgs) => [
+          ...msgs,
+          {
+            id: `a-${Date.now()}`,
+            role: "assistant",
+            text: assistantText,
+            aha: true,
+          },
+        ]);
+      } else {
+        setExtraMessages((msgs) => [
+          ...msgs,
+          {
+            id: `a-${Date.now()}`,
+            role: "assistant",
+            text: assistantText,
+          },
+        ]);
+      }
+      setSending(false);
+      scrollToBottom();
     },
-    [firstChatDone, lang, markFirstChatDone, scrollToBottom, sending, tr],
+    [
+      activeGatewayModel,
+      firstChatDone,
+      gatewayBaseUrl,
+      lang,
+      markFirstChatDone,
+      scrollToBottom,
+      sending,
+      tr,
+    ],
   );
 
   const onSendClick = () => sendMessage(input);

@@ -39,16 +39,16 @@ NodeAI/
 
 ### 刻意未做（下一阶段）
 
-1. **Chat 产品路径（优先）**
-   - 流式回复（可先 mock SSE，再接 Tauri/Rust 或云端）
-   - 首条用户发送 → 助手回复 → **「啊哈」条**（`aha-banner`）+ `nodeai-first-chat-done` + 引导总览（PRD §3.6.1）
-   - 启动 chip（`STARTER_PROMPTS` / `renderChatStarters`）逻辑
-   - `prototypes/dashboard.html` 内搜索：`appendAhaReply`、`renderChatStarters`、`firstChatDone`
+1. **Chat 产品路径**
+   - ~~流式回复（可先 mock SSE）~~ → 下一步
+   - ~~首条发送 + 啊哈条 + starters~~ ✓ Phase A
+   - Chat 经 `8787` + `sk-nodeai-chat` 发请求 ✓（`lib/chat.ts`）
+   - 流式逐字 mock / 真 SSE
 
-2. **BYOK 本地 relay（次优先）**
-   - `POST /v1/chat/completions`：识别路径 → 桌面 HTTP 上游（Keychain 后续）
-   - 与含额度云端 relay 分支（`TrafficPath::ByokLocal` vs `HostedQuota`）
-   - PRD §5.12、§6.1.1
+2. **BYOK 本地 relay**
+   - ~~`sk-nodeai-{app}` 解析 + chat 转发骨架~~ ✓ Phase B
+   - Keychain 来源、真实 Provider 上游
+   - RTK/Caveman 指标 stub
 
 3. **其他**
    - `prototypes/auth.html` → Tauri 路由或独立窗口
