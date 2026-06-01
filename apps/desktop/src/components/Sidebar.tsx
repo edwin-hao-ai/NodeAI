@@ -18,7 +18,7 @@ const MORE_NAV: { view: ViewId; icon: string; i18n: I18nKey }[] = [
 ];
 
 export function Sidebar() {
-  const { view, setView, tr, localMode } = useApp();
+  const { view, setView, tr, localMode, setCatalogOpen } = useApp();
   const [moreOpen, setMoreOpen] = useState(false);
   const chatMode = view === "chat";
 
@@ -84,6 +84,20 @@ export function Sidebar() {
               <span>{tr(item.i18n)}</span>
             </button>
           ))}
+        {moreOpen && (
+          <button
+            type="button"
+            className="side-link"
+            style={{ paddingLeft: 28 }}
+            onClick={() => {
+              setCatalogOpen(true);
+              setMoreOpen(false);
+            }}
+          >
+            <span className="material-symbols-outlined">tune</span>
+            <span>{tr("moreBrowseModels")}</span>
+          </button>
+        )}
       </nav>
 
       <div className="trust-mini">
@@ -95,7 +109,7 @@ export function Sidebar() {
       </div>
 
       <div className="sidebar-account">
-        <div className="acct-row">
+        <div className="acct-row" role="button" tabIndex={0} onClick={() => setView("plan")} onKeyDown={() => {}}>
           <div className="acct-avatar">{localMode ? "L" : "N"}</div>
           <div style={{ minWidth: 0, flex: 1 }}>
             <div className="acct-name">{localMode ? tr("acctLocal") : "Demo"}</div>

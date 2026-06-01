@@ -472,5 +472,20 @@
   "logoutBtn": "退出",
   "acctTrial": "专业版试用",
   "acctPro": "专业版",
-  "perMo": "/月"
+  "perMo": "/月",
+  "authHeroTitle": "桌面 AI 用量中枢 — 聊、连、省",
+  "authHeroSub": "打开就能对话；成长后可接 Cursor、加自己的模型来源。",
+  "authLoginTitle": "登录",
+  "authRegTitle": "注册",
+  "authLoginSub": "14 天专业版试用，无需信用卡",
+  "authEmail": "邮箱",
+  "authPassword": "密码",
+  "authLoginBtn": "登录",
+  "authRegBtn": "创建账号",
+  "authGoReg": "没有账号？注册",
+  "authGoLogin": "已有账号？登录",
+  "authOr": "或",
+  "authByokOnly": "仅用本地模型来源（零登录）",
+  "toastLogin": "登录成功",
+  "moreBrowseModels": "浏览全部模型"
 }

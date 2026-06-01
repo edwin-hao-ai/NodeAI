@@ -26,3 +26,160 @@
 #root .view-panel.active {
   display: flex;
 }
+
+.auth-screen {
+  min-height: 100vh;
+  background: var(--scene-bg);
+  color: var(--on-surface);
+}
+.auth-screen .topbar,
+.auth-screen .layout,
+.auth-screen .hero-panel,
+.auth-screen .auth-card,
+.auth-screen .brand,
+.auth-screen .brand-icon,
+.auth-screen .ghost-btn,
+.auth-screen .field input,
+.auth-screen .btn-primary,
+.auth-screen .btn-outlined,
+.auth-screen .oauth-btn,
+.auth-screen .roi-card,
+.auth-screen .link,
+.auth-screen .divider {
+  /* reuse prototype auth layout classes from auth.html */
+}
+.auth-screen .topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 20px;
+}
+.auth-screen .brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 500;
+}
+.auth-screen .brand-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--primary-container);
+  display: grid;
+  place-items: center;
+  color: var(--on-primary-container);
+}
+.auth-screen .ghost-btn {
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--outline-variant);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.auth-screen .layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 24px 40px;
+  gap: 48px;
+  align-items: center;
+}
+.auth-screen .auth-card {
+  background: var(--surface);
+  border: 1px solid var(--outline-variant);
+  border-radius: 16px;
+  padding: 28px;
+  max-width: 420px;
+  margin-left: auto;
+}
+.auth-screen .field {
+  margin-bottom: 14px;
+}
+.auth-screen .field label {
+  display: block;
+  font-size: 12px;
+  margin-bottom: 6px;
+  color: var(--on-surface-variant);
+}
+.auth-screen .field input {
+  width: 100%;
+  padding: 11px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--outline-variant);
+  background: var(--surface-low);
+  color: var(--on-surface);
+  font: inherit;
+}
+.auth-screen .btn-primary {
+  width: 100%;
+  padding: 12px 16px;
+  border: none;
+  border-radius: 999px;
+  background: var(--primary);
+  color: var(--on-primary);
+  font: inherit;
+  cursor: pointer;
+}
+.auth-screen .btn-outlined,
+.auth-screen .oauth-btn {
+  width: 100%;
+  padding: 11px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--outline-variant);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.auth-screen .oauth-row {
+  display: flex;
+  gap: 10px;
+}
+.auth-screen .oauth-btn {
+  flex: 1;
+}
+.auth-screen .divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 18px 0;
+  color: var(--on-surface-variant);
+  font-size: 12px;
+}
+.auth-screen .divider::before,
+.auth-screen .divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--outline-variant);
+}
+.auth-screen .link {
+  color: var(--primary);
+  background: none;
+  border: none;
+  font: inherit;
+  cursor: pointer;
+}
+.auth-screen .roi-card {
+  padding: 16px 18px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--savings) 10%, var(--surface-container));
+  border: 1px solid color-mix(in srgb, var(--savings) 30%, var(--outline-variant));
+}
+.auth-screen .roi-big {
+  font-size: 22px;
+  font-weight: 500;
+  color: var(--savings);
+}
+@media (max-width: 860px) {
+  .auth-screen .layout {
+    grid-template-columns: 1fr;
+  }
+  .auth-screen .hero-panel {
+    display: none;
+  }
+}

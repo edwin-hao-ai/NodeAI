@@ -22,6 +22,8 @@ export function GatewayView() {
     cursorConnected,
     setCursorConnected,
     showToast,
+    showCelebrate,
+    setAddAppOpen,
   } = useApp();
 
   const [tab, setTab] = useState<"setup" | "connected">("setup");
@@ -29,6 +31,7 @@ export function GatewayView() {
 
   const connectCursorDemo = () => {
     setCursorConnected(true);
+    showCelebrate();
     showToast(tr("toastConnected"));
   };
 
@@ -203,7 +206,7 @@ export function GatewayView() {
             </div>
           ))}
 
-          <button className="btn-add-app" type="button">
+          <button className="btn-add-app" type="button" onClick={() => setAddAppOpen(true)}>
             <span className="material-symbols-outlined" style={{ fontSize: 20 }}>
               add
             </span>

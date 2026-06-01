@@ -1,5 +1,6 @@
 mod auth;
 mod routes;
+mod usage;
 
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -14,6 +15,7 @@ use tower_http::trace::TraceLayer;
 pub struct ProxyState {
     pub config: ProxyConfig,
     pub catalog: Arc<Vec<nodeai_core::ModelCatalogEntry>>,
+    pub usage: usage::UsageStore,
 }
 
 pub struct ProxyHandle {
@@ -37,6 +39,7 @@ pub async fn start(config: ProxyConfig) -> Result<ProxyHandle, std::io::Error> {
     let state = ProxyState {
         config: config.clone(),
         catalog: Arc::new(default_virtual_models()),
+        usage: usage::UsageStore::default(),
     };
 
     let app = Router::new()

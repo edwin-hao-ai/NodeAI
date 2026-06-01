@@ -1,10 +1,11 @@
 import { PageHead, PageScroll } from "../components/ui/PageScroll";
 import { DEMO } from "../data/demo";
 import { fmtMoney } from "../lib/format";
+import type { I18nKey } from "../i18n";
 import { useApp } from "../state/AppContext";
 
 export function PlanView() {
-  const { lang, tr } = useApp();
+  const { lang, tr, showToast } = useApp();
   const usedPct = (DEMO.BUDGET.used / DEMO.BUDGET.cap) * 100;
 
   return (
@@ -33,9 +34,46 @@ export function PlanView() {
           {tr("planAllowFoot")}
         </div>
       </div>
+      <div className="section-head">
+        <span className="section-label">{tr("planCompare")}</span>
+      </div>
+      <div className="plan-grid">
+        {DEMO.PLANS.map((plan) => (
+          <div key={plan.id} className={`plan-card${plan.featured ? " featured" : ""}`}>
+            <div className="plan-card-head">
+              <strong>{tr(plan.id === "free" ? "planFree" : plan.id === "pro" ? "planPro" : "planTeam")}</strong>
+              {plan.current && (
+                <span className="plan-badge">{("trial" in plan && plan.trial) ? tr("planTrial") : tr("planCur")}</span>
+              )}
+            </div>
+            <div className="plan-price">
+              ¥{plan.price}
+              <small>{tr("perMo")}</small>
+            </div>
+            <p style={{ fontSize: 12, color: "var(--on-surface-variant)", marginBottom: 8 }}>
+              {tr(plan.id === "free" ? "planFreeD" : plan.id === "pro" ? "planProD" : "planTeamD")}
+            </p>
+            <ul className="plan-features">
+              {plan.feats.map((f) => (
+                <li key={f}>
+                  <span className="material-symbols-outlined">check_circle</span>
+                  {tr(f as I18nKey)}
+                </li>
+              ))}
+            </ul>
+            <button
+              type="button"
+              className="plan-cta"
+              onClick={() => showToast(`${tr("planUpgrade")} (demo)`)}
+            >
+              {plan.current ? tr("planCur") : plan.id === "team" ? tr("planContact") : tr("planUpgrade")}
+            </button>
+          </div>
+        ))}
+      </div>
       <div
         className="stat-card"
-        style={{ marginBottom: 16, fontSize: 12, color: "var(--on-surface-variant)", lineHeight: 1.6 }}
+        style={{ marginTop: 16, fontSize: 12, color: "var(--on-surface-variant)", lineHeight: 1.6 }}
       >
         {tr("planBizNote")}
       </div>

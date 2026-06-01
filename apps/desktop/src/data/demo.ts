@@ -1446,5 +1446,32 @@ export const DEMO = {
       ]
     }
   ],
-  "MODEL_META": null
+  "MODEL_META": null,
+  "PLANS": [
+    {
+      "id": "free",
+      "price": 0,
+      "allowance": 12,
+      "featured": false,
+      "current": false,
+      "feats": ["planFeatApps1", "planFeatAllow12", "planFeatCompressBasic", "planFeatBill7d", "planFeatNo"]
+    },
+    {
+      "id": "pro",
+      "price": 29,
+      "allowance": 48,
+      "featured": true,
+      "current": true,
+      "trial": true,
+      "feats": ["planFeatAppsUnlim", "planFeatAllow48", "planFeatCompressFull", "planFeatLive", "planFeatMemory", "planFeatByok", "planFeatBillFull"]
+    },
+    {
+      "id": "team",
+      "price": 99,
+      "allowance": 180,
+      "featured": false,
+      "current": false,
+      "feats": ["planFeatSeats3", "planFeatAllow180", "planFeatCompressFull", "planFeatLive", "planFeatMemory", "planFeatByok", "planFeatAudit"]
+    }
+  ]
 } as const;

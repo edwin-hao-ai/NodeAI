@@ -19,6 +19,8 @@ export function HubView() {
     localMode,
     firstChatDone,
     cursorConnected,
+    viewSavingsDone,
+    markViewSavings,
     onboardDismissed,
     dismissOnboard,
     setView,
@@ -32,6 +34,10 @@ export function HubView() {
   const ringOffset = 138 * (1 - pct);
   const remain = DEMO.BUDGET.cap - DEMO.BUDGET.used;
   const today = DEMO.BILL_PERIODS.today;
+
+  useEffect(() => {
+    markViewSavings();
+  }, [markViewSavings]);
 
   useEffect(() => {
     const seed = DEMO.APPS.filter((a) => a.status === "live").slice(0, 3).map((a) => ({
@@ -56,7 +62,7 @@ export function HubView() {
   const onboardSteps = useMemo(() => {
     const state = {
       sendMsg: firstChatDone,
-      viewSavings: true,
+      viewSavings: viewSavingsDone,
       connect: cursorConnected || localMode,
     };
     return [
@@ -64,7 +70,7 @@ export function HubView() {
       { k: "viewSavings", icon: "savings", label: tr("obStep2"), go: "hub" as const },
       { k: "connect", icon: "cable", label: tr("obStep3"), go: "gateway" as const },
     ].map((s) => ({ ...s, done: state[s.k as keyof typeof state] }));
-  }, [firstChatDone, cursorConnected, localMode, tr]);
+  }, [firstChatDone, viewSavingsDone, cursorConnected, localMode, tr]);
 
   const onboardDone = onboardSteps.filter((s) => s.done).length;
   const showOnboard = !onboardDismissed && onboardDone < 3;
@@ -231,7 +237,7 @@ export function HubView() {
       </div>
 
       {localMode && (
-        <div className="mode-banner">
+        <div className="mode-banner show">
           <span className="material-symbols-outlined">offline_pin</span>
           <div>
             <strong>{tr("modeLocalTitle")}</strong>

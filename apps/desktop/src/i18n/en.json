@@ -477,5 +477,20 @@
   "logoutBtn": "Sign out",
   "acctTrial": "Pro trial",
   "acctPro": "Pro",
-  "perMo": "/mo"
+  "perMo": "/mo",
+  "authHeroTitle": "Desktop AI usage hub — chat, connect, save",
+  "authHeroSub": "Start chatting; connect Cursor and add your model sources as you grow.",
+  "authLoginTitle": "Sign in",
+  "authRegTitle": "Sign up",
+  "authLoginSub": "14-day Pro trial, no card required",
+  "authEmail": "Email",
+  "authPassword": "Password",
+  "authLoginBtn": "Sign in",
+  "authRegBtn": "Create account",
+  "authGoReg": "No account? Sign up",
+  "authGoLogin": "Have an account? Sign in",
+  "authOr": "or",
+  "authByokOnly": "Local model sources only (no sign-in)",
+  "toastLogin": "Signed in",
+  "moreBrowseModels": "Browse all models"
 }

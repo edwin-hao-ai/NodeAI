@@ -23,6 +23,8 @@ export function SettingsView() {
     setGatewayPort,
     proxy,
     localMode,
+    openAuth,
+    setView,
   } = useApp();
 
   const [portInput, setPortInput] = useState(String(gatewayPort));
@@ -87,7 +89,7 @@ export function SettingsView() {
             {localMode ? tr("acctLocalSub") : tr("acctTrial")}
           </p>
         </div>
-        <button className="btn-outlined" type="button" onClick={() => {}}>
+        <button className="btn-outlined" type="button" onClick={() => setView("plan")}>
           {tr("managePlan")}
         </button>
       </div>
@@ -95,7 +97,7 @@ export function SettingsView() {
         <div>
           <h4>{tr("setLogout")}</h4>
         </div>
-        <button className="btn-outlined" type="button">
+        <button className="btn-outlined" type="button" onClick={() => openAuth("login")}>
           {tr("logoutBtn")}
         </button>
       </div>
@@ -105,7 +107,7 @@ export function SettingsView() {
             <h4>{tr("setSignInHosted")}</h4>
             <p style={{ fontSize: 12, color: "var(--on-surface-variant)" }}>{tr("setSignInHostedSub")}</p>
           </div>
-          <button className="btn-outlined" type="button">
+          <button className="btn-outlined" type="button" onClick={() => openAuth("register")}>
             {tr("setSignInBtn")}
           </button>
         </div>

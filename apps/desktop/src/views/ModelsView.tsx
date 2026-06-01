@@ -20,6 +20,7 @@ export function ModelsView() {
     selectIntent,
     selectGatewayModel,
     routeAppCount,
+    setCatalogOpen,
   } = useApp();
 
   const autoMode = smartRouteEnabled && activeIntent === "auto";
@@ -176,7 +177,7 @@ export function ModelsView() {
             })
           )}
         </div>
-        <button type="button" className="models-browse-btn">
+        <button type="button" className="models-browse-btn" onClick={() => setCatalogOpen(true)}>
           <span className="material-symbols-outlined">tune</span>
           <span className="models-browse-text">
             <span>{tr("modelsBrowse")}</span>

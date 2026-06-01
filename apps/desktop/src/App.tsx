@@ -1,8 +1,13 @@
 import type { ReactNode } from "react";
+import { AddAppModal } from "./components/AddAppModal";
+import { CelebrateModal } from "./components/CelebrateModal";
+import { ModelCatalogModal } from "./components/ModelCatalogModal";
+import { SourceModal } from "./components/SourceModal";
 import { Menubar } from "./components/Menubar";
 import { Sidebar } from "./components/Sidebar";
 import { Toast } from "./components/Toast";
 import { AppProvider, useApp, type ViewId } from "./state/AppContext";
+import { AuthView } from "./views/AuthView";
 import { BillingView } from "./views/BillingView";
 import { ChatView } from "./views/ChatView";
 import { GatewayView } from "./views/GatewayView";
@@ -27,6 +32,7 @@ function MainViews() {
     { id: "billing", content: <BillingView /> },
     { id: "plan", content: <PlanView /> },
     { id: "settings", content: <SettingsView /> },
+    { id: "auth", content: null },
   ];
 
   return (
@@ -45,6 +51,27 @@ function MainViews() {
 }
 
 function AppShell() {
+  const {
+    view,
+    catalogOpen,
+    setCatalogOpen,
+    addAppOpen,
+    setAddAppOpen,
+    sourceModalOpen,
+    setSourceModalOpen,
+    celebrateOpen,
+    hideCelebrate,
+  } = useApp();
+
+  if (view === "auth") {
+    return (
+      <>
+        <AuthView />
+        <Toast />
+      </>
+    );
+  }
+
   return (
     <>
       <Menubar />
@@ -64,6 +91,10 @@ function AppShell() {
           </div>
         </div>
       </div>
+      <ModelCatalogModal open={catalogOpen} onClose={() => setCatalogOpen(false)} />
+      <AddAppModal open={addAppOpen} onClose={() => setAddAppOpen(false)} />
+      <SourceModal open={sourceModalOpen} onClose={() => setSourceModalOpen(false)} />
+      <CelebrateModal open={celebrateOpen} onClose={hideCelebrate} />
       <Toast />
     </>
   );

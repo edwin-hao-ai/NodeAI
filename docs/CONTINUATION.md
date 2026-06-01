@@ -25,130 +25,59 @@
 
 ```
 NodeAI/
-├── apps/desktop/          # Tauri 2 + React 19 + Vite
+├── apps/desktop/          # Tauri 2 + React 19 + Vite（9 视图 + auth + 模态）
 ├── crates/nodeai-core/    # 配置、模型别名类型
-├── crates/nodeai-proxy/   # 127.0.0.1:8787，/health、/v1/models、chat 占位 503
-├── prototypes/            # dashboard.html、auth.html（仍是对照源）
-├── docs/PRD.md、DESIGN.md
-└── docs/superpowers/plans/2026-06-01-nodeai-mvp-implementation.md  # 分阶段计划
+├── crates/nodeai-proxy/   # 8787：health、models、BYOK chat、usage 计数
+├── prototypes/            # dashboard.html、auth.html（对照源）
+└── docs/superpowers/plans/2026-06-01-nodeai-mvp-implementation.md
 ```
 
-- UI：原型 CSS 已导入 `apps/desktop/src/styles/prototype.css`；i18n 自原型导出 `zh.json`/`en.json`；演示数据 `src/data/demo.ts`。
-- 页面：选模型 / 对话 / 总览 / 连接 / 账单 / 设置 / 记忆 / 模型来源 / 套餐 — **结构对齐原型，多为演示数据，无真实推理**。
-- 构建：`cd apps/desktop && npm run build`；`cargo check --workspace`。
+**Chat（Phase A ✓）**
+- 发送、starters、啊哈条、`nodeai-first-chat-done`、8787 + `sk-nodeai-chat`
+- 流式逐字 mock（`streamText.ts`）
+- 「记住这条」→ localStorage 记忆库
+
+**BYOK 边缘（Phase B 骨架 ✓）**
+- `sk-nodeai-{app}` 解析、BYOK mock/转发、`NODEAI_BYOK_UPSTREAM`
+- 含额度路径 503；`GET /v1/nodeai/usage` 按 app 计数
+
+**UI 交互（对齐原型 · 演示数据）**
+- 模型目录弹窗、添加应用、添加模型来源、Cursor 庆祝弹窗
+- 记忆 CRUD、套餐 PLANS 卡片、账单 path 缩放、总览 onboarding 步骤
+- Auth 视图（登录/注册演示）、工作区轮换、设置登出→auth
 
 ### 刻意未做（下一阶段）
 
-1. **Chat 产品路径**
-   - ~~流式回复（可先 mock SSE）~~ → 下一步
-   - ~~首条发送 + 啊哈条 + starters~~ ✓ Phase A
-   - Chat 经 `8787` + `sk-nodeai-chat` 发请求 ✓（`lib/chat.ts`）
-   - 流式逐字 mock / 真 SSE
+1. **真实推理 / 云端**
+   - 含额度 → NodeAI Cloud → Vercel Gateway
+   - SSE 真流式、Embeddings、RTK/Caveman 指标
 
-2. **BYOK 本地 relay**
-   - ~~`sk-nodeai-{app}` 解析 + chat 转发骨架~~ ✓ Phase B
-   - Keychain 来源、真实 Provider 上游
-   - RTK/Caveman 指标 stub
+2. **持久化 / 安全**
+   - SQLite（memories、usage_daily、requests）
+   - Keychain BYOK Key、Tauri 文件夹选择器
 
 3. **其他**
-   - `prototypes/auth.html` → Tauri 路由或独立窗口
-   - 模型目录弹窗（`modelCatalogModal`）
-   - SQLite 记忆、系统托盘正式 API
-
----
-
-## 实现时必读原型位置
-
-| 功能 | 原型文件 | 关键词 |
-|------|----------|--------|
-| Chat 啊哈 / starters | `prototypes/dashboard.html` | `appendAhaReply`, `renderChatStarters`, `STARTER_PROMPTS` |
-| 发送消息 | 同上 | `sendBtn`, `chatInput`, `chatMessages` |
-| BYOK 演示 | 同上 | `SOURCES`, `isByokOnly`, `path: 'local'` |
-| 代理端口 | 同上 | `getGatewayPort`, `saveGatewayPort` |
-
-React 对应目录：`apps/desktop/src/views/ChatView.tsx`、`state/AppContext.tsx`。
-
----
-
-## 建议任务顺序（本会话约定）
-
-```
-Phase A — Chat 激活路径（TTFV）
-  A1. 发送消息 → 追加 user/assistant 消息（可先非流式 mock）
-  A2. 首条成功后：aha-banner + localStorage + markFirstChatDone
-  A3. starters 仅在未完成首次对话时显示
-  A4. （可选）模拟流式逐字输出
-
-Phase B — BYOK 边缘
-  B1. App Key 解析 sk-nodeai-{app}
-  B2. 配置：来源列表占位 + 路由到 mock 上游或 echo
-  B3. chat/completions 转发骨架（reqwest），不含额度仍 503 或分路径
-```
+   - Chat 附件、Agent 读/写确认
+   - 系统托盘 HUD、macOS/Windows CI 打包签名
 
 ---
 
 ## 验证命令
 
 ```bash
-# 前端
-cd apps/desktop && npm install && npm run build
-
-# Rust
-cargo check --workspace
-
-# 代理（需 tauri dev 或单独起 proxy）
+cd apps/desktop && npm run build
+cargo check --workspace && cargo test -p nodeai-proxy
 curl -s http://127.0.0.1:8787/health
-curl -s http://127.0.0.1:8787/v1/models | head
-
-# 改 dashboard 内联脚本后（仅原型文件）
-node -e "const fs=require('fs');const h=fs.readFileSync('prototypes/dashboard.html','utf8');const m=h.match(/<script>([\\s\\S]*)<\\/script>\\s*<\\/body>/);new Function(m[1]);console.log('ok')"
+curl -s http://127.0.0.1:8787/v1/nodeai/usage
+cd apps/desktop && npm run tauri dev
 ```
 
 ---
 
-## 同步演示数据的注意
+## 手动验证要点
 
-若改 `prototypes/dashboard.html` 内 `BUDGET`/`APPS` 等常量，需重新导出：
-
-```bash
-# 在仓库根目录，按需重跑提取脚本（见 git history 或让 agent 重写 node 一行脚本）
-# 更新 apps/desktop/src/data/demo.ts、src/i18n/zh.json|en.json
-```
-
----
-
-## 相关计划文档
-
-- 总计划：[docs/superpowers/plans/2026-06-01-nodeai-mvp-implementation.md](superpowers/plans/2026-06-01-nodeai-mvp-implementation.md)
-- 开发入口：[README.md](../README.md)
-
----
-
-## 新会话可复制 Prompt（整段粘贴）
-
-```markdown
-你在 NodeAI 仓库（/Users/edwinhao/NodeAI）继续 MVP 开发。
-
-**必须先读：** `docs/CONTINUATION.md`（进度与约束）、`docs/PRD.md`（产品）、`prototypes/dashboard.html`（UI/交互权威对照）。
-
-**本轮目标（按顺序，完成 Phase A 再 Phase B）：**
-
-### Phase A — Chat 激活（TTFV，对齐 PRD §3.6.1）
-1. 在 `apps/desktop/src/views/ChatView.tsx` 实现可发送消息（user 气泡追加到列表）。
-2. 首次成功回复后展示原型同款 `aha-banner`（文案用 i18n：`ahaTitle`、`ahaSub`、`ahaGo`），写入 `localStorage` 键 `nodeai-first-chat-done`，并调用已有 `markFirstChatDone()`。
-3. 未完成首次对话时显示 starters（对照原型 `STARTER_PROMPTS` / `renderChatStarters`）。
-4. 回复可先用本地 mock 文本（不必接真模型）；可选：模拟流式逐字显示。
-5. 严格遵循 `nodeai-ui-copy`：用户界面不出现 BYOK、RTK 等内部词。
-
-### Phase B — BYOK 边缘（A 完成后再做）
-1. `crates/nodeai-proxy`：解析 `Authorization: Bearer sk-nodeai-{app}`，本地记录 app id。
-2. `POST /v1/chat/completions`：BYOK 路径转发骨架（reqwest → 可配置上游 URL）；含额度路径保持 503 或占位，直到云端 API 就绪。
-3. 行为与 PRD §5.12 / §6.1.1 一致：BYOK 推理不经 NodeAI 服务器。
-
-**规范：**
-- UI/布局/类名对照 `prototypes/dashboard.html`，不要发明新 IA。
-- 改 `apps/desktop` 后运行 `npm run build` 与 `cargo check --workspace`。
-- 不要 git commit，除非我明确要求。
-
-完成后简要说明：改了哪些文件、如何手动验证（含首次对话啊哈条步骤）。
-```
+1. **啊哈条**：清 `nodeai-first-chat-done` → 对话发消息 → 流式回复 + 啊哈条
+2. **模型目录**：选模型页「浏览全部」或侧栏更多 → 浏览模型
+3. **连接庆祝**：连接页「演示连接 Cursor」→ 庆祝弹窗
+4. **记忆**：对话「记住这条」或记忆页添加
+5. **用量**：`curl -H "Authorization: Bearer sk-nodeai-cursor" .../chat/completions` 后查 `/v1/nodeai/usage`

@@ -14,6 +14,7 @@ use crate::ProxyState;
 pub fn router() -> Router<ProxyState> {
     Router::new()
         .route("/health", get(health))
+        .route("/v1/nodeai/usage", get(usage_stats))
         .route("/v1/models", get(list_models))
         .route("/v1/chat/completions", post(chat_completions))
         .route("/v1/embeddings", post(not_implemented))
@@ -21,6 +22,11 @@ pub fn router() -> Router<ProxyState> {
 
 async fn health() -> impl IntoResponse {
     Json(json!({ "ok": true, "service": "nodeai-proxy" }))
+}
+
+async fn usage_stats(State(state): State<ProxyState>) -> Json<serde_json::Value> {
+    let apps = state.usage.snapshot();
+    Json(json!({ "apps": apps }))
 }
 
 async fn list_models(State(state): State<ProxyState>) -> Json<serde_json::Value> {
@@ -66,6 +72,7 @@ async fn chat_completions(
         TrafficPath::HostedQuota => hosted_quota_unavailable(),
         TrafficPath::ByokLocal => {
             let slug = app_slug.unwrap_or_default();
+            state.usage.record(&slug);
             byok_chat_completions(&state, &headers, body, &slug).await
         }
     }

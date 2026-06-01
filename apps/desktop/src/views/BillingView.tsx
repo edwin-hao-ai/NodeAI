@@ -9,11 +9,22 @@ type Period = "today" | "week" | "month";
 type BillPath = "all" | "hosted" | "byok";
 
 export function BillingView() {
-  const { lang, tr } = useApp();
+  const { lang, tr, localMode } = useApp();
   const [period, setPeriod] = useState<Period>("today");
   const [path, setPath] = useState<BillPath>("all");
 
-  const p = DEMO.BILL_PERIODS[period];
+  const raw = DEMO.BILL_PERIODS[period];
+  const scale = path === "hosted" ? 0.65 : path === "byok" ? 0.35 : 1;
+  const p = {
+    ...raw,
+    spend: raw.spend * scale,
+    saved: raw.saved * scale,
+    tokens: Math.round(raw.tokens * scale),
+    reqs: Math.round(raw.reqs * scale),
+    saveCompress: raw.saveCompress * scale,
+    saveConcise: raw.saveConcise * scale,
+    saveRoute: raw.saveRoute * scale,
+  };
 
   return (
     <PageScroll>
@@ -40,7 +51,7 @@ export function BillingView() {
         {(
           [
             ["all", "billPathAll"],
-            ["hosted", "billPathHosted"],
+            ...(!localMode ? ([["hosted", "billPathHosted"]] as const) : []),
             ["byok", "billPathByok"],
           ] as const
         ).map(([id, key]) => (

@@ -2,11 +2,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { DEMO } from "../data/demo";
 import { getStarterPrompts } from "../data/chatStarters";
 import { requestChatCompletion } from "../lib/chat";
+import { streamText } from "../lib/streamText";
 import { useApp } from "../state/AppContext";
 
 type ChatMessage =
   | { id: string; role: "user"; text: string }
-  | { id: string; role: "assistant"; text: string; aha?: boolean };
+  | { id: string; role: "assistant"; text: string; aha?: boolean; streaming?: boolean };
 
 function markOnboardSendMsg() {
   try {
@@ -36,6 +37,8 @@ export function ChatView() {
     markFirstChatDone,
     gatewayBaseUrl,
     activeGatewayModel,
+    rememberText,
+    cycleWorkspace,
   } = useApp();
 
   const [ctxOpen, setCtxOpen] = useState(false);
@@ -43,8 +46,10 @@ export function ChatView() {
   const [startersHidden, setStartersHidden] = useState(firstChatDone);
   const [extraMessages, setExtraMessages] = useState<ChatMessage[]>([]);
   const [sending, setSending] = useState(false);
+  const [wsOpen, setWsOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const streamCancelRef = useRef<(() => void) | null>(null);
 
   const starterPrompts = getStarterPrompts(lang, "both");
   const savedLabel =
@@ -64,6 +69,49 @@ export function ChatView() {
   useEffect(() => {
     if (firstChatDone) setStartersHidden(true);
   }, [firstChatDone]);
+
+  useEffect(
+    () => () => {
+      streamCancelRef.current?.();
+    },
+    [],
+  );
+
+  const appendStreamingReply = useCallback(
+    (assistantText: string, withAha: boolean) => {
+      const msgId = `a-${Date.now()}`;
+      setExtraMessages((msgs) => [
+        ...msgs,
+        {
+          id: msgId,
+          role: "assistant",
+          text: "",
+          aha: withAha,
+          streaming: true,
+        },
+      ]);
+      streamCancelRef.current?.();
+      streamCancelRef.current = streamText(
+        assistantText,
+        (partial) => {
+          setExtraMessages((msgs) =>
+            msgs.map((m) => (m.id === msgId && m.role === "assistant" ? { ...m, text: partial } : m)),
+          );
+          scrollToBottom();
+        },
+        () => {
+          setExtraMessages((msgs) =>
+            msgs.map((m) =>
+              m.id === msgId && m.role === "assistant" ? { ...m, streaming: false } : m,
+            ),
+          );
+          setSending(false);
+          scrollToBottom();
+        },
+      );
+    },
+    [scrollToBottom],
+  );
 
   const sendMessage = useCallback(
     async (text: string) => {
@@ -93,30 +141,12 @@ export function ChatView() {
       if (wasFirst) {
         markOnboardSendMsg();
         markFirstChatDone();
-        setExtraMessages((msgs) => [
-          ...msgs,
-          {
-            id: `a-${Date.now()}`,
-            role: "assistant",
-            text: assistantText,
-            aha: true,
-          },
-        ]);
-      } else {
-        setExtraMessages((msgs) => [
-          ...msgs,
-          {
-            id: `a-${Date.now()}`,
-            role: "assistant",
-            text: assistantText,
-          },
-        ]);
       }
-      setSending(false);
-      scrollToBottom();
+      appendStreamingReply(assistantText, wasFirst);
     },
     [
       activeGatewayModel,
+      appendStreamingReply,
       firstChatDone,
       gatewayBaseUrl,
       lang,
@@ -242,7 +272,11 @@ export function ChatView() {
                 </div>
                 <p>{tr("demoAssist2")}</p>
                 <div className="msg-actions">
-                  <button type="button" className="remember-btn">
+                  <button
+                    type="button"
+                    className="remember-btn"
+                    onClick={() => rememberText(tr("demoAssist2"))}
+                  >
                     <span className="material-symbols-outlined" style={{ fontSize: 14 }}>
                       bookmark_add
                     </span>
@@ -263,8 +297,8 @@ export function ChatView() {
                 <div key={msg.id} className="msg assistant">
                   <div className="msg-role">NodeAI</div>
                   <div className="msg-body">
-                    <p>{msg.text}</p>
-                    {msg.aha && (
+                    <p>{msg.text}{msg.streaming ? "▍" : ""}</p>
+                    {msg.aha && !msg.streaming && (
                       <div className="aha-banner">
                         <span className="material-symbols-outlined">celebration</span>
                         <div className="aha-text">
@@ -273,6 +307,16 @@ export function ChatView() {
                         </div>
                         <button type="button" className="aha-go" onClick={() => setView("hub")}>
                           {tr("ahaGo")}
+                        </button>
+                      </div>
+                    )}
+                    {!msg.streaming && !msg.aha && (
+                      <div className="msg-actions">
+                        <button type="button" className="remember-btn" onClick={() => rememberText(msg.text)}>
+                          <span className="material-symbols-outlined" style={{ fontSize: 14 }}>
+                            bookmark_add
+                          </span>
+                          <span>{tr("rememberThis")}</span>
                         </button>
                       </div>
                     )}
@@ -341,12 +385,19 @@ export function ChatView() {
         </div>
         <div className="composer-foot">
           <div className="workspace-wrap">
-            <button type="button" className="workspace-chip">
+            <button type="button" className="workspace-chip" onClick={() => setWsOpen((o) => !o)}>
               <span className="material-symbols-outlined">folder</span>
               <span className="ws-label">{tr("wsLabel")}</span>
               <span className="ws-path mono">{workspace}</span>
               <span className="material-symbols-outlined ws-caret">expand_more</span>
             </button>
+            {wsOpen && (
+              <div className="ws-popover open">
+                <button type="button" onClick={() => { cycleWorkspace(); setWsOpen(false); }}>
+                  {tr("wsChange")}
+                </button>
+              </div>
+            )}
           </div>
           <p className="composer-hint" style={{ display: "flex", alignItems: "center", gap: 4, margin: 0 }}>
             <span className="material-symbols-outlined" style={{ fontSize: 14 }}>
