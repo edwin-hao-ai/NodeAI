@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { AddAppModal } from "./components/AddAppModal";
+import { BrandMark } from "./components/BrandMark";
 import { CelebrateModal } from "./components/CelebrateModal";
 import { ModelCatalogModal } from "./components/ModelCatalogModal";
 import { SourceModal } from "./components/SourceModal";
@@ -83,7 +84,14 @@ function AppShell() {
               <span className="tl-yellow" />
               <span className="tl-green" />
             </div>
-            <div className="titlebar-title">NodeAI</div>
+            <div className="titlebar-title">
+              <span
+                style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+              >
+                <BrandMark size={13} />
+                NodeAI
+              </span>
+            </div>
           </div>
           <div className="window-body">
             <Sidebar />

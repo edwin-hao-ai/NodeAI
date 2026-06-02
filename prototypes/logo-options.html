@@ -1,0 +1,402 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NodeAI · Identity v3</title>
+  <style>
+    :root {
+      --bg: #08090b;
+      --bg-2: #0d0f13;
+      --mark: #f3f1ec;
+      --muted: #868c98;
+      --faint: #565c68;
+      --line: rgba(243, 241, 236, 0.09);
+      --line-2: rgba(243, 241, 236, 0.14);
+      --accent: #6e7bff;
+    }
+
+    * { box-sizing: border-box; }
+
+    html { -webkit-font-smoothing: antialiased; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--mark);
+      font-family: "SF Pro Display", Inter, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+      background:
+        radial-gradient(1100px 620px at 50% -10%, rgba(110, 123, 255, 0.10), transparent 60%),
+        radial-gradient(900px 600px at 100% 120%, rgba(243, 241, 236, 0.04), transparent 55%),
+        var(--bg);
+      letter-spacing: -0.01em;
+    }
+
+    .wrap {
+      max-width: 1080px;
+      margin: 0 auto;
+      padding: 64px 28px 96px;
+    }
+
+    /* ---------- header ---------- */
+    header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 24px;
+      padding-bottom: 28px;
+      margin-bottom: 56px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .kicker {
+      margin: 0 0 18px;
+      color: var(--accent);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.32em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(30px, 4.4vw, 52px);
+      font-weight: 600;
+      line-height: 1.04;
+      letter-spacing: -0.045em;
+      max-width: 640px;
+    }
+
+    h1 em {
+      font-style: normal;
+      color: var(--muted);
+    }
+
+    header p {
+      margin: 0;
+      max-width: 230px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.7;
+      text-align: right;
+    }
+
+    /* ---------- gallery ---------- */
+    .gallery {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 28px;
+    }
+
+    .concept {
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      background: linear-gradient(180deg, var(--bg-2), rgba(8, 9, 11, 0.6));
+      overflow: hidden;
+      transition: border-color 0.3s ease, transform 0.3s ease;
+    }
+
+    .concept:hover {
+      border-color: var(--line-2);
+      transform: translateY(-3px);
+    }
+
+    .concept.feature {
+      grid-column: 1 / -1;
+      display: grid;
+      grid-template-columns: 1.1fr 1fr;
+    }
+
+    .hero-mark {
+      display: grid;
+      place-items: center;
+      padding: 56px;
+      border-right: 1px solid var(--line);
+      background:
+        radial-gradient(420px 420px at 50% 45%, rgba(110, 123, 255, 0.08), transparent 70%);
+    }
+
+    .hero-mark svg { width: 188px; height: 188px; }
+
+    /* the big single mark area */
+    .canvas {
+      display: grid;
+      place-items: center;
+      padding: 52px 0 44px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .canvas svg { width: 132px; height: 132px; }
+
+    /* lockups row: app icon + wordmark + favicons */
+    .lockups {
+      display: flex;
+      align-items: center;
+      gap: 26px;
+      padding: 26px 28px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .app-icon {
+      width: 76px;
+      height: 76px;
+      border-radius: 18px;
+      flex: 0 0 76px;
+      box-shadow: 0 14px 30px rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+    }
+
+    .wordmark {
+      font-size: 27px;
+      font-weight: 600;
+      letter-spacing: -0.05em;
+    }
+
+    .wordmark b { font-weight: 600; }
+    .wordmark i { font-style: normal; color: var(--muted); }
+
+    .word-sub {
+      margin-top: 5px;
+      color: var(--faint);
+      font-size: 10.5px;
+      font-weight: 600;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+    }
+
+    .scale-test {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .scale-test .dot32 { width: 32px; height: 32px; }
+    .scale-test .dot24 { width: 24px; height: 24px; }
+    .scale-test .dot16 { width: 16px; height: 16px; }
+    .scale-test svg { display: block; opacity: 0.92; }
+
+    /* meta */
+    .meta { padding: 22px 28px 26px; }
+
+    .meta-top {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 11px;
+    }
+
+    .name { margin: 0; font-size: 17px; font-weight: 600; letter-spacing: -0.03em; }
+
+    .badge {
+      border: 1px solid rgba(110, 123, 255, 0.4);
+      border-radius: 999px;
+      padding: 4px 9px;
+      color: #c5cbff;
+      font-size: 10.5px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      background: rgba(110, 123, 255, 0.1);
+    }
+
+    .badge.neutral {
+      border-color: var(--line-2);
+      color: var(--muted);
+      background: transparent;
+    }
+
+    .desc { margin: 0; color: var(--muted); font-size: 13.5px; line-height: 1.74; }
+
+    .idea {
+      margin: 14px 0 0;
+      color: var(--faint);
+      font-size: 12px;
+      line-height: 1.6;
+    }
+    .idea b { color: var(--muted); font-weight: 600; }
+
+    footer {
+      margin-top: 64px;
+      padding-top: 26px;
+      border-top: 1px solid var(--line);
+      color: var(--faint);
+      font-size: 12.5px;
+      line-height: 1.8;
+    }
+    footer b { color: var(--muted); font-weight: 600; }
+
+    @media (max-width: 860px) {
+      header { flex-direction: column; }
+      header p { text-align: left; max-width: none; }
+      .gallery { grid-template-columns: 1fr; }
+      .concept.feature { grid-template-columns: 1fr; }
+      .hero-mark { border-right: none; border-bottom: 1px solid var(--line); }
+      .scale-test { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <header>
+      <div>
+        <p class="kicker">NodeAI · Identity exploration v3</p>
+        <h1>少即是高级。<em>黑白、精准几何、一点点缀色。</em></h1>
+      </div>
+      <p>这一版刻意做减法:接近纯黑白,只在「当前节点」处用一点电光蓝。每个标识都过了 App 图标和 16px 小尺寸测试。</p>
+    </header>
+
+    <section class="gallery">
+
+      <!-- ============ FEATURE: Node Dial ============ -->
+      <article class="concept feature">
+        <div class="hero-mark">
+          <!-- Node Dial -->
+          <svg viewBox="0 0 120 120" fill="none" aria-hidden="true">
+            <path d="M76.06 25.56 A38 38 0 1 1 43.94 25.56"
+                  stroke="#f3f1ec" stroke-width="7" stroke-linecap="round"/>
+            <circle cx="60" cy="22" r="5" fill="#6e7bff"/>
+            <circle cx="60" cy="60" r="11" fill="#f3f1ec"/>
+          </svg>
+        </div>
+        <div>
+          <div class="lockups" style="border-top:none;">
+            <svg class="app-icon" viewBox="0 0 120 120" aria-hidden="true">
+              <rect width="120" height="120" rx="28" fill="#0d0f13"/>
+              <path d="M75.4 33.9 A29 29 0 1 1 44.6 33.9"
+                    stroke="#f3f1ec" stroke-width="6" stroke-linecap="round" transform="translate(0,4)"/>
+              <circle cx="60" cy="35" r="4.2" fill="#6e7bff"/>
+              <circle cx="60" cy="64" r="9" fill="#f3f1ec"/>
+            </svg>
+            <div>
+              <div class="wordmark"><b>Node</b><i>AI</i></div>
+              <div class="word-sub">Token intelligence hub</div>
+            </div>
+            <div class="scale-test">
+              <svg class="dot32" viewBox="0 0 120 120" fill="none"><path d="M76 25.6 A38 38 0 1 1 44 25.6" stroke="#f3f1ec" stroke-width="9" stroke-linecap="round"/><circle cx="60" cy="60" r="13" fill="#f3f1ec"/></svg>
+              <svg class="dot24" viewBox="0 0 120 120" fill="none"><path d="M76 25.6 A38 38 0 1 1 44 25.6" stroke="#f3f1ec" stroke-width="11" stroke-linecap="round"/><circle cx="60" cy="60" r="15" fill="#f3f1ec"/></svg>
+              <svg class="dot16" viewBox="0 0 120 120" fill="none"><path d="M77 24 A39 39 0 1 1 43 24" stroke="#f3f1ec" stroke-width="14" stroke-linecap="round"/><circle cx="60" cy="60" r="17" fill="#f3f1ec"/></svg>
+            </div>
+          </div>
+          <div class="meta">
+            <div class="meta-top">
+              <h3 class="name">01 · Node Dial</h3>
+              <span class="badge">最推荐</span>
+            </div>
+            <p class="desc">一个仪表级的「控制旋钮」:外环是网络/中枢,缺口上的小蓝点是当前选中的模型节点,中心实点是 NodeAI 自己。冷静、精密、像高端硬件。</p>
+            <p class="idea"><b>为什么高级</b> &nbsp;圆环的精度感 = 仪器级品质;缺口+节点天然适合做「切换模型」的旋转动效。小尺寸依然清晰可辨。</p>
+          </div>
+        </div>
+      </article>
+
+      <!-- ============ N Monogram ============ -->
+      <article class="concept">
+        <div class="canvas">
+          <svg viewBox="0 0 120 120" fill="none" aria-hidden="true">
+            <path d="M42 84 V40 L78 84" stroke="#f3f1ec" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M78 84 V47" stroke="#f3f1ec" stroke-width="11" stroke-linecap="round"/>
+            <circle cx="78" cy="40" r="7.5" fill="#6e7bff"/>
+          </svg>
+        </div>
+        <div class="lockups">
+          <svg class="app-icon" viewBox="0 0 120 120" aria-hidden="true">
+            <rect width="120" height="120" rx="28" fill="#f3f1ec"/>
+            <path d="M44 82 V44 L76 82" stroke="#0d0f13" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M76 82 V50" stroke="#0d0f13" stroke-width="10" stroke-linecap="round"/>
+            <circle cx="76" cy="43" r="6.5" fill="#6e7bff"/>
+          </svg>
+          <div>
+            <div class="wordmark"><b>Node</b><i>AI</i></div>
+            <div class="word-sub">The model hub</div>
+          </div>
+          <div class="scale-test">
+            <svg class="dot24" viewBox="0 0 120 120" fill="none"><path d="M42 84 V40 L78 84 V44" stroke="#f3f1ec" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <svg class="dot16" viewBox="0 0 120 120" fill="none"><path d="M42 84 V40 L78 84 V44" stroke="#f3f1ec" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+        </div>
+        <div class="meta">
+          <div class="meta-top">
+            <h3 class="name">02 · Mono N</h3>
+            <span class="badge neutral">最稳妥</span>
+          </div>
+          <p class="desc">单字重的几何 N,自信、克制。右上角终点收成一个蓝色节点,既是品牌首字母,也暗示「一个节点」。最不容易过时。</p>
+          <p class="idea"><b>为什么高级</b> &nbsp;字母标永远耐看;节点收尾是唯一的小心机,黑底白底都成立。</p>
+        </div>
+      </article>
+
+      <!-- ============ Switch Node ============ -->
+      <article class="concept">
+        <div class="canvas">
+          <svg viewBox="0 0 120 120" fill="none" aria-hidden="true">
+            <rect x="26" y="44" width="68" height="32" rx="16" stroke="#f3f1ec" stroke-width="5"/>
+            <circle cx="44" cy="60" r="3" fill="#f3f1ec" fill-opacity="0.3"/>
+            <circle cx="78" cy="60" r="10" fill="#6e7bff"/>
+          </svg>
+        </div>
+        <div class="lockups">
+          <svg class="app-icon" viewBox="0 0 120 120" aria-hidden="true">
+            <rect width="120" height="120" rx="28" fill="#0d0f13"/>
+            <rect x="30" y="47" width="60" height="28" rx="14" stroke="#f3f1ec" stroke-width="4.5"/>
+            <circle cx="76" cy="61" r="9" fill="#6e7bff"/>
+          </svg>
+          <div>
+            <div class="wordmark"><b>Node</b><i>AI</i></div>
+            <div class="word-sub">Switch your model</div>
+          </div>
+          <div class="scale-test">
+            <svg class="dot24" viewBox="0 0 120 120" fill="none"><rect x="22" y="42" width="76" height="36" rx="18" stroke="#f3f1ec" stroke-width="7"/><circle cx="80" cy="60" r="12" fill="#f3f1ec"/></svg>
+            <svg class="dot16" viewBox="0 0 120 120" fill="none"><rect x="18" y="40" width="84" height="40" rx="20" stroke="#f3f1ec" stroke-width="9"/><circle cx="82" cy="60" r="14" fill="#f3f1ec"/></svg>
+          </div>
+        </div>
+        <div class="meta">
+          <div class="meta-top">
+            <h3 class="name">03 · Switch Node</h3>
+            <span class="badge neutral">最贴产品</span>
+          </div>
+          <p class="desc">一个开关胶囊,节点已滑到「开」的一侧。直接呼应产品核心的「VPN 式切换模型」,一眼就懂在干嘛。</p>
+          <p class="idea"><b>为什么高级</b> &nbsp;极简开关是公认的精致符号;切换动效几乎是现成的品牌语言。</p>
+        </div>
+      </article>
+
+      <!-- ============ Aperture / Orbit ============ -->
+      <article class="concept">
+        <div class="canvas">
+          <svg viewBox="0 0 120 120" fill="none" aria-hidden="true">
+            <path d="M84.4 30.9 A38 38 0 1 1 24.3 47" stroke="#f3f1ec" stroke-width="6" stroke-linecap="round"/>
+            <path d="M42.6 80.7 A27 27 0 1 1 85.4 69.2" stroke="#f3f1ec" stroke-width="6" stroke-linecap="round" stroke-opacity="0.55"/>
+            <circle cx="60" cy="60" r="8" fill="#6e7bff"/>
+          </svg>
+        </div>
+        <div class="lockups">
+          <svg class="app-icon" viewBox="0 0 120 120" aria-hidden="true">
+            <rect width="120" height="120" rx="28" fill="#0d0f13"/>
+            <path d="M81 36 A30 30 0 1 1 33.5 49" stroke="#f3f1ec" stroke-width="5.5" stroke-linecap="round"/>
+            <path d="M45 75 A21 21 0 1 1 78.5 66" stroke="#f3f1ec" stroke-width="5.5" stroke-linecap="round" stroke-opacity="0.5"/>
+            <circle cx="60" cy="60" r="6.5" fill="#6e7bff"/>
+          </svg>
+          <div>
+            <div class="wordmark"><b>Node</b><i>AI</i></div>
+            <div class="word-sub">Live &amp; in orbit</div>
+          </div>
+          <div class="scale-test">
+            <svg class="dot24" viewBox="0 0 120 120" fill="none"><path d="M84 31 A38 38 0 1 1 24 47" stroke="#f3f1ec" stroke-width="9" stroke-linecap="round"/><circle cx="60" cy="60" r="11" fill="#f3f1ec"/></svg>
+            <svg class="dot16" viewBox="0 0 120 120" fill="none"><path d="M85 29 A39 39 0 1 1 23 46" stroke="#f3f1ec" stroke-width="12" stroke-linecap="round"/><circle cx="60" cy="60" r="14" fill="#f3f1ec"/></svg>
+          </div>
+        </div>
+        <div class="meta">
+          <div class="meta-top">
+            <h3 class="name">04 · Orbit</h3>
+            <span class="badge neutral">最适合动效</span>
+          </div>
+          <p class="desc">两段同心弧 + 中心节点,像光圈/轨道。表达「实时运转、持续监控」,中心点是稳定的 NodeAI 内核。</p>
+          <p class="idea"><b>为什么高级</b> &nbsp;弧线天生有运动感,做加载/实时用量动画极佳;留白足够,不显拥挤。</p>
+        </div>
+      </article>
+
+    </section>
+
+    <footer>
+      <b>怎么选</b> &nbsp;追求最稳、最像成熟品牌 → 01 Node Dial;要绝对耐看的字母标 → 02 Mono N;想第一眼就讲清产品 → 03 Switch Node;打算大量做动效 → 04 Orbit。<br/>
+      告诉我编号,我再把它做成完整系统:精确网格、安全间距、单色/反白/超小尺寸规范,以及配套字标锁定。
+    </footer>
+  </main>
+</body>
+</html>

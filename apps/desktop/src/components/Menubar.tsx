@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { BrandMark } from "./BrandMark";
 import { fmtMoney, fmtRate, fmtTokens } from "../lib/format";
 import { DEMO } from "../data/demo";
 import { type AppRecord } from "../lib/route";
@@ -61,7 +62,10 @@ export function Menubar() {
   return (
     <>
       <header className="menubar">
-        <div style={{ fontWeight: 500 }}>NodeAI</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, fontWeight: 500 }}>
+          <BrandMark size={15} />
+          NodeAI
+        </div>
         <div className="menubar-right">
           <button className="lang-btn" type="button" onClick={toggleLang}>
             {lang === "zh" ? "EN" : "中文"}

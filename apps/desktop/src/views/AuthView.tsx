@@ -1,16 +1,27 @@
 import { useState } from "react";
+import { BrandMark } from "../components/BrandMark";
 import { useApp } from "../state/AppContext";
 
 export function AuthView() {
-  const { tr, lang, toggleLang, openAuth, closeAuth, loginDemo } = useApp();
+  const { tr, lang, toggleLang, openAuth, closeAuth, signInWithCloud, showToast } = useApp();
   const [mode, setMode] = useState<"login" | "register">(
     () => (sessionStorage.getItem("nodeai-auth-mode") as "login" | "register") || "login",
   );
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
 
-  const finish = () => {
-    loginDemo();
+  const finish = async () => {
+    if (!email.trim()) {
+      showToast(tr("authEmailRequired"));
+      return;
+    }
+    setBusy(true);
+    try {
+      await signInWithCloud(email.trim(), password);
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -18,7 +29,7 @@ export function AuthView() {
       <div className="topbar">
         <div className="brand">
           <div className="brand-icon">
-            <span className="material-symbols-outlined">shield</span>
+            <BrandMark size={20} />
           </div>
           NodeAI
         </div>
@@ -37,8 +48,7 @@ export function AuthView() {
           <p>{tr("authHeroSub")}</p>
           <div className="roi-card">
             <div style={{ fontSize: 12, color: "var(--on-surface-variant)" }}>{tr("planRoiSaved")}</div>
-            <div className="roi-big mono">+¥191</div>
-            <div className="roi-sub">{tr("planRoiFoot")}</div>
+            <div className="roi-sub">{tr("authHeroSub")}</div>
           </div>
         </div>
         <div className="auth-card">
@@ -54,7 +64,7 @@ export function AuthView() {
             <label>{tr("authPassword")}</label>
             <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
           </div>
-          <button type="button" className="btn-primary" onClick={finish}>
+          <button type="button" className="btn-primary" onClick={() => void finish()} disabled={busy}>
             {mode === "login" ? tr("authLoginBtn") : tr("authRegBtn")}
           </button>
           <div className="auth-foot">

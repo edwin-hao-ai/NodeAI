@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { BrandMark } from "../components/BrandMark";
 import { CopyButton } from "../components/ui/CopyButton";
 import { PageHead, PageScroll } from "../components/ui/PageScroll";
 import { DEMO } from "../data/demo";
@@ -101,7 +102,7 @@ export function GatewayView() {
             <span className="material-symbols-outlined flow-arrow">arrow_forward</span>
             <div className="flow-node">
               <div className="flow-icon nodeai">
-                <span className="material-symbols-outlined">shield</span>
+                <BrandMark size={26} />
               </div>
               <span className="flow-lbl">NodeAI</span>
             </div>
