@@ -10,14 +10,19 @@ export function streamText(
     return () => {};
   }
   let i = 0;
+  let cancelled = false;
   onUpdate("");
-  const id = window.setInterval(() => {
+  const id = globalThis.setInterval(() => {
+    if (cancelled) return;
     i += 1;
     onUpdate(full.slice(0, i));
     if (i >= full.length) {
-      window.clearInterval(id);
-      onDone();
+      globalThis.clearInterval(id);
+      if (!cancelled) onDone();
     }
   }, charMs);
-  return () => window.clearInterval(id);
+  return () => {
+    cancelled = true;
+    globalThis.clearInterval(id);
+  };
 }

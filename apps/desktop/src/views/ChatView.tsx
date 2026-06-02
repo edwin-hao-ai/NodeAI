@@ -214,6 +214,8 @@ export function ChatView() {
       if (wasFirst) setStartersHidden(true);
 
       const historySnapshot = messages;
+      const sendSessionId = activeSessionId;
+      const isActiveSendSession = () => sessionRef.current === sendSessionId;
       const userId = `u-${Date.now()}`;
       const msgId = `a-${Date.now()}`;
 
@@ -228,6 +230,7 @@ export function ChatView() {
       scrollToBottom();
 
       const patchAssistant = (patch: Partial<ChatMessage>) => {
+        if (!isActiveSendSession()) return;
         setMessages((msgs) =>
           msgs.map((m) => (m.id === msgId && m.role === "assistant" ? { ...m, ...patch } : m)),
         );
@@ -239,6 +242,7 @@ export function ChatView() {
         thinking?: string,
         bonus?: { rtk?: boolean; saved?: number; prune?: boolean; pruneSaved?: number } | null,
       ) => {
+        if (!isActiveSendSession()) return;
         const withBonus = appendBonusNote(assistantText, bonus ?? null);
         if (wasFirst && withBonus) {
           markOnboardSendMsg();
@@ -270,8 +274,15 @@ export function ChatView() {
           });
 
           if (result.error && !result.content && !uiMessages.length) {
-            setMessages((msgs) => msgs.filter((m) => m.id !== msgId && m.id !== userId));
+            if (isActiveSendSession()) {
+              setMessages((msgs) => msgs.filter((m) => m.id !== msgId && m.id !== userId));
+            }
             showToast(`${tr("toastChatFailed")}: ${result.error}`);
+            setSending(false);
+            return;
+          }
+
+          if (!isActiveSendSession()) {
             setSending(false);
             return;
           }
@@ -315,7 +326,9 @@ export function ChatView() {
         );
 
         if (error && !content) {
-          setMessages((msgs) => msgs.filter((m) => m.id !== msgId && m.id !== userId));
+          if (isActiveSendSession()) {
+            setMessages((msgs) => msgs.filter((m) => m.id !== msgId && m.id !== userId));
+          }
           showToast(`${tr("toastChatFailed")}: ${error}`);
           setSending(false);
           return;
@@ -337,7 +350,9 @@ export function ChatView() {
 
         finishAssistant(assistantText, thinking || undefined, bonus ?? undefined);
       } catch (err) {
-        setMessages((msgs) => msgs.filter((m) => m.id !== msgId && m.id !== userId));
+        if (isActiveSendSession()) {
+          setMessages((msgs) => msgs.filter((m) => m.id !== msgId && m.id !== userId));
+        }
         showToast(
           `${tr("toastChatFailed")}: ${err instanceof Error ? err.message : "unknown"}`,
         );
@@ -345,6 +360,7 @@ export function ChatView() {
       }
     },
     [
+      activeSessionId,
       agentEnabled,
       appendBonusNote,
       attachments,
