@@ -4,6 +4,8 @@ import type { GatewayCatalogEntry } from "../gateway/types";
 import { resolvedModelForRoute } from "../route/display";
 import type { ChatAttachment } from "./attachments";
 import { buildMessageContent } from "./attachments";
+import { prependSessionContextToApi } from "./contextPref";
+import type { ReplyLang } from "../userPrefs";
 import type { ApiChatMessage, ChatToolCall } from "./sessions";
 import { drainSseBuffer } from "./sse";
 import { ToolCallAccumulator } from "./toolCalls";
@@ -32,6 +34,9 @@ export interface ChatRequestOptions {
   agentEnabled?: boolean;
   hybridFallback?: boolean;
   hybridFallbackConfirmed?: boolean;
+  /** Per-chat context from composer strip; injected as a system message. */
+  chatContextPref?: string;
+  replyLang?: ReplyLang;
 }
 
 export interface ChatStreamUpdate {
@@ -154,9 +159,15 @@ export async function streamChatRound(
 ): Promise<ChatResult> {
   const url = `${baseUrl.replace(/\/$/, "")}/chat/completions`;
   const model = resolveRequestModel(options);
+  const messages = prependSessionContextToApi(
+    apiMessages,
+    options?.chatContextPref,
+    options?.lang ?? "zh",
+    options?.replyLang,
+  );
   const body: Record<string, unknown> = {
     model,
-    messages: apiMessages,
+    messages,
     max_tokens: 2048,
     stream: true,
   };

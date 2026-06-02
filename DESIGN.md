@@ -339,20 +339,23 @@ Light 模式：Semantic 色单独校准对比度，不直接 invert。
 
 ### Chat Layout（主界面）
 
-**四区结构：** 侧栏（220px）+ 对话区（flex, max 680px 内容）+ **Activity 面板（300px）**
+**三列结构（MVP）：** 侧栏（220px）+ 对话区（flex, max 680px 内容）— **无右侧 Activity 栏**（实时用量在 **总览顶栏** + **菜单栏托盘**）。
 
-- **侧栏：** 新对话、迷你预算 HUD、历史、导航（对话 / **总览** / **连接应用** / 账单 / 已连应用 / 设置）
-- **顶栏 HUD Strip：** 模型下拉 + 图表化 chips（用量 sparkline、预算环、今日节省）
-- **对话区：** Composer Hint：「这里是快捷对话 · Cursor 等费用在右侧单独统计」
-- **Activity 面板（P0）：** 标题「实时 · 谁在用」；应用行含 icon + **显示名** + 状态 badge
+- **侧栏（对话视图）：** 新对话、**迷你预算 HUD**（预算剩余 + 今日节省 → 点进总览）、历史、导航
+- **对话顶栏：** 当前线路只读 chip + **今日节省 chip**（有数据时）+ 轻量「总览」入口
+- **上下文条：** 「AI 已知道：…」— 来自 **设置默认回复语言** + **live 记忆摘要** + 可选「仅改这条对话…」（注入 system，不写进历史）
+- **对话区：** Composer Hint：「支持文件与图片 · 实时用量见托盘或总览」
+- **Agent 工作区：** 仅 Agent 开启时显示于 Composer 下方
 
-| 区块 | 内容 | 规格 |
+> **Post-MVP / Hub 页：** Activity 面板（300px）与完整 HUD Strip（sparkline + 预算环）保留在 **总览** 与 **账单** 页，不在对话页占宽。
+
+| 区块 | 位置 | 规格 |
 |------|------|------|
-| 预算环 | 剩余 / 已用 / 上限 | SVG ring 56px；≥80% 用 `--warn` |
-| 省钱 Banner | 今日节省 + 智能压缩/智能选模型拆分 | `--savings` 12% tint + border |
-| 用量走势 | 实时速度 + area sparkline | 260×40 SVG；1.2s 刷新；末端 dot |
-| 正在使用的应用 | Cursor / Claude Code / NodeAI 对话 | icon + 显示名 + 使用中/等待 + 进度条 |
-| 最近调用 | 最近 6 条 | **Cursor** → 写代码 → ¥（禁止 slug） |
+| 预算环 | 总览 / 账单 | SVG ring 56px；≥80% 用 `--warn` |
+| 省钱 Banner | 总览 / 对话 ROI（首条消息内） | `--savings` tint |
+| 用量走势 | 总览 `hub-live-block` + 托盘 sparkline | 260×40 / 64×24 SVG |
+| 正在使用的应用 | 总览 Live 区块 | icon + 显示名 + 状态 badge |
+| 最近调用 | 总览 / 账单 | **Cursor** → 写代码 → ¥（禁止 slug） |
 
 ### 应用识别（Connect Apps 页）
 
@@ -669,7 +672,8 @@ App 色 token：`--app-cursor` · `--app-claude` · `--app-chat`
 | 2026-05-31 | Hero 内嵌 SVG 数据流动画 | 强化 VPN/流量中枢隐喻，提升精致度 |
 | 2026-05-31 | BYOK Hub + Activity 面板 | 核心感知：App 调用、Token、省钱可视化；参考 Cursor Agent View |
 | 2026-05-31 | 全界面 i18n zh/en | 菜单栏与设置切换；`data-i18n` 模式 |
-| 2026-05-31 | HUD 图表化 | 顶栏预算/Token/节省由 sparkline + ring 替代纯文字 |
+| 2026-06-02 | Chat 单列 + 用量在总览/托盘 | 对话专注；Activity 300px 移至 Hub；对齐 `nodeai-prototype.mdc` |
+| 2026-06-02 | Tauri Overlay titlebar | 去掉 Web 假交通灯；`data-tauri-drag-region` 于 Menubar |
 
 ---
 

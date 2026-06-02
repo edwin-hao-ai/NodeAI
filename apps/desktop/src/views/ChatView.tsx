@@ -7,7 +7,9 @@ import { getStarterPrompts } from "../data/chatStarters";
 import { fmtMoney } from "../lib/format";
 import { loadHybridFallbackConfirmed, loadHybridFallbackEnabled } from "../lib/hybridFallback";
 import { runAgentChat, streamChatRound, toApiMessages } from "../lib/chat";
+import { contextStripSummaryText, shouldShowContextStrip } from "../lib/chat/contextStrip";
 import { loadChatContextPref, saveChatContextPref } from "../lib/chat/contextPref";
+import { loadUserPrefs } from "../lib/userPrefs";
 import { pickAgentWorkspace } from "../lib/chat/agentInvoke";
 import type { ChatAttachment } from "../lib/chat/attachments";
 import { buildMessageContent, fileToAttachment } from "../lib/chat/attachments";
@@ -87,6 +89,8 @@ export function ChatView() {
     resolve: (ok: boolean) => void;
   } | null>(null);
   const [wsOpen, setWsOpen] = useState(false);
+  const [replyLang, setReplyLang] = useState(() => loadUserPrefs().replyLang);
+  const wsWrapRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const streamCancelRef = useRef<(() => void) | null>(null);
@@ -104,6 +108,7 @@ export function ChatView() {
 
   const starterPrompts = getStarterPrompts(lang, "both");
   const savedLabel = fmtMoney(usageSnapshot?.periods?.today?.saved_yuan ?? 0, lang);
+  const todaySavedNum = usageSnapshot?.periods?.today?.saved_yuan ?? 0;
   const monthSaved = fmtMoney(usageSnapshot?.periods?.month?.saved_yuan ?? 0, lang);
   const chatRequests =
     usageSnapshot?.app_stats?.chat?.requests ?? usageSnapshot?.apps?.chat ?? 0;
@@ -127,6 +132,25 @@ export function ChatView() {
     },
     [],
   );
+
+  useEffect(() => {
+    const onPrefs = (e: Event) => {
+      const detail = (e as CustomEvent<{ replyLang?: typeof replyLang }>).detail;
+      if (detail?.replyLang) setReplyLang(detail.replyLang);
+    };
+    window.addEventListener("nodeai-user-prefs", onPrefs);
+    return () => window.removeEventListener("nodeai-user-prefs", onPrefs);
+  }, []);
+
+  useEffect(() => {
+    if (!wsOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (wsWrapRef.current?.contains(e.target as Node)) return;
+      setWsOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [wsOpen]);
 
   const resolvedChatModel = useMemo(
     () =>
@@ -162,6 +186,8 @@ export function ChatView() {
       },
       contextWindow,
       agentEnabled,
+      chatContextPref: ctxDraft,
+      replyLang,
       hybridFallback: loadHybridFallbackEnabled(),
       hybridFallbackConfirmed: loadHybridFallbackConfirmed(),
     }),
@@ -172,6 +198,8 @@ export function ChatView() {
       cloudConfigured,
       cloudSession,
       contextWindow,
+      ctxDraft,
+      replyLang,
       gatewayCatalog,
       lang,
       localMode,
@@ -402,18 +430,26 @@ export function ChatView() {
   };
 
   const showStarters = !firstChatDone && !startersHidden && messages.length === 0;
-  const ctxSummary =
-    ctxDraft.trim() ||
-    (memories.length > 0
-      ? tr("ctxStripLive").replace("{n}", String(memories.length))
-      : tr(lang === "zh" ? "ctxStripSummary" : "ctxStripSummaryEn"));
-  const showMemoryStrip = true;
+  const ctxSummary = contextStripSummaryText(ctxDraft, memories, replyLang, lang, tr);
+  const showMemoryStrip = shouldShowContextStrip();
+  const showRoiBanner =
+    !roiBannerHidden &&
+    monthSaved !== fmtMoney(0, lang) &&
+    messages.length < 2;
+  const assistantModelLabel = resolvedChatModel?.displayName[lang];
+  const lastAssistantIdx = useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i -= 1) {
+      if (messages[i].role === "assistant") return i;
+    }
+    return -1;
+  }, [messages]);
   const showConnectBanner =
     !connectBannerHidden &&
     !localMode &&
     !cursorConnected &&
     !firstChatDone &&
-    Boolean(cloudLoggedIn);
+    Boolean(cloudLoggedIn) &&
+    messages.length === 0;
 
   return (
     <>
@@ -427,6 +463,18 @@ export function ChatView() {
           <span className="route-line-text">{routeLine}</span>
           <span className="route-change-link">{tr("routeChangeLink")}</span>
         </button>
+        {todaySavedNum > 0 && (
+          <button
+            type="button"
+            className="chat-savings-chip"
+            onClick={() => setView("hub")}
+          >
+            <span className="material-symbols-outlined">savings</span>
+            <span>
+              {tr("chatHeaderSavedToday").replace("{v}", savedLabel)}
+            </span>
+          </button>
+        )}
         <button type="button" className="chat-hub-link" onClick={() => setView("hub")}>
           <span className="material-symbols-outlined">monitoring</span>
           {chatRequests > 0 && <span className="mono">{chatRequests}</span>}
@@ -434,7 +482,7 @@ export function ChatView() {
         </button>
       </header>
       <div className="chat-topstack">
-        {!roiBannerHidden && monthSaved !== fmtMoney(0, lang) && (
+        {showRoiBanner && (
           <div className="roi-banner">
             <span>
               <span
@@ -548,9 +596,14 @@ export function ChatView() {
                 );
               }
 
+              const showRemember =
+                !isLastAssistant && Boolean(msg.text) && idx === lastAssistantIdx;
+
               return (
                 <div key={msg.id} className="msg assistant">
-                  <div className="msg-role">NodeAI</div>
+                  <div className="msg-role">
+                    NodeAI{assistantModelLabel ? ` · ${assistantModelLabel}` : ""}
+                  </div>
                   <div className="msg-body">
                     {msg.toolCalls?.map((call) => (
                       <div key={call.id} className="tool-call-chip">
@@ -590,7 +643,7 @@ export function ChatView() {
                         </button>
                       </div>
                     )}
-                    {!isLastAssistant && msg.text && (
+                    {showRemember && (
                       <div className="msg-actions">
                         <button type="button" className="remember-btn" onClick={() => rememberText(msg.text)}>
                           <span className="material-symbols-outlined" style={{ fontSize: 14 }}>
@@ -711,36 +764,60 @@ export function ChatView() {
             </div>
           </div>
         </div>
-        <div className="composer-foot">
-          <div className="workspace-wrap">
-            <button type="button" className="workspace-chip" onClick={() => setWsOpen((o) => !o)}>
-              <span className="material-symbols-outlined">folder</span>
-              <span className="ws-label">{tr("wsLabel")}</span>
-              <span className="ws-path mono">{workspace}</span>
-              <span className="material-symbols-outlined ws-caret">expand_more</span>
-            </button>
-            {wsOpen && (
-              <div className="ws-popover open">
-                <button
-                  type="button"
-                  onClick={() => {
-                    void pickAgentWorkspace().then((picked) => {
-                      if (picked) {
-                        setWorkspace(picked);
-                        showToast(tr("toastWsChanged").replace("{p}", picked));
-                      }
+        <div className={`composer-foot${agentEnabled ? "" : " composer-foot-no-agent"}`}>
+          {agentEnabled && (
+            <div className="workspace-wrap" ref={wsWrapRef}>
+              <button type="button" className="workspace-chip" onClick={() => setWsOpen((o) => !o)}>
+                <span className="material-symbols-outlined">folder</span>
+                <span className="ws-label">{tr("wsLabel")}</span>
+                <span className="ws-path mono" title={workspace}>
+                  {workspace}
+                </span>
+                <span className="material-symbols-outlined ws-caret">expand_more</span>
+              </button>
+              {wsOpen && (
+                <div className="ws-popover open">
+                  <div className="ws-pop-title">{tr("wsPopTitle")}</div>
+                  <div className="ws-pop-path">
+                    <span className="material-symbols-outlined">folder_open</span>
+                    <span className="mono">{workspace}</span>
+                  </div>
+                  <p className="ws-pop-hint">{tr("wsPopHint")}</p>
+                  <button
+                    type="button"
+                    className="ws-pop-pick"
+                    onClick={() => {
+                      void pickAgentWorkspace().then((picked) => {
+                        if (picked) {
+                          setWorkspace(picked);
+                          showToast(tr("toastWsChanged").replace("{p}", picked));
+                        }
+                        setWsOpen(false);
+                      });
+                    }}
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
+                      drive_folder_upload
+                    </span>
+                    <span>{tr("wsPick")}</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="ws-pop-change"
+                    onClick={() => {
+                      cycleWorkspace();
                       setWsOpen(false);
-                    });
-                  }}
-                >
-                  {tr("wsPick")}
-                </button>
-                <button type="button" onClick={() => { cycleWorkspace(); setWsOpen(false); }}>
-                  {tr("wsChange")}
-                </button>
-              </div>
-            )}
-          </div>
+                    }}
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
+                      sync
+                    </span>
+                    <span>{tr("wsChangeShort")}</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
           <p className="composer-hint" style={{ display: "flex", alignItems: "center", gap: 4, margin: 0 }}>
             <span className="material-symbols-outlined" style={{ fontSize: 14 }}>
               info

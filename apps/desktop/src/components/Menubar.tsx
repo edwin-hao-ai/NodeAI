@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { BrandMark } from "./BrandMark";
-import { fmtMoney, fmtRate, fmtTokens, sparkPath } from "../lib/format";
+import { fmtMoney, fmtTokens, sparkPath } from "../lib/format";
 import { appForLedgerSlug, sparklineFromLedger } from "../lib/route";
 import { useApp } from "../state/AppContext";
 
@@ -16,9 +16,18 @@ function toTrayRow(slug: string, count: number): TrayAppRow {
   return { id: app.id, color: app.color, label: app.name, count };
 }
 
-export function Menubar() {
-  const { lang, proxy, toggleLang, tr, setView, routeLine, usageSnapshot, cloudLoggedIn, localMode } =
-    useApp();
+export function Menubar({ nativeShell = false }: { nativeShell?: boolean }) {
+  const {
+    lang,
+    toggleLang,
+    tr,
+    setView,
+    routeLine,
+    routeApplying,
+    usageSnapshot,
+    cloudLoggedIn,
+    localMode,
+  } = useApp();
   const [trayOpen, setTrayOpen] = useState(false);
   const traySignedIn = cloudLoggedIn || localMode;
   const cap = traySignedIn ? usageSnapshot?.budget?.cap_yuan : undefined;
@@ -29,21 +38,16 @@ export function Menubar() {
 
   const today = usageSnapshot?.periods?.today;
   const todayTokens = today?.tokens ?? 0;
-  const todayRequests = today?.requests ?? 0;
-  const totalRequests = usageSnapshot
-    ? Object.values(usageSnapshot.apps).reduce((sum, n) => sum + n, 0)
-    : 0;
-
   const spark = useMemo(() => sparklineFromLedger(usageSnapshot, 16), [usageSnapshot]);
   const sparkD = sparkPath(spark, 64, 24);
 
-  const flowLabel = !traySignedIn
+  const rateLabel = !traySignedIn
     ? tr("trayNotLoggedIn")
     : todayTokens > 0
-      ? fmtRate(Math.round(todayTokens / Math.max(todayRequests, 1)))
-      : totalRequests > 0
-        ? `${totalRequests} req`
-        : fmtRate(0);
+      ? tr("trayHudTokens").replace("{n}", fmtTokens(todayTokens))
+      : liveSaved > 0
+        ? tr("trayHudSaved").replace("{v}", fmtMoney(liveSaved, lang))
+        : tr("trayRunningShort");
 
   const trayApps = useMemo((): TrayAppRow[] => {
     if (!usageSnapshot?.apps || Object.keys(usageSnapshot.apps).length === 0) {
@@ -57,8 +61,12 @@ export function Menubar() {
 
   return (
     <>
-      <header className="menubar">
-        <div style={{ display: "flex", alignItems: "center", gap: 6, fontWeight: 500 }}>
+      <header className={`menubar${nativeShell ? " menubar-native" : ""}`}>
+        <div
+          className={nativeShell ? "menubar-drag" : undefined}
+          style={{ display: "flex", alignItems: "center", gap: 6, fontWeight: 500, flex: 1, minWidth: 0 }}
+          {...(nativeShell ? { "data-tauri-drag-region": true } : {})}
+        >
           <BrandMark size={15} />
           NodeAI
         </div>
@@ -74,7 +82,7 @@ export function Menubar() {
             <span className="material-symbols-outlined" style={{ fontSize: 16, color: "var(--savings)" }}>
               shield
             </span>
-            <span className="mono">{flowLabel}</span>
+            <span className="mono">{rateLabel}</span>
           </button>
         </div>
       </header>
@@ -86,46 +94,57 @@ export function Menubar() {
           </span>
         </div>
         <div className="tray-route">
-          <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
-            route
-          </span>
-          <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>
-            {routeLine}
-          </span>
+          {routeApplying ? (
+            tr("routeApplying")
+          ) : (
+            <>
+              {tr("trayRouteLbl")}
+              <strong>{routeLine}</strong>
+            </>
+          )}
         </div>
         <div className="hud-pop-row">
           <span className="hud-pop-lbl">{tr("tokenFlow")}</span>
           <span className="mono">{fmtTokens(todayTokens)}</span>
         </div>
-        <div className="tray-stats">
-          <div>
-            <div className="tray-stat-lbl">{tr("savedToday")}</div>
-            <div className="tray-stat-val savings-text mono">{fmtMoney(liveSaved, lang)}</div>
-          </div>
-          <div>
-            <div className="tray-stat-lbl">{tr("budgetLeft")}</div>
-            <div className="tray-stat-val mono">
-              {remain != null ? fmtMoney(remain, lang) : "—"}
-            </div>
-          </div>
+        <div className="hud-pop-row">
+          <span className="hud-pop-lbl">{tr("budgetLeft")}</span>
+          <span className="mono">{remain != null ? fmtMoney(remain, lang) : "—"}</span>
+        </div>
+        <div className="hud-pop-row">
+          <span className="hud-pop-lbl">{tr("savedToday")}</span>
+          <span className="mono savings-text">{fmtMoney(liveSaved, lang)}</span>
         </div>
         <div className="tray-spark-wrap">
           <svg viewBox="0 0 64 24" aria-hidden>
             <path d={sparkD} className="hud-spark-path" fill="none" />
           </svg>
         </div>
-        {trayApps.length > 0 && (
-          <div className="tray-apps">
-            {trayApps.map((a) => (
-              <div key={a.id} className="tray-app-row">
+        <div className="tray-apps-mini">
+          {trayApps.length > 0 ? (
+            trayApps.map((a) => (
+              <span
+                key={a.id}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 4,
+                  marginRight: 8,
+                  color: "var(--on-surface-variant)",
+                }}
+              >
                 <span className="app-dot" style={{ background: a.color }} />
-                <span>{a.label[lang]}</span>
-                <span className="mono">{a.count}</span>
-              </div>
-            ))}
-          </div>
-        )}
-        <div className="tray-actions">
+                {a.label[lang]}
+                <span className="mono" style={{ color: "var(--primary)" }}>
+                  {a.count}
+                </span>
+              </span>
+            ))
+          ) : (
+            <span style={{ color: "var(--on-surface-variant)" }}>{tr("trayNoApps")}</span>
+          )}
+        </div>
+        <div className="hud-pop-actions">
           <button type="button" onClick={() => { setTrayOpen(false); setView("hub"); }}>
             {tr("navHub")}
           </button>
@@ -136,7 +155,6 @@ export function Menubar() {
             {tr("navBilling")}
           </button>
         </div>
-        <div className="tray-foot mono">{proxy?.listen_addr ?? "8787"}</div>
       </div>
     </>
   );

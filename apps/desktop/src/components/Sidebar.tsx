@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { I18nKey } from "../i18n";
+import { fmtMoney } from "../lib/format";
 import { useChat } from "../state/ChatContext";
 import { useApp, type ViewId } from "../state/AppContext";
 
@@ -19,11 +20,30 @@ const MORE_NAV: { view: ViewId; icon: string; i18n: I18nKey }[] = [
 ];
 
 export function Sidebar() {
-  const { view, setView, tr, localMode, setCatalogOpen, cloudUser, cloudLoggedIn, openSignIn, signOutWithCloud } =
-    useApp();
+  const {
+    view,
+    setView,
+    tr,
+    lang,
+    localMode,
+    setCatalogOpen,
+    cloudUser,
+    cloudLoggedIn,
+    openSignIn,
+    signOutWithCloud,
+    usageSnapshot,
+  } = useApp();
   const { sessions, activeSessionId, createSession, selectSession } = useChat();
   const [moreOpen, setMoreOpen] = useState(false);
   const chatMode = view === "chat";
+  const showMiniHud = chatMode && (cloudLoggedIn || localMode);
+  const budgetCap = usageSnapshot?.budget?.cap_yuan;
+  const budgetUsed = usageSnapshot?.budget?.used_yuan ?? 0;
+  const budgetPct =
+    budgetCap && budgetCap > 0 ? Math.min(100, Math.round((budgetUsed / budgetCap) * 100)) : 0;
+  const budgetRemain =
+    budgetCap != null ? fmtMoney(Math.max(budgetCap - budgetUsed, 0), lang) : "—";
+  const todaySaved = fmtMoney(usageSnapshot?.periods?.today?.saved_yuan ?? 0, lang);
 
   return (
     <aside className={`sidebar${chatMode ? " sidebar-chat-mode" : ""}`} id="sidebar">
@@ -35,6 +55,26 @@ export function Sidebar() {
               <span>{tr("newChat")}</span>
             </button>
           </div>
+          {showMiniHud && (
+            <button
+              type="button"
+              className="sidebar-mini-hud"
+              title={tr("miniHudSub")}
+              onClick={() => setView("hub")}
+            >
+              <div className="mini-hud-row">
+                <span>{tr("budgetLeft")}</span>
+                <strong className="mono">{budgetRemain}</strong>
+              </div>
+              <div className="mini-hud-row">
+                <span>{tr("savedToday")}</span>
+                <strong className="mono savings-text">{todaySaved}</strong>
+              </div>
+              <div className="mini-bar" aria-hidden>
+                <div className="mini-bar-fill" style={{ width: `${budgetPct}%` }} />
+              </div>
+            </button>
+          )}
           <div className="chat-history">
             {sessions.length === 0 ? (
               <div className="hist-item" style={{ opacity: 0.6, cursor: "default" }}>

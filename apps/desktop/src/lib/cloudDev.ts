@@ -1,12 +1,9 @@
 import { invoke } from "@tauri-apps/api/core";
-
-function tauriAvailable(): boolean {
-  return typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
-}
+import { isTauriShell } from "./platform";
 
 /** Ask desktop shell to ensure localhost Cloud (:8788) is running. */
 export async function ensureCloudDev(): Promise<boolean> {
-  if (!tauriAvailable()) return false;
+  if (!isTauriShell()) return false;
   try {
     return await invoke<boolean>("ensure_cloud_dev");
   } catch {

@@ -172,7 +172,10 @@
 |:----:|-----|------|
 | ☑️ | 登录态 / 模型目录 / 401 清 session | 本轮修复 |
 | ☑️ | 账单 path Tab 真 ledger 聚合 | 移除 0.65/0.35 假缩放 |
-| ☑️ | Chat 上下文条常显 + 单对话 prefs 持久化 | `nodeai-chat-ctx-pref` |
+| ☑️ | Chat 上下文条（回复语言 + live 记忆 + 单对话 prefs → system） | `userPrefs.ts` · `contextStrip.ts` · `contextPref.ts` |
+| ☑️ | Tauri 单壳（Overlay titlebar，无内嵌假交通灯） | `tauri.conf.json` · `shell-native-root` |
+| ☑️ | 对话侧栏 mini HUD · 设置默认回复语言可用 | `Sidebar.tsx` · `SettingsView.tsx` |
+| ☑️ | Chat UX polish（托盘文案、记住这条仅最后条、工作区 popover 外点关闭） | `Menubar.tsx` · `ChatView.tsx` |
 | ☑️ | 首聊 celebrate 弹层 | `markFirstChatDone` 触发 |
 | ☑️ | Menubar 托盘 sparkline + Hub/Chat/Billing 跳转 | 部分对齐 |
 | ☐ | **auth.html 完整 onboarding** | persona 网格、ROI 预览、回复语言、套餐预览 |

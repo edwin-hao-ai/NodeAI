@@ -16,6 +16,112 @@
   max-height: 760px;
 }
 
+/* Tauri: single native shell — no prototype “window in window” frame */
+#root.shell-native-root {
+  min-height: 100vh;
+  background: var(--surface);
+}
+#root.shell-native-root .shell-native {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 0;
+  background: var(--surface);
+}
+#root.shell-native-root .shell-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  width: 100%;
+  max-width: none;
+  height: auto;
+  border-radius: 0;
+  box-shadow: none;
+  background: var(--surface);
+}
+#root.shell-native-root .menubar-native {
+  min-height: 36px;
+  height: auto;
+}
+#root.shell-native-root .menubar-native .menubar-drag {
+  padding-left: 78px;
+}
+#root.shell-native-root .workspace-chip .ws-path {
+  max-width: min(180px, 32vw);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#root .chat-savings-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--savings) 40%, var(--outline-variant));
+  background: color-mix(in srgb, var(--savings) 8%, var(--surface-container));
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  color: inherit;
+  flex-shrink: 0;
+}
+#root .chat-savings-chip:hover {
+  background: color-mix(in srgb, var(--savings) 14%, var(--surface-container));
+}
+#root .chat-savings-chip .material-symbols-outlined {
+  font-size: 16px;
+  color: var(--savings);
+}
+#root .chat-savings-chip .mono {
+  font-weight: 500;
+  color: var(--savings);
+}
+#root .ws-popover .ws-pop-pick {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 8px;
+  margin-bottom: 6px;
+  border-radius: 999px;
+  border: 1px solid var(--outline-variant);
+  background: var(--surface-container);
+  color: var(--primary);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+#root .ws-popover .ws-pop-pick:hover {
+  background: var(--surface-high);
+}
+#root .context-strip-empty {
+  color: var(--on-surface-variant);
+  font-weight: 400;
+}
+#root .composer-foot-no-agent {
+  justify-content: center;
+}
+#root .composer-foot-no-agent .composer-hint {
+  flex: none;
+}
+#root .btn-new-chat {
+  border-radius: 8px;
+}
+#root .sidebar-mini-hud {
+  display: block;
+  width: calc(100% - 20px);
+  margin: 0 10px 8px;
+  text-align: left;
+  cursor: pointer;
+  border: none;
+  font: inherit;
+}
+
 #root .view-panel {
   display: none;
   flex: 1;

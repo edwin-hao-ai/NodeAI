@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { useEffect } from "react";
 import { AddAppModal } from "./components/AddAppModal";
 import { BrandMark } from "./components/BrandMark";
 import { CelebrateModal } from "./components/CelebrateModal";
@@ -7,6 +8,7 @@ import { SourceModal } from "./components/SourceModal";
 import { Menubar } from "./components/Menubar";
 import { Sidebar } from "./components/Sidebar";
 import { Toast } from "./components/Toast";
+import { isTauriShell } from "./lib/platform";
 import { AppProvider, useApp, type ViewId } from "./state/AppContext";
 import { ChatProvider } from "./state/ChatContext";
 import { AuthView } from "./views/AuthView";
@@ -75,26 +77,30 @@ function AppShell() {
     );
   }
 
+  const nativeShell = isTauriShell();
+
   return (
     <>
-      <Menubar />
-      <div className="scene">
-        <div className="app-window">
-          <div className="titlebar">
-            <div className="traffic-lights">
-              <span className="tl-red" />
-              <span className="tl-yellow" />
-              <span className="tl-green" />
+      <Menubar nativeShell={nativeShell} />
+      <div className={nativeShell ? "shell-native" : "scene"}>
+        <div className={nativeShell ? "shell-body" : "app-window"}>
+          {!nativeShell && (
+            <div className="titlebar">
+              <div className="traffic-lights">
+                <span className="tl-red" />
+                <span className="tl-yellow" />
+                <span className="tl-green" />
+              </div>
+              <div className="titlebar-title">
+                <span
+                  style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+                >
+                  <BrandMark size={13} />
+                  NodeAI
+                </span>
+              </div>
             </div>
-            <div className="titlebar-title">
-              <span
-                style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
-              >
-                <BrandMark size={13} />
-                NodeAI
-              </span>
-            </div>
-          </div>
+          )}
           <div className="window-body">
             <Sidebar />
             <MainViews />
@@ -111,6 +117,13 @@ function AppShell() {
 }
 
 export default function App() {
+  useEffect(() => {
+    const root = document.getElementById("root");
+    if (!root) return;
+    if (isTauriShell()) root.classList.add("shell-native-root");
+    return () => root.classList.remove("shell-native-root");
+  }, []);
+
   return (
     <AppProvider>
       <ChatProvider>

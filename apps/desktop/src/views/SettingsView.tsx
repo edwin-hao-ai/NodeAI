@@ -12,6 +12,7 @@ import {
   loadHybridFallbackEnabled,
   saveHybridFallback,
 } from "../lib/hybridFallback";
+import { loadUserPrefs, saveUserPrefs, type ReplyLang } from "../lib/userPrefs";
 import { useApp } from "../state/AppContext";
 
 const THEMES = [
@@ -53,6 +54,7 @@ export function SettingsView() {
     failover: true,
     hybridFb: loadHybridFallbackEnabled(),
   });
+  const [replyLang, setReplyLang] = useState<ReplyLang>(() => loadUserPrefs().replyLang);
 
   const pushBonus = useCallback(
     async (next: CompressionProfile) => {
@@ -202,7 +204,7 @@ export function SettingsView() {
       <div className="setting">
         <div>
           <h4>{tr("setReplyLang")}</h4>
-          <p style={{ fontSize: 12, color: "var(--on-surface-variant)" }}>{tr("comingSoon")}</p>
+          <p style={{ fontSize: 12, color: "var(--on-surface-variant)" }}>{tr("setReplyLangSub")}</p>
         </div>
         <select
           style={{
@@ -213,14 +215,17 @@ export function SettingsView() {
             color: "inherit",
             font: "inherit",
             fontSize: 13,
-            opacity: 0.5,
           }}
-          defaultValue="zh"
-          disabled
+          value={replyLang}
+          onChange={(e) => {
+            const next = e.target.value as ReplyLang;
+            setReplyLang(next);
+            saveUserPrefs({ replyLang: next });
+          }}
         >
-          <option value="zh">中文</option>
-          <option value="en">English</option>
-          <option value="bilingual">中英混合</option>
+          <option value="zh">{lang === "zh" ? "中文" : "Chinese"}</option>
+          <option value="en">{lang === "zh" ? "英文" : "English"}</option>
+          <option value="bilingual">{lang === "zh" ? "中英混合" : "Mixed"}</option>
         </select>
       </div>
       <div className="setting">

@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { isTauriShell } from "../platform";
 import { parseToolArguments } from "./tools";
 import type { ChatToolCall } from "./sessions";
 
@@ -8,22 +9,18 @@ export interface AgentToolResult {
   ok: boolean;
 }
 
-function tauriAvailable(): boolean {
-  return typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
-}
-
 export async function ensureAgentWorkspace(path: string): Promise<string> {
-  if (!tauriAvailable()) return path.replace(/^~/, "/Users/dev");
+  if (!isTauriShell()) return path.replace(/^~/, "/Users/dev");
   return invoke<string>("agent_ensure_workspace", { path });
 }
 
 export async function defaultAgentWorkspace(): Promise<string> {
-  if (!tauriAvailable()) return "~/Documents/NodeAI";
+  if (!isTauriShell()) return "~/Documents/NodeAI";
   return invoke<string>("agent_default_workspace");
 }
 
 export async function pickAgentWorkspace(): Promise<string | null> {
-  if (!tauriAvailable()) return null;
+  if (!isTauriShell()) return null;
   const picked = await invoke<string | null>("pick_agent_workspace");
   return picked ?? null;
 }
@@ -32,7 +29,7 @@ export async function executeAgentTool(
   workspace: string,
   call: ChatToolCall,
 ): Promise<AgentToolResult> {
-  if (!tauriAvailable()) {
+  if (!isTauriShell()) {
     return {
       name: call.name,
       output: "Agent tools require the NodeAI desktop app (Tauri).",

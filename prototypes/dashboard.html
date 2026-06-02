@@ -3335,12 +3335,17 @@
 
     function renderContextStrip() {
       const summaryEl = document.getElementById('contextStripSummary');
+      const strip = document.getElementById('contextStrip');
       const ta = document.getElementById('chatCtxInput');
       const key = USER.prefs?.replyLang || 'zh';
       const row = CHAT_CTX_MAP[key] || CHAT_CTX_MAP.zh;
-      if (summaryEl) summaryEl.textContent = t(row.summaryKey);
+      const custom = (USER.prefs?.chatContext || '').trim();
+      const memSnips = (MEMORIES || []).slice(0, 3).map(m => (m.text && (m.text[lang] || m.text.zh)) || '').filter(Boolean);
+      let summary = custom || (memSnips.length ? memSnips.join(' · ') : t(row.summaryKey));
+      if (summaryEl) summaryEl.textContent = summary;
+      if (strip) strip.style.display = (custom || memSnips.length || document.getElementById('chatCtxAdvanced')?.classList.contains('open')) ? '' : '';
       if (ta) {
-        ta.value = USER.prefs?.chatContext || row.default;
+        if (!ta.value && custom) ta.value = custom;
         ta.placeholder = t('chatCtxPh');
       }
     }
