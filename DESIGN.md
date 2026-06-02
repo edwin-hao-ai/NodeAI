@@ -427,9 +427,12 @@ App 色 token：`--app-cursor` · `--app-claude` · `--app-chat`
 
 - 使用 `data-i18n-tip` + `setTooltips()`，随 `lang` 切换更新 `title`；文案用通俗中英，避免 BYOK/RTK 术语
 
-### Code Block（消息内）
+### Code Block（消息内 · Chat）
 
-- Head：文件名；Body：`surface-low` + mono
+- 结构：`.chat-code-block` — 顶栏（语言标签 + **复制**）+ `Roboto Mono` 正文区
+- 背景：`surface-low` / 边框 `outline-variant`；横向滚动，不撑破 680px 消息宽
+- 流式输出与完成后 **同一套 Markdown 渲染**（避免纯文本 → MD 跳变）
+- 表格：外层横向滚动；链接：主题色 + 系统浏览器打开
 
 ### Gateway Page（外部接入 · 二级）
 

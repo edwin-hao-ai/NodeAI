@@ -40,6 +40,7 @@
   "ctxStripReplyZh": "Replies in Chinese by default",
   "ctxStripReplyEn": "Replies in English by default",
   "ctxStripReplyBi": "Chinese/English mix by default",
+  "chatMdCopy": "Copy",
   "chatHeaderSavedToday": "Saved today {v}",
   "trayHudTokens": "{n} tokens today",
   "trayHudSaved": "Saved {v} today",

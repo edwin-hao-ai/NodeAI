@@ -40,6 +40,7 @@
   "ctxStripReplyZh": "默认中文回复",
   "ctxStripReplyEn": "默认英文回复",
   "ctxStripReplyBi": "默认中英混合回复",
+  "chatMdCopy": "复制",
   "chatHeaderSavedToday": "今日省 {v}",
   "trayHudTokens": "今日 {n} tokens",
   "trayHudSaved": "今日省 {v}",

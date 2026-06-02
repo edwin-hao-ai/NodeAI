@@ -621,16 +621,11 @@ export function ChatView() {
                       </div>
                     ) : null}
                     {msg.text ? (
-                      isLastAssistant ? (
-                        <p>
-                          {msg.text}
-                          {msg.thinking ? "" : "▍"}
-                        </p>
-                      ) : (
-                        <ChatMarkdown text={msg.text} />
-                      )
+                      <ChatMarkdown text={msg.text} streaming={isLastAssistant} />
                     ) : null}
-                    {!msg.text && isLastAssistant && !msg.thinking ? <p>▍</p> : null}
+                    {!msg.text && isLastAssistant && !msg.thinking ? (
+                      <ChatMarkdown text="" streaming />
+                    ) : null}
                     {showAha && !isLastAssistant && (
                       <div className="aha-banner">
                         <span className="material-symbols-outlined">celebration</span>
