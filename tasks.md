@@ -1,8 +1,8 @@
 # NodeAI 项目任务清单
 
 **版本：** 0.1.0  
-**最后更新：** 2026-06-02  
-**最新打包：** `NodeAI_0.1.0_aarch64.dmg`（6.3 MB，2026-06-02 15:33 构建）
+**最后更新：** 2026-06-02（BYOK 格式转换 / 混合 Fallback / Prune 账单 / diff 预览 / E2E 脚本 / CI）  
+**最新打包：** `NodeAI_0.1.0_aarch64.dmg`（2026-06-02 17:42 构建 · BYOK/混合Fallback/Prune账单/diff预览）
 
 | 产物 | 路径 |
 |------|------|
@@ -28,7 +28,7 @@
 | ☑️ | `/health` 返回 Cloud `reachable` / `gateway_registry` |
 | ☐ | NodeAI Cloud **远程生产**部署（未来再做，当前不做） |
 | ☐ | macOS / Windows **代码签名**与公证 |
-| ☐ | CI 流水线（GitHub Actions 自动测试 + 打包） |
+| ☑️ | CI 流水线（GitHub Actions 自动测试） |
 
 ---
 
@@ -56,10 +56,12 @@
 | ☑️ | App Key 解析 `sk-nodeai-{app}` + 用量归因 |
 | ☑️ | BYOK 路径（`X-NodeAI-Path: byok` + Keychain / sources.json） |
 | ☑️ | `POST /v1/nodeai/auth/login` + `/register` → 转发 Cloud |
-| ☐ | Prune **LLM 摘要**（当前为启发式 bullet 摘要，非小模型） |
-| ☐ | Prune / Agent 专项 E2E curl 脚本 |
-| ☐ | BYOK 完整格式转换（接 `nodeai-runtime`，目前直连 OpenAI 形态） |
-| ☐ | 混合 Fallback（自有 Key 失败回落含额度，默认关 + 二次确认） |
+| ☑️ | **Prune LLM 摘要**（`prune: true` + Cloud token 时用 gemini-2.5-flash） |
+| ☑️ | Prune 启发式摘要回退（无 token / LLM 失败时） |
+| ☑️ | Prune E2E curl 脚本（`scripts/test_prune.sh`） |
+| ☑️ | Agent FS E2E（`scripts/test_agent.sh` → runtime 单测） |
+| ☑️ | BYOK 格式转换（`nodeai-runtime` → `byok.rs` OpenAI/Anthropic/Gemini） |
+| ☑️ | 混合 Fallback（BYOK 失败 → 含额度；默认关 + 设置二次确认 + 双 Header） |
 
 **Prune 实现位置：** `crates/nodeai-core/src/bonus.rs` → `apply_context_management`；管道 `nodeai-proxy/src/routes.rs` + `pipeline.rs`。
 
@@ -86,10 +88,9 @@
 | 状态 | 任务 |
 |:----:|------|
 | ☑️ | Crate 骨架（`format` OpenAI↔Anthropic/Gemini 转换） |
-| ☑️ | Agent 本地 FS：`read_file` / `write_file` / `list_dir`（工作区沙箱） |
-| ☑️ | Tauri commands：`agent_default_workspace` / `agent_ensure_workspace` / `agent_execute_tool` |
-| ☐ | 接入 proxy BYOK 出站管道（格式转换仍 stub） |
-| ☐ | Agent `delete_file` + 确认流 |
+| ☑️ | Agent 本地 FS：`read_file` / `write_file` / `list_dir` / `delete_file`（工作区沙箱） |
+| ☑️ | Tauri commands：`agent_*` + `pick_agent_workspace`（dialog） |
+| ☑️ | 接入 proxy BYOK 出站管道（`nodeai-runtime` format 转换） |
 | ☐ | Shell / 其它工具（Post-MVP） |
 
 **Agent 实现位置：** `crates/nodeai-runtime/src/agent.rs`；桌面 `apps/desktop/src-tauri/src/lib.rs`；前端 `lib/chat/agentLoop.ts`、`agentInvoke.ts`、`tools.ts`。
@@ -114,10 +115,11 @@
 | ☑️ | 工作区 chip + 默认 `~/Documents/NodeAI`（Tauri 创建目录） |
 | ☑️ | 设置 ↔ Bonus API 同步（含 **Prune 开关**） |
 | ☑️ | 传 `contextWindow` 给 8787（Prune 用） |
-| ☐ | Chat **Markdown** 渲染 |
-| ☐ | Agent **文件夹选择器**（`tauri-plugin-dialog`，当前仅 cycle 预设路径） |
-| ☐ | Agent 写文件确认卡内展示 diff 预览 |
-| ☐ | 模型排序「最新旗舰优先」 |
+| ☑️ | Agent `delete_file` + 确认弹窗 |
+| ☑️ | Agent **文件夹选择器**（Tauri dialog） |
+| ☑️ | Chat **Markdown** 渲染（react-markdown + GFM） |
+| ☑️ | Agent 写文件 **diff 预览**（确认弹窗） |
+| ☑️ | 模型排序「**最新旗舰优先**」（`flagshipScore` + 精选列表） |
 
 **Chat 模块位置：** `apps/desktop/src/lib/chat/`（`api.ts`、`sessions.ts`、`agentLoop.ts`）；状态 `state/ChatContext.tsx`。
 
@@ -146,7 +148,7 @@
 | ☑️ | Menubar HUD | live 请求数 / 预算 / 省钱 |
 | ☑️ | MemoryView | SQLite via `/v1/nodeai/memories` |
 | ☑️ | SourcesView hosted | 产品配置非 DEMO 假 Key |
-| ☐ | Hub/Billing **Prune 节省**独立分项行（账单 copy 已有占位） |
+| ☑️ | Hub/Billing **Prune 节省**独立分项行 |
 | ☐ | Stripe 订阅 / 升级 | **暂缓** |
 
 ---
@@ -161,7 +163,9 @@
 | ☑️ | L1 wiremock 集成 | 同上（`tests/gateway_local.rs`） | 否 | 429 Failover、Embeddings、BYOK mock |
 | ☑️ | L1 前端单元 | `cd apps/desktop && npm test` | 否 | SSE（含 tool_calls delta）、附件拼装 |
 | ☑️ | L2 前端构建 | `cd apps/desktop && npm run build` | 否 | TypeScript + Vite |
-| ☑️ | L2 代理 Smoke | `./scripts/test_integration.sh` | 可选 Gateway | 需 8787；**脚本仍读旧 `gateway.configured` 字段，待修** |
+| ☑️ | L2 代理 Smoke | `./scripts/test_integration.sh` | 可选 Gateway | 需 8787；读 `cloud.configured` |
+| ☑️ | L2 Prune E2E | `./scripts/test_prune.sh` | 否 | 需 8787 + prune header |
+| ☑️ | L2 Agent / BYOK | `./scripts/test_agent.sh` / `test_byok.sh` | 否 | runtime FS + wiremock 格式 |
 | ☑️ | L3 Live Gateway | `cargo test -p nodeai-proxy -- --ignored live_` | 是 | 真 Vercel Gateway |
 | ☑️ | 一键本地 | `./scripts/test_local.sh` | 否 | 串联 L1–L2 |
 
@@ -171,8 +175,8 @@
 |:----:|------|------|----------|
 | ☑️ | 注册 → 登录 → 模型目录 | curl 经 8787 | **通过**（286 模型） |
 | ☑️ | 流式 Chat（含额度路径） | curl SSE | **通过** |
-| ☐ | **长对话 / Prune** | App 或 curl 超长 messages | **未脚本化** |
-| ☐ | **Agent 读写文件** | Tauri App → write 确认 → 磁盘验证 | **未脚本化** |
+| ☑️ | **长对话 / Prune** | `./scripts/test_prune.sh` | **脚本化**（需 8787） |
+| ☑️ | **Agent 读写删文件** | `scripts/test_agent.sh` + Tauri 人工 | **runtime 单测 + 人工** |
 | ☐ | 桌面 App UI E2E | Playwright / Tauri WebDriver | **未做** |
 | ☐ | Release 包开箱 E2E | DMG → 登录 → Chat → Agent | 需 **8788 Cloud dev** |
 | ☐ | BYOK 全路径 E2E | sources + Keychain → chat | wiremock 有；真机未脚本化 |
@@ -198,7 +202,7 @@ cargo run -p nodeai-proxy --bin nodeai-proxy-standalone --release
 
 | 状态 | 平台 | 说明 |
 |:----:|------|------|
-| ☑️ | macOS aarch64 | `npm run tauri build` → `.app` + `.dmg` |
+| ☑️ | macOS aarch64 | `npm run tauri build` → `.app` + `.dmg`（2026-06-02 含 Prune LLM / Agent delete / Markdown / 工作区选择器） |
 | ☑️ | 应用图标 | Node Dial 品牌 |
 | ☐ | macOS x86_64 | 未测 |
 | ☐ | Windows | 未打包 |
@@ -211,7 +215,7 @@ cargo run -p nodeai-proxy --bin nodeai-proxy-standalone --release
 | 状态 | 任务 |
 |:----:|------|
 | ☐ | IDE MITM 桥接 |
-| ☐ | Prune LLM 摘要 + 全自动默认 ON 策略 A/B |
+| ☐ | Prune 全自动默认 ON 策略 A/B |
 | ☐ | 团队策略 / 多成员 |
 | ☐ | 云端 Memory 同步 |
 | ☐ | OAuth 矩阵 |
@@ -220,12 +224,10 @@ cargo run -p nodeai-proxy --bin nodeai-proxy-standalone --release
 
 ## 建议下一步（优先级 · 本地可用优先）
 
-1. **验证新能力**：`./scripts/dev.sh` → 长对话（Prune）→ Agent 写 `~/Documents/NodeAI` 下文件
-2. **补 E2E 脚本**：Prune 超长 payload curl；Agent 写文件人工 checklist → 脚本
-3. **模型排序**：精选列表「各厂商最新旗舰优先」
-4. **Chat Markdown** + Agent 文件夹 dialog
-5. **修** `./scripts/test_integration.sh` health 字段（`cloud.configured`）
-6. **（暂缓）** Stripe、远程 Cloud、BYOK 格式转换全链路
+1. **Release 开箱 E2E**：DMG → 登录 → Chat → Agent → Prune（需 8788）
+2. **桌面 UI E2E**：Playwright / Tauri WebDriver
+3. **模型排序**：真机目录验收精选列表
+4. **（暂缓）** Stripe、远程 Cloud、Gemini 原生 API 全路径
 
 ---
 

@@ -229,7 +229,11 @@ export function HubView() {
               <span className="material-symbols-outlined" style={{ fontSize: 12, verticalAlign: -2 }}>
                 auto_awesome
               </span>{" "}
-              {fmtMoney(today.save_route_yuan, lang)}
+              {fmtMoney(today.save_route_yuan, lang)} ·{" "}
+              <span className="material-symbols-outlined" style={{ fontSize: 12, verticalAlign: -2 }}>
+                content_cut
+              </span>{" "}
+              {fmtMoney(today.save_prune_yuan ?? 0, lang)}
             </div>
             <div className="failover-pill ok">
               <span className="material-symbols-outlined" style={{ fontSize: 14 }}>

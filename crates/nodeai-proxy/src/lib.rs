@@ -12,6 +12,7 @@ pub mod cloud;
 pub mod gateway;
 mod memory;
 mod pipeline;
+pub mod prune;
 pub mod routes;
 mod smart_route;
 mod store;

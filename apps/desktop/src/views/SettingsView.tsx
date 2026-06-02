@@ -8,6 +8,10 @@ import {
   syncBonusProfile,
   type CompressionProfile,
 } from "../lib/bonusApi";
+import {
+  loadHybridFallbackEnabled,
+  saveHybridFallback,
+} from "../lib/hybridFallback";
 import { useApp } from "../state/AppContext";
 
 const THEMES = [
@@ -49,7 +53,7 @@ export function SettingsView() {
     cursorWrite: false,
     byokRoute: true,
     failover: true,
-    hybridFb: false,
+    hybridFb: loadHybridFallbackEnabled(),
     budgetAlert: true,
   });
 
@@ -278,7 +282,19 @@ export function SettingsView() {
           <h4>{tr("setHybridFb")}</h4>
           <p style={{ fontSize: 12, color: "var(--on-surface-variant)" }}>{tr("setHybridFbSub")}</p>
         </div>
-        <Switch on={sw.hybridFb} onToggle={() => setSw((s) => ({ ...s, hybridFb: !s.hybridFb }))} />
+        <Switch
+          on={sw.hybridFb}
+          onToggle={() => {
+            if (sw.hybridFb) {
+              saveHybridFallback(false, false);
+              setSw((s) => ({ ...s, hybridFb: false }));
+              return;
+            }
+            if (!window.confirm(tr("setHybridFbConfirm"))) return;
+            saveHybridFallback(true, true);
+            setSw((s) => ({ ...s, hybridFb: true }));
+          }}
+        />
       </div>
       <div className="setting">
         <div>

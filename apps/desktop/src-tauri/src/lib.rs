@@ -201,6 +201,25 @@ fn agent_execute_tool(
     }))
 }
 
+#[tauri::command]
+fn pick_agent_workspace(app: tauri::AppHandle) -> Result<Option<String>, String> {
+    use tauri_plugin_dialog::DialogExt;
+    match app
+        .dialog()
+        .file()
+        .set_title("Agent workspace")
+        .blocking_pick_folder()
+    {
+        None => Ok(None),
+        Some(path) => {
+            let path = path
+                .into_path()
+                .map_err(|_| "invalid folder path".to_string())?;
+            Ok(Some(path.to_string_lossy().into_owned()))
+        }
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tracing_subscriber::fmt()
@@ -212,6 +231,7 @@ pub fn run() {
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             nodeai_core::load_dotenv();
             #[cfg(debug_assertions)]
@@ -265,6 +285,7 @@ pub fn run() {
             agent_default_workspace,
             agent_ensure_workspace,
             agent_execute_tool,
+            pick_agent_workspace,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

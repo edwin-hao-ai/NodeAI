@@ -12,8 +12,11 @@ export interface BonusTotals {
   rtk_tokens_saved: number;
   caveman_requests: number;
   memory_injections: number;
+  prune_requests?: number;
+  prune_tokens_saved?: number;
   save_compress_yuan: number;
   save_concise_yuan: number;
+  save_prune_yuan?: number;
 }
 
 export interface LedgerEntry {
@@ -49,6 +52,7 @@ export interface PeriodStats {
   save_compress_yuan: number;
   save_concise_yuan: number;
   save_route_yuan: number;
+  save_prune_yuan: number;
   by_model: ModelSpend[];
 }
 
@@ -170,6 +174,7 @@ export function emptyPeriodStats(): PeriodStats {
     save_compress_yuan: 0,
     save_concise_yuan: 0,
     save_route_yuan: 0,
+    save_prune_yuan: 0,
     by_model: [],
   };
 }

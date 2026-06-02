@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AgentWriteConfirm } from "../components/AgentWriteConfirm";
+import { AgentActionConfirm } from "../components/AgentWriteConfirm";
+import { ChatMarkdown } from "../components/ChatMarkdown";
 import { getStarterPrompts } from "../data/chatStarters";
 import { fmtMoney } from "../lib/format";
+import { loadHybridFallbackConfirmed, loadHybridFallbackEnabled } from "../lib/hybridFallback";
 import { runAgentChat, streamChatRound, toApiMessages } from "../lib/chat";
+import { pickAgentWorkspace } from "../lib/chat/agentInvoke";
 import type { ChatAttachment } from "../lib/chat/attachments";
 import { buildMessageContent, fileToAttachment } from "../lib/chat/attachments";
 import type { ChatToolCall, StoredChatMessage } from "../lib/chat/sessions";
@@ -47,6 +50,7 @@ export function ChatView() {
     activeIntent,
     rememberText,
     cycleWorkspace,
+    setWorkspace,
     memories,
     cloudSession,
     localMode,
@@ -67,8 +71,9 @@ export function ChatView() {
   const [input, setInput] = useState("");
   const [startersHidden, setStartersHidden] = useState(firstChatDone);
   const [sending, setSending] = useState(false);
-  const [writeConfirm, setWriteConfirm] = useState<{
+  const [actionConfirm, setActionConfirm] = useState<{
     call: ChatToolCall;
+    existingContent?: string | null;
     resolve: (ok: boolean) => void;
   } | null>(null);
   const [wsOpen, setWsOpen] = useState(false);
@@ -128,6 +133,8 @@ export function ChatView() {
       route: { smartRouteEnabled, activeIntent, activeGatewayModel },
       contextWindow,
       agentEnabled,
+      hybridFallback: loadHybridFallbackEnabled(),
+      hybridFallbackConfirmed: loadHybridFallbackConfirmed(),
     }),
     [
       activeGatewayModel,
@@ -225,9 +232,9 @@ export function ChatView() {
             },
             onToolStart: () => scrollToBottom(),
             onToolResult: () => scrollToBottom(),
-            confirmWrite: ({ call }) =>
+            confirmDangerous: ({ call, existingContent }) =>
               new Promise<boolean>((resolve) => {
-                setWriteConfirm({ call, resolve });
+                setActionConfirm({ call, existingContent, resolve });
               }),
           });
 
@@ -484,10 +491,14 @@ export function ChatView() {
                       </div>
                     ) : null}
                     {msg.text ? (
-                      <p>
-                        {msg.text}
-                        {isLastAssistant && !msg.thinking ? "▍" : isLastAssistant && msg.text ? "▍" : ""}
-                      </p>
+                      isLastAssistant ? (
+                        <p>
+                          {msg.text}
+                          {msg.thinking ? "" : "▍"}
+                        </p>
+                      ) : (
+                        <ChatMarkdown text={msg.text} />
+                      )
                     ) : null}
                     {!msg.text && isLastAssistant && !msg.thinking ? <p>▍</p> : null}
                     {showAha && !isLastAssistant && (
@@ -633,6 +644,20 @@ export function ChatView() {
             </button>
             {wsOpen && (
               <div className="ws-popover open">
+                <button
+                  type="button"
+                  onClick={() => {
+                    void pickAgentWorkspace().then((picked) => {
+                      if (picked) {
+                        setWorkspace(picked);
+                        showToast(tr("toastWsChanged").replace("{p}", picked));
+                      }
+                      setWsOpen(false);
+                    });
+                  }}
+                >
+                  {tr("wsPick")}
+                </button>
                 <button type="button" onClick={() => { cycleWorkspace(); setWsOpen(false); }}>
                   {tr("wsChange")}
                 </button>
@@ -647,18 +672,19 @@ export function ChatView() {
           </p>
         </div>
       </div>
-      <AgentWriteConfirm
+      <AgentActionConfirm
         lang={lang}
-        open={Boolean(writeConfirm)}
-        call={writeConfirm?.call ?? null}
+        open={Boolean(actionConfirm)}
+        call={actionConfirm?.call ?? null}
         workspace={workspace}
+        existingContent={actionConfirm?.existingContent}
         onConfirm={() => {
-          writeConfirm?.resolve(true);
-          setWriteConfirm(null);
+          actionConfirm?.resolve(true);
+          setActionConfirm(null);
         }}
         onCancel={() => {
-          writeConfirm?.resolve(false);
-          setWriteConfirm(null);
+          actionConfirm?.resolve(false);
+          setActionConfirm(null);
         }}
       />
     </>

@@ -374,6 +374,46 @@ fn apply_request_pipeline(
     headers: &HeaderMap,
     body: &mut Value,
 ) -> nodeai_core::BonusApplyResult {
+    apply_request_pipeline_inner(state, headers, body, None)
+}
+
+async fn apply_request_pipeline_async(
+    state: &ProxyState,
+    headers: &HeaderMap,
+    body: &mut Value,
+) -> nodeai_core::BonusApplyResult {
+    let profile = state.bonus.get_profile();
+    let llm_summary = if profile.prune {
+        let context_window = resolve_context_window(state, headers, body);
+        let max_tokens = body
+            .get("max_tokens")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(1024);
+        if let Some(messages) = body.get("messages").and_then(|m| m.as_array()) {
+            if let Some(plan) = nodeai_core::plan_context_trim(messages, context_window, max_tokens) {
+                if !plan.dropped.is_empty() {
+                    crate::prune::llm_summarize_prune(state, headers, &plan.dropped).await
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+    apply_request_pipeline_inner(state, headers, body, llm_summary.as_deref())
+}
+
+fn apply_request_pipeline_inner(
+    state: &ProxyState,
+    headers: &HeaderMap,
+    body: &mut Value,
+    llm_summary: Option<&str>,
+) -> nodeai_core::BonusApplyResult {
     let profile = state.bonus.get_profile();
     let smart = profile.smart_route
         || headers
@@ -392,7 +432,32 @@ fn apply_request_pipeline(
         .and_then(|v| v.to_str().ok());
     nodeai_core::resolve_request_model(body, intent, smart);
 
-    let result = apply_bonus_pipeline(state, headers, body);
+    let memories = parse_memory_header(
+        headers
+            .get("x-nodeai-memories")
+            .and_then(|v| v.to_str().ok()),
+    );
+    let context_window = resolve_context_window(state, headers, body);
+    let result = state
+        .bonus
+        .transform_body_with_llm_prune(body, &memories, context_window, llm_summary);
+    state.usage.record_bonus(&result);
+    if result.rtk_applied
+        || result.caveman_applied
+        || result.memory_injected
+        || result.prune_applied
+    {
+        tracing::info!(
+            rtk = result.rtk_applied,
+            rtk_saved = result.rtk_tokens_saved,
+            caveman = result.caveman_applied,
+            memory = result.memory_injected,
+            prune = result.prune_applied,
+            prune_collapsed = result.prune_messages_collapsed,
+            prune_llm = result.prune_llm_used,
+            "bonus pipeline"
+        );
+    }
     if let Err(err) = state.db.persist(&state.usage.full_snapshot("pro-trial")) {
         tracing::warn!(%err, "usage db persist failed");
     }
@@ -479,7 +544,7 @@ async fn chat_completions(
         TrafficPath::ByokLocal => "byok",
     };
 
-    let bonus = apply_request_pipeline(&state, &headers, &mut body);
+    let bonus = apply_request_pipeline_async(&state, &headers, &mut body).await;
 
     tracing::info!(?path, ?app_slug, %model, hosted_ready, "chat completion");
 
@@ -649,6 +714,54 @@ fn hosted_quota_unavailable() -> (StatusCode, Json<Value>) {
     )
 }
 
+async fn attempt_hybrid_hosted(
+    state: &ProxyState,
+    headers: &HeaderMap,
+    body: &Value,
+    app_slug: &str,
+    bonus: &nodeai_core::BonusApplyResult,
+) -> Option<Response> {
+    if !crate::byok::hybrid_fallback_ready(headers) {
+        return None;
+    }
+    let session = match crate::cloud::require_session(
+        headers
+            .get("x-nodeai-cloud-token")
+            .and_then(|v| v.to_str().ok()),
+    ) {
+        Ok(token) => token,
+        Err(err) => {
+            tracing::warn!(%err, "hybrid fallback skipped — no cloud session");
+            return None;
+        }
+    };
+    let failover = state.bonus.get_profile().failover;
+    match crate::cloud::chat_completions(
+        &state.cloud,
+        session,
+        body,
+        Some(app_slug),
+        failover,
+    )
+    .await
+    {
+        Ok(resp) => {
+            tracing::info!(app_slug, "hybrid fallback to hosted quota succeeded");
+            let resp = attach_bonus_header(resp, bonus);
+            let (mut parts, body) = resp.into_parts();
+            parts.headers.insert(
+                "x-nodeai-hybrid-fallback-used",
+                "1".parse().unwrap(),
+            );
+            Some(Response::from_parts(parts, body))
+        }
+        Err(err) => {
+            tracing::warn!(%err, app_slug, "hybrid fallback to hosted failed");
+            None
+        }
+    }
+}
+
 async fn byok_chat_completions(
     state: &ProxyState,
     headers: &HeaderMap,
@@ -662,18 +775,44 @@ async fn byok_chat_completions(
     let sources = nodeai_core::load_sources_file();
     if let Some(source) = crate::byok::resolve_source(&sources, source_id) {
         match crate::byok::forward_chat(source, headers, &body, app_slug).await {
-            Ok(resp) => return attach_bonus_header(resp, &bonus),
+            Ok(resp) if resp.status().is_success() => return attach_bonus_header(resp, &bonus),
+            Ok(resp) => {
+                if let Some(fallback) =
+                    attempt_hybrid_hosted(state, headers, &body, app_slug, &bonus).await
+                {
+                    return fallback;
+                }
+                return attach_bonus_header(resp, &bonus);
+            }
             Err(err) => {
                 tracing::warn!(%err, app_slug, source = %source.id, "BYOK source forward failed");
+                if let Some(fallback) =
+                    attempt_hybrid_hosted(state, headers, &body, app_slug, &bonus).await
+                {
+                    return fallback;
+                }
             }
         }
     }
 
     if let Some(upstream) = state.config.byok_upstream_url.as_deref() {
         match forward_byok_upstream(upstream, headers, &body, app_slug).await {
-            Ok(resp) => return attach_bonus_header(resp, &bonus),
+            Ok(resp) if resp.status().is_success() => return attach_bonus_header(resp, &bonus),
+            Ok(resp) => {
+                if let Some(fallback) =
+                    attempt_hybrid_hosted(state, headers, &body, app_slug, &bonus).await
+                {
+                    return fallback;
+                }
+                return attach_bonus_header(resp, &bonus);
+            }
             Err(err) => {
                 tracing::warn!(%err, app_slug, "BYOK upstream forward failed");
+                if let Some(fallback) =
+                    attempt_hybrid_hosted(state, headers, &body, app_slug, &bonus).await
+                {
+                    return fallback;
+                }
                 return (
                     StatusCode::BAD_GATEWAY,
                     Json(json!({
@@ -687,6 +826,10 @@ async fn byok_chat_completions(
                     .into_response();
             }
         }
+    }
+
+    if let Some(fallback) = attempt_hybrid_hosted(state, headers, &body, app_slug, &bonus).await {
+        return fallback;
     }
 
     let model = body

@@ -13,9 +13,9 @@ echo ""
 echo "1) Health + bonus profile"
 health="$(curl -sf "$BASE/health")"
 echo "$health" | python3 -m json.tool | head -20
-configured="$(echo "$health" | python3 -c "import sys,json; print(json.load(sys.stdin)['gateway']['configured'])")"
+configured="$(echo "$health" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('cloud',{}).get('configured', False))")"
 if [ "$configured" != "True" ]; then
-  echo "WARN: Gateway not configured — set AI_GATEWAY_API_KEY in .env and restart proxy"
+  echo "WARN: Cloud/Gateway not configured — start nodeai-cloud-dev with AI_GATEWAY_API_KEY"
 fi
 
 echo ""

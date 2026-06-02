@@ -1,15 +1,16 @@
 import type { ChatRequestOptions, ChatResult, ChatStreamUpdate } from "./api";
 import { streamChatRound } from "./api";
-import { executeAgentTool } from "./agentInvoke";
+import { executeAgentTool, readAgentFilePreview } from "./agentInvoke";
 import type { ApiChatMessage, ChatToolCall, StoredChatMessage } from "./sessions";
 import { toApiMessages } from "./sessions";
-import { AGENT_SYSTEM_PROMPT, parseToolArguments, WRITE_TOOLS } from "./tools";
+import { previewToolPath, AGENT_SYSTEM_PROMPT, DANGEROUS_TOOLS } from "./tools";
 import type { ChatAttachment } from "./attachments";
 import { buildMessageContent } from "./attachments";
 
 export interface AgentConfirmRequest {
   call: ChatToolCall;
   workspace: string;
+  existingContent?: string | null;
 }
 
 export interface RunAgentChatParams {
@@ -22,7 +23,7 @@ export interface RunAgentChatParams {
   onDelta: (update: ChatStreamUpdate) => void;
   onToolStart: (call: ChatToolCall) => void;
   onToolResult: (call: ChatToolCall, output: string, ok: boolean) => void;
-  confirmWrite: (req: AgentConfirmRequest) => Promise<boolean>;
+  confirmDangerous: (req: AgentConfirmRequest) => Promise<boolean>;
 }
 
 const MAX_AGENT_STEPS = 8;
@@ -49,7 +50,7 @@ export async function runAgentChat(params: RunAgentChatParams): Promise<{
     onDelta,
     onToolStart,
     onToolResult,
-    confirmWrite,
+    confirmDangerous,
   } = params;
 
   const apiMessages: ApiChatMessage[] = [...toApiMessages(history)];
@@ -82,9 +83,8 @@ export async function runAgentChat(params: RunAgentChatParams): Promise<{
       return { result: lastResult, apiMessages, uiMessages };
     }
 
-    const assistantId = `a-${Date.now()}-${step}`;
     uiMessages.push({
-      id: assistantId,
+      id: `a-${Date.now()}-${step}`,
       role: "assistant",
       text: lastResult.content ?? "",
       thinking: lastResult.thinking || undefined,
@@ -102,10 +102,15 @@ export async function runAgentChat(params: RunAgentChatParams): Promise<{
 
     for (const call of lastResult.toolCalls) {
       onToolStart(call);
-      if (WRITE_TOOLS.has(call.name)) {
-        const approved = await confirmWrite({ call, workspace });
+      if (DANGEROUS_TOOLS.has(call.name)) {
+        let existingContent: string | null | undefined;
+        if (call.name === "write_file") {
+          const path = previewToolPath(call);
+          existingContent = await readAgentFilePreview(workspace, path);
+        }
+        const approved = await confirmDangerous({ call, workspace, existingContent });
         if (!approved) {
-          const denied = "User declined the file write.";
+          const denied = "User declined the destructive file action.";
           onToolResult(call, denied, false);
           apiMessages.push({
             role: "tool",
@@ -152,7 +157,4 @@ export async function runAgentChat(params: RunAgentChatParams): Promise<{
   };
 }
 
-export function previewWritePath(call: ChatToolCall): string {
-  const args = parseToolArguments(call.arguments);
-  return typeof args.path === "string" ? args.path : "";
-}
+export { previewToolPath } from "./tools";

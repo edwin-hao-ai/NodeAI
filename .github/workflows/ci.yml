@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/desktop/package-lock.json
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Install desktop deps
+        run: npm ci
+        working-directory: apps/desktop
+
+      - name: Rust tests
+        run: cargo test -p nodeai-core -p nodeai-proxy -p nodeai-runtime
+
+      - name: Frontend tests
+        run: npm test
+        working-directory: apps/desktop
+
+      - name: Frontend build
+        run: npm run build
+        working-directory: apps/desktop
+
+      - name: Agent + BYOK script smoke
+        run: |
+          chmod +x scripts/test_agent.sh scripts/test_byok.sh
+          ./scripts/test_agent.sh
+          ./scripts/test_byok.sh

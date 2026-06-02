@@ -48,8 +48,11 @@ pub struct BonusTotals {
     pub rtk_tokens_saved: u64,
     pub caveman_requests: u64,
     pub memory_injections: u64,
+    pub prune_requests: u64,
+    pub prune_tokens_saved: u64,
     pub save_compress_yuan: f64,
     pub save_concise_yuan: f64,
+    pub save_prune_yuan: f64,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -69,6 +72,7 @@ pub struct PeriodStats {
     pub save_compress_yuan: f64,
     pub save_concise_yuan: f64,
     pub save_route_yuan: f64,
+    pub save_prune_yuan: f64,
     pub by_model: Vec<ModelSpend>,
 }
 
@@ -176,8 +180,9 @@ impl UsageStore {
                 .prune_tokens_before
                 .saturating_sub(result.prune_tokens_after);
             if saved > 0 {
-                guard.bonus.rtk_tokens_saved += saved;
-                guard.bonus.save_compress_yuan += saved as f64 * 0.000002;
+                guard.bonus.prune_requests += 1;
+                guard.bonus.prune_tokens_saved += saved;
+                guard.bonus.save_prune_yuan += saved as f64 * 0.000002;
             }
         }
     }
@@ -240,9 +245,12 @@ impl UsageStore {
 
         stats.save_compress_yuan = bonus.save_compress_yuan;
         stats.save_concise_yuan = bonus.save_concise_yuan;
+        stats.save_prune_yuan = bonus.save_prune_yuan;
         stats.save_route_yuan = stats.spend_yuan * 0.08;
-        stats.saved_yuan =
-            stats.save_compress_yuan + stats.save_concise_yuan + stats.save_route_yuan;
+        stats.saved_yuan = stats.save_compress_yuan
+            + stats.save_concise_yuan
+            + stats.save_route_yuan
+            + stats.save_prune_yuan;
 
         let mut models: Vec<ModelSpend> = by_model.into_values().collect();
         models.sort_by(|a, b| {
@@ -366,6 +374,24 @@ mod tests {
         let snap = store.snapshot();
         assert_eq!(snap.get("cursor"), Some(&2));
         assert_eq!(snap.get("chat"), Some(&1));
+    }
+
+    #[test]
+    fn tracks_prune_separately() {
+        let store = UsageStore::default();
+        store.record_bonus(&BonusApplyResult {
+            rtk_applied: true,
+            rtk_tokens_saved: 50,
+            prune_applied: true,
+            prune_tokens_before: 1000,
+            prune_tokens_after: 400,
+            ..Default::default()
+        });
+        let bonus = store.bonus_totals();
+        assert_eq!(bonus.prune_requests, 1);
+        assert_eq!(bonus.prune_tokens_saved, 600);
+        assert!(bonus.save_prune_yuan > 0.0);
+        assert!(bonus.save_compress_yuan > 0.0);
     }
 
     #[test]

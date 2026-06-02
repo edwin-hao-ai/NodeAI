@@ -58,6 +58,5 @@ export const BONUS_CARDS: BonusCardDef[] = [
     name: { zh: "上下文整理", en: "Context prune" },
     sub: { zh: "长对话摘要 · v0.2", en: "Long chat summary · v0.2" },
     isOn: (p) => p.prune,
-    soon: true,
   },
 ];

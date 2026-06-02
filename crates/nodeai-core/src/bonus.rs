@@ -53,6 +53,7 @@ pub struct BonusApplyResult {
     pub prune_messages_collapsed: u32,
     pub prune_tokens_before: u64,
     pub prune_tokens_after: u64,
+    pub prune_llm_used: bool,
 }
 
 impl BonusApplyResult {
@@ -159,26 +160,43 @@ fn summarize_collapsed_messages(messages: &[Value]) -> String {
     out
 }
 
-/// Trim or summarize messages so the prompt fits the model context window.
-pub fn apply_context_management(
-    messages: &mut Vec<Value>,
-    profile: &CompressionProfile,
-    context_window: u64,
-    max_tokens: u64,
-    result: &mut BonusApplyResult,
-) {
-    let budget = context_window
+/// Transcript of dropped messages for LLM or heuristic Prune summarization.
+pub fn build_prune_transcript(messages: &[Value]) -> String {
+    summarize_collapsed_messages(messages)
+}
+
+#[derive(Debug, Clone)]
+pub struct ContextTrimPlan {
+    pub system_msgs: Vec<Value>,
+    pub tail: Vec<Value>,
+    pub dropped: Vec<Value>,
+    pub before_tokens: u64,
+    pub budget: u64,
+    pub system_count: usize,
+}
+
+fn context_budget(context_window: u64, max_tokens: u64) -> u64 {
+    context_window
         .saturating_mul(85)
         .saturating_div(100)
         .saturating_sub(max_tokens)
-        .saturating_sub(512);
+        .saturating_sub(512)
+}
+
+/// Returns a trim plan when messages exceed the token budget.
+pub fn plan_context_trim(
+    messages: &[Value],
+    context_window: u64,
+    max_tokens: u64,
+) -> Option<ContextTrimPlan> {
+    let budget = context_budget(context_window, max_tokens);
     if budget < 256 {
-        return;
+        return None;
     }
 
     let before = estimate_messages_tokens(messages);
     if before <= budget {
-        return;
+        return None;
     }
 
     let system_msgs: Vec<Value> = messages
@@ -208,20 +226,43 @@ pub fn apply_context_management(
     let dropped_len = convo.len().saturating_sub(tail.len());
     let dropped: Vec<Value> = convo.drain(..dropped_len).collect();
 
-    let system_count = system_msgs.len();
-    let mut rebuilt = system_msgs;
-    if profile.prune && !dropped.is_empty() {
+    Some(ContextTrimPlan {
+        system_count: system_msgs.len(),
+        system_msgs,
+        tail,
+        dropped,
+        before_tokens: before,
+        budget,
+    })
+}
+
+pub fn apply_context_trim(
+    messages: &mut Vec<Value>,
+    plan: &ContextTrimPlan,
+    profile: &CompressionProfile,
+    llm_summary: Option<&str>,
+    result: &mut BonusApplyResult,
+) {
+    let mut rebuilt = plan.system_msgs.clone();
+    if profile.prune && !plan.dropped.is_empty() {
+        let content = match llm_summary {
+            Some(summary) => format!(
+                "[Earlier conversation — summarized by NodeAI Prune (LLM)]\n{summary}"
+            ),
+            None => summarize_collapsed_messages(&plan.dropped),
+        };
         rebuilt.push(json!({
             "role": "system",
-            "content": summarize_collapsed_messages(&dropped),
+            "content": content,
         }));
         result.prune_applied = true;
-        result.prune_messages_collapsed = dropped.len() as u32;
+        result.prune_messages_collapsed = plan.dropped.len() as u32;
+        result.prune_llm_used = llm_summary.is_some();
     }
-    rebuilt.extend(tail);
+    rebuilt.extend(plan.tail.clone());
 
-    while estimate_messages_tokens(&rebuilt) > budget && rebuilt.len() > system_count + 1 {
-        let first_convo = system_count;
+    while estimate_messages_tokens(&rebuilt) > plan.budget && rebuilt.len() > plan.system_count + 1 {
+        let first_convo = plan.system_count;
         if rebuilt.len() <= first_convo + 1 {
             break;
         }
@@ -229,10 +270,91 @@ pub fn apply_context_management(
     }
 
     *messages = rebuilt;
-    result.prune_tokens_before = before;
+    result.prune_tokens_before = plan.before_tokens;
     result.prune_tokens_after = estimate_messages_tokens(messages);
 }
 
+/// Trim or summarize messages so the prompt fits the model context window.
+pub fn apply_context_management(
+    messages: &mut Vec<Value>,
+    profile: &CompressionProfile,
+    context_window: u64,
+    max_tokens: u64,
+    result: &mut BonusApplyResult,
+) {
+    let Some(plan) = plan_context_trim(messages, context_window, max_tokens) else {
+        return;
+    };
+    apply_context_trim(messages, &plan, profile, None, result);
+}
+
+/// RTK, Caveman, memory injection only (no context trim).
+pub fn apply_input_bonus(
+    body: &mut Value,
+    profile: &CompressionProfile,
+    memories: &[String],
+) -> BonusApplyResult {
+    let mut result = BonusApplyResult::default();
+    let model = body
+        .get("model")
+        .and_then(|m| m.as_str())
+        .unwrap_or("")
+        .to_string();
+
+    let Some(messages) = body.get_mut("messages").and_then(|m| m.as_array_mut()) else {
+        return result;
+    };
+
+    if profile.memory_inject && !memories.is_empty() {
+        let block = memories
+            .iter()
+            .map(|m| format!("- {m}"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        inject_system_message(
+            messages,
+            &format!("User memories (respect these preferences):\n{block}"),
+        );
+        result.memory_injected = true;
+        result.memory_count = memories.len() as u32;
+    }
+
+    if profile.rtk {
+        for msg in messages.iter_mut() {
+            let role = msg.get("role").and_then(|r| r.as_str()).unwrap_or("");
+            let Some(text) = msg.get("content").and_then(message_text) else {
+                continue;
+            };
+            if !should_rtk_compress(role, &text) {
+                continue;
+            }
+            let before = estimate_tokens(&text);
+            let compressed = compress_rtk_text(&text);
+            let after = estimate_tokens(&compressed);
+            if compressed != text {
+                set_message_text(msg, compressed);
+                result.rtk_applied = true;
+                result.rtk_tokens_before += before;
+                result.rtk_tokens_after += after;
+                result.rtk_tokens_saved += before.saturating_sub(after);
+            }
+        }
+    }
+
+    let caveman = if is_deep_model(&model) {
+        0
+    } else {
+        profile.caveman_level
+    };
+
+    if caveman >= 1 {
+        inject_system_message(messages, CAVEMAN_L1);
+        result.caveman_applied = true;
+        result.caveman_level = caveman;
+    }
+
+    result
+}
 
 /// Rough token estimate (chars / 4).
 pub fn estimate_tokens(text: &str) -> u64 {
@@ -409,71 +531,14 @@ pub fn apply_bonus_pipeline(
     memories: &[String],
     context_window: u64,
 ) -> BonusApplyResult {
-    let mut result = BonusApplyResult::default();
-    let model = body
-        .get("model")
-        .and_then(|m| m.as_str())
-        .unwrap_or("")
-        .to_string();
+    let mut result = apply_input_bonus(body, profile, memories);
     let max_tokens = body
         .get("max_tokens")
         .and_then(|v| v.as_u64())
         .unwrap_or(1024);
-
-    let Some(messages) = body.get_mut("messages").and_then(|m| m.as_array_mut()) else {
-        return result;
-    };
-
-    if profile.memory_inject && !memories.is_empty() {
-        let block = memories
-            .iter()
-            .map(|m| format!("- {m}"))
-            .collect::<Vec<_>>()
-            .join("\n");
-        inject_system_message(
-            messages,
-            &format!("User memories (respect these preferences):\n{block}"),
-        );
-        result.memory_injected = true;
-        result.memory_count = memories.len() as u32;
+    if let Some(messages) = body.get_mut("messages").and_then(|m| m.as_array_mut()) {
+        apply_context_management(messages, profile, context_window, max_tokens, &mut result);
     }
-
-    if profile.rtk {
-        for msg in messages.iter_mut() {
-            let role = msg.get("role").and_then(|r| r.as_str()).unwrap_or("");
-            let Some(text) = msg.get("content").and_then(message_text) else {
-                continue;
-            };
-            if !should_rtk_compress(role, &text) {
-                continue;
-            }
-            let before = estimate_tokens(&text);
-            let compressed = compress_rtk_text(&text);
-            let after = estimate_tokens(&compressed);
-            if compressed != text {
-                set_message_text(msg, compressed);
-                result.rtk_applied = true;
-                result.rtk_tokens_before += before;
-                result.rtk_tokens_after += after;
-                result.rtk_tokens_saved += before.saturating_sub(after);
-            }
-        }
-    }
-
-    let caveman = if is_deep_model(&model) {
-        0
-    } else {
-        profile.caveman_level
-    };
-
-    if caveman >= 1 {
-        inject_system_message(messages, CAVEMAN_L1);
-        result.caveman_applied = true;
-        result.caveman_level = caveman;
-    }
-
-    apply_context_management(messages, profile, context_window, max_tokens, &mut result);
-
     result
 }
 

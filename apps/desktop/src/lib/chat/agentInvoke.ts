@@ -22,6 +22,12 @@ export async function defaultAgentWorkspace(): Promise<string> {
   return invoke<string>("agent_default_workspace");
 }
 
+export async function pickAgentWorkspace(): Promise<string | null> {
+  if (!tauriAvailable()) return null;
+  const picked = await invoke<string | null>("pick_agent_workspace");
+  return picked ?? null;
+}
+
 export async function executeAgentTool(
   workspace: string,
   call: ChatToolCall,
@@ -39,4 +45,16 @@ export async function executeAgentTool(
     name: call.name,
     arguments: parseToolArguments(call.arguments),
   });
+}
+
+export async function readAgentFilePreview(
+  workspace: string,
+  relPath: string,
+): Promise<string | null> {
+  const result = await executeAgentTool(workspace, {
+    id: "preview-read",
+    name: "read_file",
+    arguments: JSON.stringify({ path: relPath }),
+  });
+  return result.ok ? result.output : null;
 }

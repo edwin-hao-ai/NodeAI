@@ -3,6 +3,7 @@ import { catalogModelPool } from "../model/pool";
 import type { GatewayModel } from "../model/types";
 import type { CatalogType } from "./ui";
 import { featuredModelsFromCatalog } from "./featured";
+import { flagshipScore } from "./flagship";
 
 export type CatalogSort = "featured" | "cheap" | "fast" | "context";
 
@@ -33,7 +34,7 @@ export function catSortModels(arr: GatewayModel[], sort: CatalogSort): GatewayMo
   } else if (sort === "context") {
     a.sort((x, y) => (y.ctx ?? 0) - (x.ctx ?? 0));
   } else {
-    a.sort((x, y) => x.id.localeCompare(y.id));
+    a.sort((x, y) => flagshipScore(y.id) - flagshipScore(x.id) || x.id.localeCompare(y.id));
   }
   return a;
 }

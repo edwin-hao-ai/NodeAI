@@ -750,7 +750,8 @@
     .failover-pill { display: inline-flex; align-items: center; gap: 5px; margin-top: 8px; padding: 5px 10px; border-radius: 999px; font-size: 11px;
       background: color-mix(in srgb, var(--secondary) 10%, var(--surface-container)); color: var(--on-surface-variant); border: 1px solid var(--outline-variant); }
     .failover-pill.ok { border-color: color-mix(in srgb, var(--savings) 40%, var(--outline-variant)); color: var(--savings); }
-    .grid-bonus-save { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+    .grid-bonus-save { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+    @media (max-width: 960px) { .grid-bonus-save { grid-template-columns: repeat(3, 1fr); } }
     @media (max-width: 720px) { .grid-bonus-save { grid-template-columns: repeat(2, 1fr); } }
     .cap-badge { font-size: 9px; padding: 1px 6px; border-radius: 999px; background: var(--secondary-container); color: var(--on-secondary-container); margin-top: 6px; display: inline-block; }
     .source-card { padding: 14px 16px; border-radius: 12px; background: var(--surface-container); border: 1px solid var(--outline-variant); margin-bottom: 10px; display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }

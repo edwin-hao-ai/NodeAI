@@ -144,6 +144,52 @@ async fn byok_forwards_with_env_key() {
     std::env::remove_var("NODEAI_BYOK_KEY_SRC_LOCAL");
 }
 
+#[tokio::test]
+async fn byok_converts_anthropic_response() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/v1/messages"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "content": [{ "type": "text", "text": "anthropic-ok" }]
+        })))
+        .mount(&server)
+        .await;
+
+    std::env::set_var("NODEAI_BYOK_KEY_SRC_ANTH", "sk-ant-test");
+    let source = nodeai_core::ByokSourceRecord {
+        id: "src-anth".into(),
+        name: "Anthropic".into(),
+        url: format!("{}/v1", server.uri()),
+        format: "anthropic".into(),
+        has_key: true,
+    };
+    let body = json!({
+        "model": "claude-sonnet-4",
+        "messages": [
+            { "role": "system", "content": "be concise" },
+            { "role": "user", "content": "hi" }
+        ]
+    });
+    let resp = nodeai_proxy::byok::forward_chat(
+        &source,
+        &axum::http::HeaderMap::new(),
+        &body,
+        "chat",
+    )
+    .await
+    .expect("anthropic byok");
+    assert!(resp.status().is_success());
+    let bytes = axum::body::to_bytes(resp.into_body(), usize::MAX)
+        .await
+        .expect("body");
+    let value: serde_json::Value = serde_json::from_slice(&bytes).expect("json");
+    assert_eq!(
+        value["choices"][0]["message"]["content"].as_str(),
+        Some("anthropic-ok")
+    );
+    std::env::remove_var("NODEAI_BYOK_KEY_SRC_ANTH");
+}
+
 #[test]
 fn cloud_relay_requires_valid_session() {
     assert!(nodeai_core::is_valid_session_token("nodeai_session_demo"));

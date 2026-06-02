@@ -52,6 +52,7 @@ export function BillingView() {
       saveCompress: scaled.save_compress_yuan,
       saveConcise: scaled.save_concise_yuan,
       saveRoute: scaled.save_route_yuan,
+      savePrune: scaled.save_prune_yuan,
       models,
     };
   }, [base, scale]);
@@ -184,6 +185,12 @@ export function BillingView() {
           <div className="stat-lbl">{tr("routeLbl")}</div>
           <div className="stat-val savings-text mono" style={{ fontSize: 20 }}>
             {fmtMoney(p.saveRoute, lang)}
+          </div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-lbl">{tr("pruneLbl")}</div>
+          <div className="stat-val savings-text mono" style={{ fontSize: 20 }}>
+            {fmtMoney(p.savePrune, lang)}
           </div>
         </div>
         <div className="stat-card highlight">

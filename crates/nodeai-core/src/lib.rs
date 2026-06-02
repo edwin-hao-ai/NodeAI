@@ -7,8 +7,9 @@ pub mod models;
 pub mod sources;
 
 pub use bonus::{
-    apply_bonus_pipeline, apply_context_management, compress_rtk_text, estimate_tokens,
-    guess_context_window, BonusApplyResult, CompressionProfile,
+    apply_bonus_pipeline, apply_context_management, apply_context_trim, apply_input_bonus,
+    build_prune_transcript, compress_rtk_text, estimate_tokens, guess_context_window,
+    plan_context_trim, BonusApplyResult, CompressionProfile, ContextTrimPlan,
 };
 pub mod virtual_models;
 pub use cloud::{

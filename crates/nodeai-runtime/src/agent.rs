@@ -110,6 +110,18 @@ pub fn write_file(workspace: &Path, rel: &str, content: &str) -> Result<String, 
     Ok(format!("wrote {} bytes to {}", content.len(), rel))
 }
 
+pub fn delete_file(workspace: &Path, rel: &str) -> Result<String, String> {
+    let path = resolve_in_workspace(workspace, rel)?;
+    if path.is_dir() {
+        return Err("refuse to delete directories".into());
+    }
+    if !path.exists() {
+        return Err(format!("file not found: {rel}"));
+    }
+    fs::remove_file(&path).map_err(|e| format!("delete failed: {e}"))?;
+    Ok(format!("deleted {rel}"))
+}
+
 pub fn list_dir(workspace: &Path, rel: &str) -> Result<String, String> {
     let path = if rel.trim().is_empty() || rel.trim() == "." {
         workspace
@@ -189,6 +201,13 @@ pub fn execute_tool(ctx: &RuntimeContext, call: &AgentToolCall) -> AgentToolResu
                 .to_string();
             list_dir(&workspace, &path)
         }
+        "delete_file" => {
+            let path = match arg_str(&call.arguments, "path") {
+                Ok(path) => path,
+                Err(err) => return fail(call, err),
+            };
+            delete_file(&workspace, &path)
+        }
         other => Err(format!("unknown tool: {other}")),
     };
 
@@ -228,6 +247,14 @@ mod tests {
         write_file(&ws, "notes/hello.txt", "hi").unwrap();
         let text = read_file(&ws, "notes/hello.txt").unwrap();
         assert_eq!(text, "hi");
+    }
+
+    #[test]
+    fn deletes_file() {
+        let ws = temp_workspace();
+        write_file(&ws, "drop.txt", "bye").unwrap();
+        delete_file(&ws, "drop.txt").unwrap();
+        assert!(read_file(&ws, "drop.txt").is_err());
     }
 
     #[test]

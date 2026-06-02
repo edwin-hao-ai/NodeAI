@@ -26,6 +26,8 @@ export interface ChatRequestOptions {
   sourceId?: string | null;
   contextWindow?: number;
   agentEnabled?: boolean;
+  hybridFallback?: boolean;
+  hybridFallbackConfirmed?: boolean;
 }
 
 export interface ChatStreamUpdate {
@@ -71,6 +73,10 @@ function buildHeaders(options?: ChatRequestOptions): Record<string, string> {
   }
   if (options?.contextWindow && options.contextWindow > 0) {
     headers["X-NodeAI-Context-Window"] = String(options.contextWindow);
+  }
+  if (options?.hybridFallback && options?.hybridFallbackConfirmed) {
+    headers["X-NodeAI-Hybrid-Fallback"] = "1";
+    headers["X-NodeAI-Hybrid-Fallback-Confirm"] = "1";
   }
   return headers;
 }
