@@ -1,5 +1,7 @@
 import type { MemoryItem } from "../memoryStore";
 import { parseBonusHeader } from "../bonusApi";
+import type { ChatAttachment } from "./attachments";
+import { buildMessageContent } from "./attachments";
 import { drainSseBuffer } from "./sse";
 
 const CHAT_APP_KEY = "sk-nodeai-chat";
@@ -15,6 +17,10 @@ export interface ChatRequestOptions {
   lang?: "zh" | "en";
   memoryInject?: boolean;
   route?: ChatRouteOptions;
+  attachments?: ChatAttachment[];
+  cloudToken?: string | null;
+  trafficPath?: "hosted" | "byok";
+  sourceId?: string | null;
 }
 
 export interface ChatResult {
@@ -41,23 +47,31 @@ function buildHeaders(options?: ChatRequestOptions): Record<string, string> {
     headers["X-NodeAI-Intent"] = options.route.activeIntent;
     headers["X-NodeAI-Smart-Route"] = options.route.smartRouteEnabled ? "1" : "0";
   }
+  if (options?.cloudToken) {
+    headers["X-NodeAI-Cloud-Token"] = options.cloudToken;
+  }
+  if (options?.trafficPath === "byok") {
+    headers["X-NodeAI-Path"] = "byok";
+  }
+  if (options?.sourceId) {
+    headers["X-NodeAI-Source"] = options.sourceId;
+  }
   return headers;
 }
 
 function resolveRequestModel(options?: ChatRequestOptions): string {
   const route = options?.route;
   if (!route) return "google/gemini-2.5-flash";
-  if (route.smartRouteEnabled && route.activeIntent !== "auto") {
-    return route.activeGatewayModel;
-  }
   return route.activeGatewayModel;
 }
 
 async function readJsonCompletion(resp: Response): Promise<string | null> {
   const data = (await resp.json()) as {
-    choices?: { message?: { content?: string } }[];
+    choices?: { message?: { content?: string | unknown } }[];
   };
-  return data.choices?.[0]?.message?.content?.trim() || null;
+  const raw = data.choices?.[0]?.message?.content;
+  if (typeof raw === "string") return raw.trim() || null;
+  return null;
 }
 
 export async function streamChatCompletion(
@@ -68,12 +82,13 @@ export async function streamChatCompletion(
 ): Promise<ChatResult> {
   const url = `${baseUrl.replace(/\/$/, "")}/chat/completions`;
   const model = resolveRequestModel(options);
+  const messageContent = buildMessageContent(userText, options?.attachments ?? []);
   const resp = await fetch(url, {
     method: "POST",
     headers: buildHeaders(options),
     body: JSON.stringify({
       model,
-      messages: [{ role: "user", content: userText }],
+      messages: [{ role: "user", content: messageContent }],
       max_tokens: 512,
       stream: true,
     }),

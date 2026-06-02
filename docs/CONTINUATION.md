@@ -43,18 +43,23 @@ NodeAI/
 | **SQLite 用量** | `~/.nodeai/usage.db` 持久化 app 计数 + bonus 指标 |
 | **429 Failover** | 设置 `failover` 开启时 Gateway 429/503 自动换 `gemini-2.5-flash` |
 | **Embeddings** | `POST /v1/embeddings` 转发 Gateway |
-| **BYOK Keychain** | Tauri `save_source_key` / `test_source_url`；Key 仅系统钥匙串 |
+| **BYOK 路由** | `sources.json` + Keychain Key → proxy `X-NodeAI-Path: byok` 转发 |
+| **Cloud 鉴权骨架** | Keychain session；设 `NODEAI_CLOUD_BASE_URL` 时走 Cloud relay |
+| **原生托盘** | macOS/Windows menu bar 图标 + 打开/退出 |
+| **Chat 附件** | 文件/图片 chips，多模态 messages |
 | **UI** | 模型目录（Gateway 价、厂商筛选吸顶）、设置↔bonus API、Hub/Billing/Menubar 读 live metrics |
 
 ---
 
 ## 仍待做
 
-- NodeAI Cloud 鉴权计费（当前含额度直连 Gateway）
-- BYOK 路由打通（Keychain 存 Key 已完成；proxy 仍缺多来源转发）
-- `nodeai-runtime`、Chat 附件、Agent 工具确认
-- 原生系统托盘 HUD（当前为窗口内 Menubar popover，已接 live 用量）
+- NodeAI Cloud **真实**后端（当前为 session + 可选 relay 骨架）
+- `nodeai-runtime` 格式转换、Agent 工具确认
 - macOS/Windows CI 打包签名
+
+## 本地测试
+
+见 [docs/TESTING.md](TESTING.md) — `./scripts/test_local.sh`，**无需 GitHub Pro / 云端 CI**。
 
 ---
 

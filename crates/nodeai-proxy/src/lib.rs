@@ -1,7 +1,9 @@
-mod auth;
-mod gateway;
+pub mod auth;
+pub mod byok;
+pub mod cloud;
+pub mod gateway;
 mod pipeline;
-mod routes;
+pub mod routes;
 mod smart_route;
 mod store;
 mod usage;
@@ -10,7 +12,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 
 use axum::Router;
-use nodeai_core::{default_virtual_models, load_dotenv, GatewayConfig, ProxyConfig, ProxyStatus};
+use nodeai_core::{default_virtual_models, load_dotenv, CloudConfig, GatewayConfig, ProxyConfig, ProxyStatus};
 use tokio::sync::oneshot;
 use tower_http::cors::CorsLayer;
 use tower_http::trace::TraceLayer;
@@ -22,6 +24,7 @@ pub struct ProxyState {
     pub usage: usage::UsageStore,
     pub bonus: pipeline::BonusState,
     pub gateway: Option<GatewayConfig>,
+    pub cloud: Option<CloudConfig>,
     pub db: Arc<store::UsageDb>,
 }
 
@@ -56,10 +59,14 @@ async fn bootstrap_catalog(gateway: &Option<GatewayConfig>) -> Vec<nodeai_core::
 pub async fn start(config: ProxyConfig) -> Result<ProxyHandle, std::io::Error> {
     load_dotenv();
     let gateway = GatewayConfig::from_env();
+    let cloud = CloudConfig::from_env();
     if gateway.is_some() {
         tracing::info!("AI Gateway configured for allowance path");
     } else {
         tracing::warn!("AI_GATEWAY_API_KEY not set — allowance chat will return 503");
+    }
+    if cloud.is_some() {
+        tracing::info!("NodeAI Cloud relay configured");
     }
 
     let catalog = Arc::new(bootstrap_catalog(&gateway).await);
@@ -83,6 +90,7 @@ pub async fn start(config: ProxyConfig) -> Result<ProxyHandle, std::io::Error> {
         usage,
         bonus: pipeline::BonusState::default(),
         gateway,
+        cloud,
         db,
     };
 

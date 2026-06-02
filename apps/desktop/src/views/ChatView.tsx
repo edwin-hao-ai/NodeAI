@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { DEMO } from "../data/demo";
 import { getStarterPrompts } from "../data/chatStarters";
 import { streamChatCompletion } from "../lib/chat";
+import type { ChatAttachment } from "../lib/chat/attachments";
+import { fileToAttachment } from "../lib/chat/attachments";
 import { streamText } from "../lib/streamText";
 import { useApp } from "../state/AppContext";
 
@@ -42,7 +44,13 @@ export function ChatView() {
     rememberText,
     cycleWorkspace,
     memories,
+    cloudSession,
+    localMode,
   } = useApp();
+
+  const [attachments, setAttachments] = useState<ChatAttachment[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   const [ctxOpen, setCtxOpen] = useState(false);
   const [input, setInput] = useState("");
@@ -81,16 +89,18 @@ export function ChatView() {
   );
 
   const sendMessage = useCallback(
-    async (text: string) => {
+    async (text: string, pendingAttachments: ChatAttachment[] = attachments) => {
       const trimmed = text.trim();
-      if (!trimmed || sending) return;
+      const hasAttachments = pendingAttachments.length > 0;
+      if ((!trimmed && !hasAttachments) || sending) return;
 
       const wasFirst = !firstChatDone;
       if (wasFirst) setStartersHidden(true);
 
       const userId = `u-${Date.now()}`;
-      setExtraMessages((msgs) => [...msgs, { id: userId, role: "user", text: trimmed }]);
+      setExtraMessages((msgs) => [...msgs, { id: userId, role: "user", text: trimmed || tr("composerPh") }]);
       setInput("");
+      setAttachments([]);
       setSending(true);
       scrollToBottom();
 
@@ -114,6 +124,9 @@ export function ChatView() {
             memories,
             lang,
             memoryInject: true,
+            attachments: pendingAttachments,
+            cloudToken: cloudSession,
+            trafficPath: localMode ? "byok" : "hosted",
             route: { smartRouteEnabled, activeIntent, activeGatewayModel },
           },
           (partial) => {
@@ -191,9 +204,22 @@ export function ChatView() {
       scrollToBottom,
       sending,
       smartRouteEnabled,
+      cloudSession,
+      localMode,
+      attachments,
       tr,
     ],
   );
+
+  const onPickFiles = async (files: FileList | null) => {
+    if (!files?.length) return;
+    const next = await Promise.all(Array.from(files).map((f) => fileToAttachment(f)));
+    setAttachments((prev) => [...prev, ...next].slice(0, 8));
+  };
+
+  const removeAttachment = (id: string) => {
+    setAttachments((prev) => prev.filter((a) => a.id !== id));
+  };
 
   const onSendClick = () => sendMessage(input);
 
@@ -390,15 +416,63 @@ export function ChatView() {
           </div>
         )}
         <div className="composer-box">
+          <div className="attach-chips">
+            {attachments.map((a) => (
+              <span key={a.id} className="attach-chip">
+                {a.kind === "image" && a.previewUrl ? (
+                  <img src={a.previewUrl} alt="" className="attach-chip-thumb" />
+                ) : (
+                  <span className="material-symbols-outlined">description</span>
+                )}
+                <span className="attach-chip-name">{a.name}</span>
+                <button
+                  type="button"
+                  className="attach-chip-rm"
+                  aria-label={tr("tipRemoveAttach")}
+                  onClick={() => removeAttachment(a.id)}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
+                    close
+                  </span>
+                </button>
+              </span>
+            ))}
+          </div>
           <div className="composer">
             <div className="composer-row">
               <div className="composer-left">
-                <button className="icon-btn" type="button" aria-label="attach file">
+                <button
+                  className="icon-btn"
+                  type="button"
+                  aria-label={tr("tipAttachFile")}
+                  onClick={() => fileInputRef.current?.click()}
+                >
                   <span className="material-symbols-outlined">attach_file</span>
                 </button>
-                <button className="icon-btn" type="button" aria-label="attach image">
+                <button
+                  className="icon-btn"
+                  type="button"
+                  aria-label={tr("tipAttachImage")}
+                  onClick={() => imageInputRef.current?.click()}
+                >
                   <span className="material-symbols-outlined">image</span>
                 </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  hidden
+                  multiple
+                  accept=".md,.txt,.pdf,.doc,.docx,.json,.csv,.ts,.tsx,.js,.jsx,.py,.rs,.toml,.yaml,.yml,.xml,.html,.css"
+                  onChange={(e) => void onPickFiles(e.target.files)}
+                />
+                <input
+                  ref={imageInputRef}
+                  type="file"
+                  hidden
+                  multiple
+                  accept="image/*"
+                  onChange={(e) => void onPickFiles(e.target.files)}
+                />
               </div>
               <textarea
                 ref={inputRef}
@@ -414,7 +488,7 @@ export function ChatView() {
                 type="button"
                 aria-label="send"
                 onClick={onSendClick}
-                disabled={sending || !input.trim()}
+                disabled={sending || (!input.trim() && attachments.length === 0)}
               >
                 <span className="material-symbols-outlined filled">arrow_upward</span>
               </button>

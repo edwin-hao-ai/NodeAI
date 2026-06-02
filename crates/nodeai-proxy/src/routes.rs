@@ -77,15 +77,19 @@ fn bearer_token(headers: &HeaderMap) -> Option<String> {
 }
 
 fn resolve_traffic(
+    headers: &HeaderMap,
     auth: Option<&str>,
     gateway_ready: bool,
     force_byok: bool,
 ) -> (TrafficPath, Option<String>) {
     let app_slug = parse_nodeai_app_key(auth).map(|k| k.app_slug);
-    if force_byok {
+    let path_hdr = headers
+        .get("x-nodeai-path")
+        .and_then(|v| v.to_str().ok());
+    if force_byok || path_hdr == Some("byok") {
         return (TrafficPath::ByokLocal, app_slug);
     }
-    if gateway_ready {
+    if gateway_ready && path_hdr != Some("byok") {
         return (TrafficPath::HostedQuota, app_slug);
     }
     if app_slug.is_some() {
@@ -154,7 +158,7 @@ async fn chat_completions(
         .ok()
         .is_some_and(|v| v == "1" || v.eq_ignore_ascii_case("true"));
     let gateway_ready = state.gateway.is_some();
-    let (path, app_slug) = resolve_traffic(auth.as_deref(), gateway_ready, force_byok);
+    let (path, app_slug) = resolve_traffic(&headers, auth.as_deref(), gateway_ready, force_byok);
     let model = body
         .get("model")
         .and_then(|m| m.as_str())
@@ -171,6 +175,35 @@ async fn chat_completions(
 
     match path {
         TrafficPath::HostedQuota => {
+            let cloud_token = headers
+                .get("x-nodeai-cloud-token")
+                .and_then(|v| v.to_str().ok());
+            if let Some(cloud) = state.cloud.as_ref() {
+                match crate::cloud::require_session(cloud_token) {
+                    Ok(session) => {
+                        if let Some(gw) = state.gateway.as_ref() {
+                            let failover = state.bonus.get_profile().failover;
+                            match crate::cloud::chat_completions(
+                                cloud,
+                                gw,
+                                session,
+                                &body,
+                                app_slug.as_deref(),
+                                failover,
+                            )
+                            .await
+                            {
+                                Ok(resp) => return attach_bonus_header(resp, &bonus),
+                                Err(err) => {
+                                    tracing::error!(%err, "NodeAI Cloud relay failed");
+                                    return cloud_error(&err).into_response();
+                                }
+                            }
+                        }
+                    }
+                    Err(err) => return cloud_auth_required(&err).into_response(),
+                }
+            }
             if let Some(gw) = state.gateway.as_ref() {
                 let failover = state.bonus.get_profile().failover;
                 match crate::gateway::chat_completions(
@@ -217,6 +250,32 @@ fn attach_bonus_header(
     Response::from_parts(parts, body)
 }
 
+fn cloud_auth_required(message: &str) -> (StatusCode, Json<Value>) {
+    (
+        StatusCode::UNAUTHORIZED,
+        Json(json!({
+            "error": {
+                "message": message,
+                "type": "nodeai_cloud_auth_required",
+                "code": "cloud_session_required"
+            }
+        })),
+    )
+}
+
+fn cloud_error(message: &str) -> (StatusCode, Json<Value>) {
+    (
+        StatusCode::BAD_GATEWAY,
+        Json(json!({
+            "error": {
+                "message": message,
+                "type": "nodeai_cloud_error",
+                "code": "cloud_relay_error"
+            }
+        })),
+    )
+}
+
 fn gateway_error(message: &str) -> (StatusCode, Json<Value>) {
     (
         StatusCode::BAD_GATEWAY,
@@ -250,6 +309,19 @@ async fn byok_chat_completions(
     app_slug: &str,
     bonus: nodeai_core::BonusApplyResult,
 ) -> Response {
+    let source_id = headers
+        .get("x-nodeai-source")
+        .and_then(|v| v.to_str().ok());
+    let sources = nodeai_core::load_sources_file();
+    if let Some(source) = crate::byok::resolve_source(&sources, source_id) {
+        match crate::byok::forward_chat(source, headers, &body, app_slug).await {
+            Ok(resp) => return attach_bonus_header(resp, &bonus),
+            Err(err) => {
+                tracing::warn!(%err, app_slug, source = %source.id, "BYOK source forward failed");
+            }
+        }
+    }
+
     if let Some(upstream) = state.config.byok_upstream_url.as_deref() {
         match forward_byok_upstream(upstream, headers, &body, app_slug).await {
             Ok(resp) => return attach_bonus_header(resp, &bonus),

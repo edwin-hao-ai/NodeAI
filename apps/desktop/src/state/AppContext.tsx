@@ -21,13 +21,9 @@ import {
   type RouteState,
 } from "../lib/route";
 import { fetchGatewayCatalog, type GatewayCatalogEntry } from "../lib/gateway";
-import {
-  fetchUsageSnapshot,
-  loadBonusProfileLocal,
-  saveBonusProfileLocal,
-  syncBonusProfile,
-  type UsageSnapshot,
-} from "../lib/bonusApi";
+import { fetchUsageSnapshot, loadBonusProfileLocal, saveBonusProfileLocal, syncBonusProfile, type UsageSnapshot } from "../lib/bonusApi";
+import { demoCloudToken, getCloudSession, saveCloudSession } from "../lib/cloudSession";
+import { syncModelSources } from "../lib/sourcesSync";
 import { findCatalogModel } from "../lib/catalog";
 import { type I18nKey, type Lang, t } from "../i18n";
 
@@ -70,6 +66,7 @@ interface AppContextValue extends RouteState {
   usageSnapshot: UsageSnapshot | null;
   cursorConnected: boolean;
   localMode: boolean;
+  cloudSession: string | null;
   roiBannerHidden: boolean;
   connectBannerHidden: boolean;
   onboardDismissed: boolean;
@@ -203,6 +200,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [localMode] = useState(
     () => new URLSearchParams(window.location.search).get("mode") === "local",
   );
+  const [cloudSession, setCloudSession] = useState<string | null>(null);
   const [roiBannerHidden, setRoiBannerHidden] = useState(
     () => localStorage.getItem(STORAGE_ROI) === "1",
   );
@@ -275,6 +273,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
       window.clearInterval(id);
     };
   }, [gatewayBaseUrl, proxy?.running]);
+
+  useEffect(() => {
+    void getCloudSession().then((token) => setCloudSession(token));
+  }, []);
+
+  useEffect(() => {
+    if (modelSources.length) {
+      void syncModelSources(modelSources, modelSources[0]?.id ?? null);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps -- hydrate proxy sources once
 
   useEffect(() => {
     if (!proxy?.running) {
@@ -468,6 +476,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setModelSources((prev) => {
       const next = [source, ...prev.filter((s) => s.id !== source.id)];
       localStorage.setItem(STORAGE_SOURCES, JSON.stringify(next));
+      void syncModelSources(next, next[0]?.id ?? null);
       return next;
     });
   }, []);
@@ -497,6 +506,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const loginDemo = useCallback(() => {
+    const token = demoCloudToken();
+    void saveCloudSession(token)
+      .then(() => setCloudSession(token))
+      .catch(() => setCloudSession(token));
     localStorage.setItem("nodeai-user", JSON.stringify({ name: "Demo", email: "demo@nodeai.app", plan: "pro-trial" }));
     showToast(t(lang, "toastLogin"));
     setView("models");
@@ -515,6 +528,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       usageSnapshot,
       cursorConnected,
       localMode,
+      cloudSession,
       roiBannerHidden,
       connectBannerHidden,
       onboardDismissed,
@@ -586,6 +600,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       usageSnapshot,
       cursorConnected,
       localMode,
+      cloudSession,
       roiBannerHidden,
       connectBannerHidden,
       onboardDismissed,

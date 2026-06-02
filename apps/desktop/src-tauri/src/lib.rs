@@ -1,19 +1,32 @@
 use std::sync::Mutex;
 
 use keyring::Entry;
-use nodeai_core::{AppSettings, ProxyStatus};
+use nodeai_core::{save_sources_file, AppSettings, ByokSourceRecord, ProxyStatus, SourcesFile};
 use nodeai_proxy::{ProxyHandle, status_from_config};
+use serde::Deserialize;
+use tauri::menu::{Menu, MenuItem};
+use tauri::tray::TrayIconBuilder;
 use tauri::Manager;
 
 const KEYCHAIN_SERVICE: &str = "nodeai-desktop";
+const CLOUD_SESSION_ACCOUNT: &str = "cloud-session";
 
 struct AppState {
     settings: AppSettings,
     proxy: Option<ProxyHandle>,
 }
 
-fn keychain_entry(source_id: &str) -> Result<Entry, String> {
-    Entry::new(KEYCHAIN_SERVICE, source_id).map_err(|e| e.to_string())
+#[derive(Debug, Deserialize)]
+struct SourcePayload {
+    id: String,
+    name: String,
+    url: String,
+    format: String,
+    has_key: bool,
+}
+
+fn keychain_entry(account: &str) -> Result<Entry, String> {
+    Entry::new(KEYCHAIN_SERVICE, account).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -103,6 +116,56 @@ async fn test_source_url(url: String, api_key: String) -> Result<u16, String> {
     }
 }
 
+#[tauri::command]
+fn save_cloud_session(token: String) -> Result<(), String> {
+    keychain_entry(CLOUD_SESSION_ACCOUNT)?
+        .set_password(token.trim())
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn clear_cloud_session() -> Result<(), String> {
+    keychain_entry(CLOUD_SESSION_ACCOUNT)?
+        .delete_credential()
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn cloud_session_status() -> Result<bool, String> {
+    Ok(keychain_entry(CLOUD_SESSION_ACCOUNT)?
+        .get_password()
+        .is_ok())
+}
+
+#[tauri::command]
+fn get_cloud_session() -> Result<Option<String>, String> {
+    match keychain_entry(CLOUD_SESSION_ACCOUNT)?.get_password() {
+        Ok(token) if !token.trim().is_empty() => Ok(Some(token)),
+        _ => Ok(None),
+    }
+}
+
+#[tauri::command]
+fn sync_model_sources(
+    sources: Vec<SourcePayload>,
+    default_id: Option<String>,
+) -> Result<(), String> {
+    let file = SourcesFile {
+        default_source_id: default_id,
+        sources: sources
+            .into_iter()
+            .map(|s| ByokSourceRecord {
+                id: s.id,
+                name: s.name,
+                url: s.url,
+                format: s.format,
+                has_key: s.has_key,
+            })
+            .collect(),
+    };
+    save_sources_file(&file)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tracing_subscriber::fmt()
@@ -124,6 +187,29 @@ pub fn run() {
             });
 
             app.manage(Mutex::new(AppState { settings, proxy }));
+
+            let show = MenuItem::with_id(app, "tray-show", "打开 NodeAI", true, None::<&str>)?;
+            let quit = MenuItem::with_id(app, "tray-quit", "退出", true, None::<&str>)?;
+            let menu = Menu::with_items(app, &[&show, &quit])?;
+            if let Some(icon) = app.default_window_icon().cloned() {
+                let _tray = TrayIconBuilder::new()
+                    .icon(icon)
+                    .menu(&menu)
+                    .tooltip("NodeAI")
+                    .on_menu_event(|app, event| match event.id.as_ref() {
+                        "tray-show" => {
+                            if let Some(w) = app.get_webview_window("main") {
+                                let _ = w.show();
+                                let _ = w.unminimize();
+                                let _ = w.set_focus();
+                            }
+                        }
+                        "tray-quit" => app.exit(0),
+                        _ => {}
+                    })
+                    .build(app)?;
+            }
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -133,6 +219,11 @@ pub fn run() {
             save_source_key,
             delete_source_key,
             test_source_url,
+            save_cloud_session,
+            clear_cloud_session,
+            cloud_session_status,
+            get_cloud_session,
+            sync_model_sources,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
