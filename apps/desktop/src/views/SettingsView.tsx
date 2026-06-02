@@ -49,13 +49,9 @@ export function SettingsView() {
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [bonus, setBonus] = useState<CompressionProfile>(() => loadBonusProfileLocal());
   const [sw, setSw] = useState({
-    localServer: true,
     crossMem: true,
-    cursorWrite: false,
-    byokRoute: true,
     failover: true,
     hybridFb: loadHybridFallbackEnabled(),
-    budgetAlert: true,
   });
 
   const pushBonus = useCallback(
@@ -206,7 +202,7 @@ export function SettingsView() {
       <div className="setting">
         <div>
           <h4>{tr("setReplyLang")}</h4>
-          <p style={{ fontSize: 12, color: "var(--on-surface-variant)" }}>{tr("setReplyLangSub")}</p>
+          <p style={{ fontSize: 12, color: "var(--on-surface-variant)" }}>{tr("comingSoon")}</p>
         </div>
         <select
           style={{
@@ -217,8 +213,10 @@ export function SettingsView() {
             color: "inherit",
             font: "inherit",
             fontSize: 13,
+            opacity: 0.5,
           }}
           defaultValue="zh"
+          disabled
         >
           <option value="zh">中文</option>
           <option value="en">English</option>
@@ -242,9 +240,9 @@ export function SettingsView() {
       <div className="setting">
         <div>
           <h4>{tr("setCursorWrite")}</h4>
-          <p style={{ fontSize: 12, color: "var(--on-surface-variant)" }}>{tr("setCursorWriteSub")}</p>
+          <p style={{ fontSize: 12, color: "var(--on-surface-variant)" }}>{tr("comingSoon")}</p>
         </div>
-        <Switch on={sw.cursorWrite} onToggle={() => setSw((s) => ({ ...s, cursorWrite: !s.cursorWrite }))} />
+        <Switch on={false} onToggle={() => {}} disabled />
       </div>
 
       <div className="setting-group">{tr("setGrpRoute")}</div>
@@ -258,9 +256,9 @@ export function SettingsView() {
       <div className="setting">
         <div>
           <h4>{tr("setByokRoute")}</h4>
-          <p style={{ fontSize: 12, color: "var(--on-surface-variant)" }}>{tr("setByokRouteSub")}</p>
+          <p style={{ fontSize: 12, color: "var(--on-surface-variant)" }}>{tr("comingSoon")}</p>
         </div>
-        <Switch on={sw.byokRoute} onToggle={() => setSw((s) => ({ ...s, byokRoute: !s.byokRoute }))} />
+        <Switch on={false} onToggle={() => {}} disabled />
       </div>
       <div className="setting">
         <div>
@@ -332,9 +330,9 @@ export function SettingsView() {
       <div className="setting">
         <div>
           <h4>{tr("setBudgetAlert")}</h4>
-          <p style={{ fontSize: 12, color: "var(--on-surface-variant)" }}>{tr("setBudgetAlertSub")}</p>
+          <p style={{ fontSize: 12, color: "var(--on-surface-variant)" }}>{tr("comingSoon")}</p>
         </div>
-        <Switch on={sw.budgetAlert} onToggle={() => setSw((s) => ({ ...s, budgetAlert: !s.budgetAlert }))} />
+        <Switch on={false} onToggle={() => {}} disabled />
       </div>
 
       <button

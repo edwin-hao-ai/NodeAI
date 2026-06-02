@@ -1,5 +1,7 @@
 import type { MemoryItem } from "../memoryStore";
 import { parseBonusHeader } from "../bonusApi";
+import type { GatewayCatalogEntry } from "../gateway/types";
+import { resolvedModelForRoute } from "../route/display";
 import type { ChatAttachment } from "./attachments";
 import { buildMessageContent } from "./attachments";
 import type { ApiChatMessage, ChatToolCall } from "./sessions";
@@ -13,6 +15,8 @@ export interface ChatRouteOptions {
   smartRouteEnabled: boolean;
   activeIntent: string;
   activeGatewayModel: string;
+  catalog?: GatewayCatalogEntry[] | null;
+  cloudConfigured?: boolean;
 }
 
 export interface ChatRequestOptions {
@@ -84,7 +88,12 @@ function buildHeaders(options?: ChatRequestOptions): Record<string, string> {
 function resolveRequestModel(options?: ChatRequestOptions): string {
   const route = options?.route;
   if (!route) return "google/gemini-2.5-flash";
-  return route.activeGatewayModel;
+  const resolved = resolvedModelForRoute(
+    route,
+    route.catalog ?? null,
+    route.cloudConfigured ?? false,
+  );
+  return resolved?.id ?? route.activeGatewayModel;
 }
 
 function mapToolCalls(

@@ -1,5 +1,4 @@
 import { useEffect, useMemo } from "react";
-import { LoginPrompt } from "../components/LoginPrompt";
 import { PageHead, PageScroll } from "../components/ui/PageScroll";
 import { emptyPeriodStats } from "../lib/bonusApi";
 import { BONUS_CARDS } from "../lib/product/bonusCards";
@@ -33,7 +32,6 @@ export function HubView() {
     onboardDismissed,
     dismissOnboard,
     usageSnapshot,
-    needsCloudLogin,
   } = useApp();
 
   const bonusProfile = loadBonusProfileLocal();
@@ -91,10 +89,6 @@ export function HubView() {
   return (
     <PageScroll>
       <PageHead title={tr("hubTitle")} subtitle={tr("appsSub")} />
-
-      {needsCloudLogin && (
-        <LoginPrompt titleKey="loginPromptTitle" subKey="loginPromptHubSub" compact showByok />
-      )}
 
       {!onboardDismissed && onboardSteps.doneCount < onboardSteps.total && (
         <div className="onboard-card">

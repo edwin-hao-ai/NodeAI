@@ -13,6 +13,7 @@ import type { ChatAttachment } from "../lib/chat/attachments";
 import { buildMessageContent, fileToAttachment } from "../lib/chat/attachments";
 import type { ChatToolCall, StoredChatMessage } from "../lib/chat/sessions";
 import { streamText } from "../lib/streamText";
+import { resolvedModelForRoute } from "../lib/route";
 import { useChat } from "../state/ChatContext";
 import { useApp } from "../state/AppContext";
 
@@ -64,6 +65,7 @@ export function ChatView() {
     showToast,
     agentEnabled,
     gatewayCatalog,
+    cloudConfigured,
     needsCloudLogin,
     catalogLoading,
   } = useApp();
@@ -126,10 +128,23 @@ export function ChatView() {
     [],
   );
 
+  const resolvedChatModel = useMemo(
+    () =>
+      resolvedModelForRoute(
+        { smartRouteEnabled, activeIntent, activeGatewayModel },
+        gatewayCatalog,
+        cloudConfigured,
+      ),
+    [smartRouteEnabled, activeIntent, activeGatewayModel, gatewayCatalog, cloudConfigured],
+  );
+
   const contextWindow = useMemo(() => {
-    const entry = gatewayCatalog?.find((m) => m.id === activeGatewayModel);
+    if (resolvedChatModel?.ctx) return resolvedChatModel.ctx;
+    const entry = gatewayCatalog?.find(
+      (m) => m.id === (resolvedChatModel?.id ?? activeGatewayModel),
+    );
     return entry?.context_window ?? 32_768;
-  }, [gatewayCatalog, activeGatewayModel]);
+  }, [resolvedChatModel, gatewayCatalog, activeGatewayModel]);
 
   const chatOptions = useMemo(
     () => ({
@@ -138,7 +153,13 @@ export function ChatView() {
       memoryInject: true,
       cloudToken: cloudSession,
       trafficPath: localMode ? ("byok" as const) : ("hosted" as const),
-      route: { smartRouteEnabled, activeIntent, activeGatewayModel },
+      route: {
+        smartRouteEnabled,
+        activeIntent,
+        activeGatewayModel,
+        catalog: gatewayCatalog,
+        cloudConfigured,
+      },
       contextWindow,
       agentEnabled,
       hybridFallback: loadHybridFallbackEnabled(),
@@ -148,8 +169,10 @@ export function ChatView() {
       activeGatewayModel,
       activeIntent,
       agentEnabled,
+      cloudConfigured,
       cloudSession,
       contextWindow,
+      gatewayCatalog,
       lang,
       localMode,
       memories,
@@ -301,11 +324,13 @@ export function ChatView() {
         const assistantText = content ?? "";
         if (!streamed && assistantText) {
           streamCancelRef.current?.();
-          const withBonus = appendBonusNote(assistantText, bonus);
           streamCancelRef.current = streamText(
-            withBonus,
+            assistantText,
             (partial) => patchAssistant({ text: partial }),
-            () => finishAssistant(withBonus, thinking || undefined, bonus ?? undefined),
+            () => {
+              streamCancelRef.current = null;
+              finishAssistant(assistantText, thinking || undefined, bonus ?? undefined);
+            },
           );
           return;
         }

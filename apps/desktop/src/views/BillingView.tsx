@@ -1,5 +1,4 @@
 import { useMemo, useState } from "react";
-import { LoginPrompt } from "../components/LoginPrompt";
 import { PageHead, PageScroll } from "../components/ui/PageScroll";
 import { emptyPeriodStats, loadBonusProfileLocal } from "../lib/bonusApi";
 import { fmtMoney, fmtTokens } from "../lib/format";
@@ -8,7 +7,7 @@ import { aggregateBilling, type BillPath, type BillPeriod } from "../lib/usage/b
 import { useApp } from "../state/AppContext";
 
 export function BillingView() {
-  const { lang, tr, localMode, usageSnapshot, needsCloudLogin } = useApp();
+  const { lang, tr, localMode, usageSnapshot } = useApp();
   const [period, setPeriod] = useState<BillPeriod>("today");
   const [path, setPath] = useState<BillPath>("all");
 
@@ -64,10 +63,6 @@ export function BillingView() {
           </div>
         }
       />
-
-      {needsCloudLogin && (
-        <LoginPrompt titleKey="loginPromptTitle" subKey="loginPromptBillingSub" compact showByok />
-      )}
 
       <div className="bill-path-tabs">
         {(

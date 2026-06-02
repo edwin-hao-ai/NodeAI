@@ -111,7 +111,6 @@ interface AppContextValue extends RouteState {
   selectIntent: (id: string) => void;
   selectGatewayModel: (id: string) => void;
   setGatewayPort: (port: number) => void;
-  setCursorConnected: (v: boolean) => void;
   dismissRoiBanner: () => void;
   dismissConnectBanner: () => void;
   dismissOnboard: () => void;
@@ -147,7 +146,6 @@ const STORAGE_LANG = "nodeai-lang";
 const STORAGE_THEME = "nodeai-theme";
 const STORAGE_ROUTE = "nodeai-route";
 const STORAGE_PORT = "nodeai-gateway-port";
-const STORAGE_CURSOR = "nodeai-cursor-connected";
 const STORAGE_ROI = "nodeai-roi-hidden";
 const STORAGE_CONNECT_BANNER = "nodeai-connect-banner-hidden";
 const STORAGE_ONBOARD = "nodeai-onboard-dismissed";
@@ -219,9 +217,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const raw = parseInt(localStorage.getItem(STORAGE_PORT) || "", 10);
     return Number.isFinite(raw) && raw >= 1024 && raw <= 65535 ? raw : DEFAULT_PORT;
   });
-  const [cursorConnectedManual, setCursorConnectedManual] = useState(
-    () => localStorage.getItem(STORAGE_CURSOR) === "1",
-  );
   const [localMode, setLocalModeState] = useState(
     () =>
       new URLSearchParams(window.location.search).get("mode") === "local" ||
@@ -458,8 +453,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [gatewayBaseUrl, proxy?.running]);
 
   const cursorConnected = useMemo(
-    () => isCursorConnected(usageSnapshot) || cursorConnectedManual,
-    [usageSnapshot, cursorConnectedManual],
+    () => isCursorConnected(usageSnapshot),
+    [usageSnapshot],
   );
 
   const showToast = useCallback((msg: string) => {
@@ -504,10 +499,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
         window.setTimeout(() => {
           setRoute((cur) => {
             const done = finish(cur);
+            const appCount = countConnectedApps(usageSnapshot);
+            const line = getRouteLineShort(lang, done, gatewayCatalog, cloudConfigured);
             showToast(
-              t(lang, "toastRouteApplied")
-                .replace("{line}", getRouteLineShort(lang, done, gatewayCatalog, cloudConfigured))
-                .replace("{n}", String(countConnectedApps(usageSnapshot))),
+              appCount > 0
+                ? t(lang, "toastRouteApplied")
+                    .replace("{line}", line)
+                    .replace("{n}", String(appCount))
+                : t(lang, "toastRouteAppliedEmpty").replace("{line}", line),
             );
             return done;
           });
@@ -821,10 +820,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       selectIntent,
       selectGatewayModel,
       setGatewayPort,
-      setCursorConnected: (v: boolean) => {
-        localStorage.setItem(STORAGE_CURSOR, v ? "1" : "0");
-        setCursorConnectedManual(v);
-      },
       dismissRoiBanner: () => {
         localStorage.setItem(STORAGE_ROI, "1");
         setRoiBannerHidden(true);

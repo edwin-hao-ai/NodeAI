@@ -73,8 +73,7 @@ export function liveAppsFromUsage(usage: UsageSnapshot | null): LiveApp[] {
 }
 
 export function countConnectedApps(usage: UsageSnapshot | null): number {
-  const live = liveAppsFromUsage(usage).filter((a) => a.status === "live");
-  return live.length || 1;
+  return liveAppsFromUsage(usage).filter((a) => a.status === "live").length;
 }
 
 export function isCursorConnected(usage: UsageSnapshot | null): boolean {

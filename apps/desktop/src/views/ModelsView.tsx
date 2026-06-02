@@ -97,7 +97,9 @@ export function ModelsView() {
           )}
           {!routeApplying && (
             <p className="vpn-synced-line">
-              {tr("vpnSyncedApps").replace("{n}", String(routeAppCount))}
+              {routeAppCount > 0
+                ? tr("vpnSyncedApps").replace("{n}", String(routeAppCount))
+                : tr("vpnSyncedAppsNone")}
             </p>
           )}
         </div>
@@ -155,6 +157,11 @@ export function ModelsView() {
               {PRODUCT_INTENTS.map((i) => {
                 const m = findCatalogModel(i.defaultModel, gatewayCatalog, cloudConfigured);
                 const active = i.id === activeIntent;
+                const sceneSub = catalogLoading
+                  ? tr("catalogLoadingTitle")
+                  : m
+                    ? m.displayName[lang]
+                    : i.defaultModel;
                 return (
                   <button
                     key={i.id}
@@ -165,7 +172,7 @@ export function ModelsView() {
                     <span className="material-symbols-outlined">{i.icon}</span>
                     <span className="vpn-node-text">
                       <span className="vpn-node-name">{intentLabel(lang, i.id)}</span>
-                      <span className="vpn-node-sub">{m ? m.displayName[lang] : ""}</span>
+                      <span className="vpn-node-sub">{sceneSub}</span>
                     </span>
                     {active ? (
                       <span className="material-symbols-outlined vpn-node-check">check_circle</span>

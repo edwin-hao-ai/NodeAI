@@ -117,6 +117,8 @@
 | ☑️ | 工作区 chip + 默认 `~/Documents/NodeAI`（Tauri 创建目录） |
 | ☑️ | 设置 ↔ Bonus API 同步（含 **Prune 开关**） |
 | ☑️ | 传 `contextWindow` 给 8787（Prune 用） |
+| ☑️ | Smart Route 开启时 Chat 请求体 model 与 `resolvedModelForRoute` 一致 |
+| ☑️ | Chat `contextWindow` 按 resolved model 查找（非仅 `activeGatewayModel`） |
 | ☑️ | Agent `delete_file` + 确认弹窗 |
 | ☑️ | Agent **文件夹选择器**（Tauri dialog） |
 | ☑️ | Chat **Markdown** 渲染（react-markdown + GFM） |
@@ -138,6 +140,11 @@
 | ☑️ | 登录态统一（`cloudLoggedIn` + `/v1/nodeai/auth/me` 启动校验） |
 | ☑️ | BYOK 零登录本地模式（`authByokOnly` → `localMode` 持久化） |
 | ☑️ | 原生托盘（打开 / 退出） |
+| ☑️ | `countConnectedApps` 无 live 应用时返回 0（去 `|| 1`） |
+| ☑️ | GatewayView 移除 demo「模拟 Cursor 已连接」 |
+| ☑️ | Hub/Billing 移除重复 LoginPrompt（侧栏已有登录 CTA） |
+| ☑️ | ModelsView 场景副标题：目录加载中 / defaultModel slug 回退 |
+| ☑️ | 「全自动」文案诚实化（默认模型 + Intent 场景，非 per-request 分类） |
 | ☐ | 托盘 HUD 与原型 100% 一致（sparkline 速率语义、系统托盘用量） |
 
 ---
@@ -170,7 +177,7 @@
 | ☐ | **auth.html 完整 onboarding** | persona 网格、ROI 预览、回复语言、套餐预览 |
 | ☐ | **账单页** 趋势图 / donut / 应用×模型矩阵 / 折叠明细 | 仅 hero + 表 |
 | ☐ | **Hub** apiCapGrid、按模型 stack、sparkline 速率 | 部分静态文案已改 |
-| ☐ | **设置** 回复语言 / BYOK 路由 / Cursor 写记忆 / 预算告警 持久化 | 部分开关仍假 |
+| ☐ | **设置** 回复语言 / BYOK 路由 / Cursor 写记忆 / 预算告警 持久化 | 已禁用并标「即将推出」；待接 API |
 | ☐ | **Plan** 试用剩余天数、商业透明三块 | |
 | ☐ | **OAuth** Google/GitHub | 按钮仍走邮箱登录 |
 | ☐ | **Release 开箱 E2E** | DMG + Cloud sidecar 人工验收 |
