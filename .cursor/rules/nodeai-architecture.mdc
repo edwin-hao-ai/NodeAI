@@ -46,7 +46,13 @@ alwaysApply: true
 | 模型列表 UI 逻辑 | `lib/catalog/sections.ts` |
 | 定价展示 | `lib/model/pricing.ts` |
 | 代理新 endpoint | `crates/nodeai-proxy/src/routes.rs` + 独立 `*.rs` 模块 |
+| 用量 ledger / period | `crates/nodeai-proxy/src/usage.rs` + `store.rs`；Chat 完成后 `usage_capture.rs` |
+| Memory CRUD | `crates/nodeai-proxy/src/memory.rs` → `/v1/nodeai/memories` |
 | Bonus 算法 | `crates/nodeai-core/src/bonus.rs` |
+| **Prune 上下文** | `nodeai-core/bonus.rs` → `apply_context_management`；8787 `X-NodeAI-Context-Window` |
+| **Chat Agent 工具** | `nodeai-runtime/src/agent.rs` + Tauri `agent_*` commands |
+| **Agent UI 循环** | `apps/desktop/src/lib/chat/agentLoop.ts`、`AgentWriteConfirm.tsx` |
+| Live App 列表 UI | `lib/apps/live.ts` + `lib/product/apps.ts` |
 
 ## 反例 → 正例
 
@@ -57,8 +63,10 @@ alwaysApply: true
 
 ```rust
 // ❌ routes.rs 内 80 行 RTK 字符串处理
-// ✅ apply_bonus_pipeline(&mut body, &profile, &memories) in nodeai-core
+// ✅ apply_bonus_pipeline(&mut body, &profile, &memories, context_window) in nodeai-core
 ```
+
+**任务清单：** 改上述模块后更新根目录 `tasks.md`（见 `nodeai-tasks.mdc`）。
 
 ## 禁止硬编码
 

@@ -24,6 +24,24 @@
 | L2 Smoke | `./scripts/test_integration.sh` | 可选 | 代理已启动时 |
 | L3 Live | `cargo test -p nodeai-proxy -- --ignored live_` | 是 | 真 Vercel Gateway |
 
+## 本机完整使用（推荐）
+
+```bash
+# 一键：Cloud :8788 + 桌面 Tauri dev（8787 内嵌）
+./scripts/dev.sh
+
+# 或分开两个终端：
+cargo run -p nodeai-cloud --bin nodeai-cloud-dev --release   # :8788
+cd apps/desktop && npm run tauri dev                           # 内嵌 8787
+```
+
+**前置：**
+
+1. `~/.nodeai/.env` 中 `AI_GATEWAY_API_KEY=`（模型目录 + Chat 含额度路径）
+2. Debug 构建会尝试自动启动 Cloud dev（若 8788 未监听）
+
+桌面与 8787 **默认 Cloud** = `http://127.0.0.1:8788`（无远程 `api.nodeai.app`）。
+
 ## 开发时常用
 
 ```bash
@@ -41,5 +59,5 @@ cargo run -p nodeai-proxy --bin nodeai-proxy-standalone
 ## BYOK / Cloud 本地测
 
 - BYOK Key：`NODEAI_BYOK_KEY_{SOURCE_ID}` 环境变量可覆盖 Keychain（见 `byok.rs` 测试）
-- Cloud 中继：设置 `NODEAI_CLOUD_BASE_URL` 后，请求须带 `X-NodeAI-Cloud-Token: nodeai_session_*`
-- 未设 Cloud URL 时：含额度仍直连 Gateway（开发默认）
+- Cloud 默认 `http://127.0.0.1:8788`；含额度请求须 `X-NodeAI-Cloud-Token: nodeai_session_*`
+- `/health` 返回 `cloud.reachable` 与 `cloud.gateway_registry`（是否已配 Gateway Key）

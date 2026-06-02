@@ -1,10 +1,14 @@
 import type { GatewayCatalogEntry } from "./types";
 
 export interface CloudHealth {
+  /** Gateway registry ready (Cloud up + AI_GATEWAY_API_KEY set). */
   configured: boolean;
+  /** TCP/HTTP reachability of Cloud API (e.g. localhost:8788). */
+  reachable?: boolean;
+  gateway_registry?: boolean;
   models: number;
-  /** True when NODEAI_CLOUD_BASE_URL points at localhost dev API. */
   dev_local?: boolean;
+  base_url?: string;
 }
 
 /** @deprecated use CloudHealth — kept for gradual UI rename */
@@ -21,9 +25,12 @@ export async function fetchGatewayHealth(proxyPort: number): Promise<CloudHealth
     const cloud = data.cloud ?? data.gateway;
     if (!cloud) return null;
     return {
-      configured: cloud.configured,
-      models: cloud.models,
+      configured: Boolean(cloud.configured),
+      reachable: cloud.reachable ?? cloud.configured,
+      gateway_registry: cloud.gateway_registry,
+      models: cloud.models ?? 0,
       dev_local: data.cloud?.dev_local,
+      base_url: (data.cloud as { base_url?: string })?.base_url,
     };
   } catch {
     return null;

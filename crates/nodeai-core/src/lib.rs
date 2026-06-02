@@ -6,11 +6,14 @@ pub mod intent;
 pub mod models;
 pub mod sources;
 
-pub use bonus::{apply_bonus_pipeline, compress_rtk_text, estimate_tokens, BonusApplyResult, CompressionProfile};
+pub use bonus::{
+    apply_bonus_pipeline, apply_context_management, compress_rtk_text, estimate_tokens,
+    guess_context_window, BonusApplyResult, CompressionProfile,
+};
 pub mod virtual_models;
 pub use cloud::{
-    cloud_base_url_from_env, cloud_is_dev_local, is_valid_session_token, CloudConfig,
-    DEFAULT_CLOUD_BASE_URL,
+    cloud_api_reachable, cloud_base_url_from_env, cloud_is_dev_local, is_valid_session_token,
+    CloudConfig, DEFAULT_CLOUD_BASE_URL,
 };
 pub use virtual_models::{resolve_request_model, resolve_virtual_model_id};
 pub use config::{AppSettings, ProxyConfig, TrafficPath};

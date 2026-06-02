@@ -75,6 +75,7 @@ interface AppContextValue extends RouteState {
   gatewayHealth: CloudHealth | null;
   gatewayLive: boolean;
   cloudConfigured: boolean;
+  cloudReachable: boolean;
   usageSnapshot: UsageSnapshot | null;
   cursorConnected: boolean;
   localMode: boolean;
@@ -126,6 +127,8 @@ interface AppContextValue extends RouteState {
   routeLine: string;
   routeAppCount: number;
   workspace: string;
+  agentEnabled: boolean;
+  setAgentEnabled: (on: boolean) => void;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -141,6 +144,7 @@ const STORAGE_ONBOARD = "nodeai-onboard-dismissed";
 const STORAGE_FIRST_CHAT = "nodeai-first-chat-done";
 const STORAGE_VIEW_SAVINGS = "nodeai-onboard-steps";
 const STORAGE_WS = "nodeai-workspace";
+const STORAGE_AGENT = "nodeai-agent-enabled";
 const STORAGE_SOURCES = "nodeai-sources";
 const WS_DEMO_PATHS = ["~/Documents/NodeAI", "~/Projects/my-app", "~/Desktop/工作"];
 const DEFAULT_PORT = 8787;
@@ -235,6 +239,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [workspace, setWorkspaceState] = useState(
     () => localStorage.getItem(STORAGE_WS) || WS_DEMO_PATHS[0],
   );
+  const [agentEnabled, setAgentEnabledState] = useState(
+    () => localStorage.getItem(STORAGE_AGENT) !== "0",
+  );
 
   const gatewayBaseUrl = `http://127.0.0.1:${gatewayPort}/v1`;
 
@@ -302,6 +309,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [gatewayHealth, gatewayCatalog, cloudSession],
   );
 
+  const cloudReachable = Boolean(gatewayHealth?.reachable ?? gatewayHealth?.configured);
   const cloudConfigured = Boolean(gatewayHealth?.configured);
 
   useEffect(() => {
@@ -549,6 +557,28 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setWorkspaceState(path);
   }, []);
 
+  const setAgentEnabled = useCallback((on: boolean) => {
+    localStorage.setItem(STORAGE_AGENT, on ? "1" : "0");
+    setAgentEnabledState(on);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    void invoke<string>("agent_default_workspace")
+      .then((path) => {
+        if (cancelled || !path) return;
+        if (!localStorage.getItem(STORAGE_WS)) {
+          setWorkspace(path);
+        }
+      })
+      .catch(() => {
+        /* browser dev without tauri */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [setWorkspace]);
+
   const openAuth = useCallback((mode: AuthMode) => {
     sessionStorage.setItem("nodeai-auth-mode", mode);
     setView("auth");
@@ -621,6 +651,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       gatewayHealth,
       gatewayLive,
       cloudConfigured,
+      cloudReachable,
       usageSnapshot,
       cursorConnected,
       localMode,
@@ -640,6 +671,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       workspacePaths: WS_DEMO_PATHS,
       toast,
       workspace,
+      agentEnabled,
       setView,
       toggleLang: () => setLang((l) => (l === "zh" ? "en" : "zh")),
       setTheme,
@@ -678,6 +710,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setSourceModalOpen,
       cycleWorkspace,
       setWorkspace,
+      setAgentEnabled,
       openAuth,
       closeAuth,
       signInWithCloud,
@@ -695,10 +728,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
       view,
       proxy,
       gatewayPort,
+      gatewayBaseUrl,
       gatewayCatalog,
       gatewayHealth,
       gatewayLive,
       cloudConfigured,
+      cloudReachable,
       usageSnapshot,
       cursorConnected,
       localMode,
@@ -717,12 +752,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
       sourceModalOpen,
       toast,
       workspace,
+      agentEnabled,
       markViewSavings,
       rememberText,
       addMemoryManual,
       addModelSource,
       cycleWorkspace,
       setWorkspace,
+      setAgentEnabled,
       openAuth,
       closeAuth,
       signInWithCloud,

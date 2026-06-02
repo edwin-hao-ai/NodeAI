@@ -399,6 +399,29 @@ fn apply_request_pipeline(
     result
 }
 
+fn resolve_context_window(state: &ProxyState, headers: &HeaderMap, body: &Value) -> u64 {
+    if let Some(raw) = headers
+        .get("x-nodeai-context-window")
+        .and_then(|v| v.to_str().ok())
+    {
+        if let Ok(n) = raw.parse::<u64>() {
+            if n > 0 {
+                return n;
+            }
+        }
+    }
+    let model = body
+        .get("model")
+        .and_then(|m| m.as_str())
+        .unwrap_or("");
+    state
+        .catalog
+        .iter()
+        .find(|entry| entry.id == model)
+        .and_then(|entry| entry.context_window)
+        .unwrap_or_else(|| nodeai_core::guess_context_window(model))
+}
+
 fn apply_bonus_pipeline(
     state: &ProxyState,
     headers: &HeaderMap,
@@ -409,14 +432,23 @@ fn apply_bonus_pipeline(
             .get("x-nodeai-memories")
             .and_then(|v| v.to_str().ok()),
     );
-    let result = state.bonus.transform_body(body, &memories);
+    let context_window = resolve_context_window(state, headers, body);
+    let result = state
+        .bonus
+        .transform_body(body, &memories, context_window);
     state.usage.record_bonus(&result);
-    if result.rtk_applied || result.caveman_applied || result.memory_injected {
+    if result.rtk_applied
+        || result.caveman_applied
+        || result.memory_injected
+        || result.prune_applied
+    {
         tracing::info!(
             rtk = result.rtk_applied,
             rtk_saved = result.rtk_tokens_saved,
             caveman = result.caveman_applied,
             memory = result.memory_injected,
+            prune = result.prune_applied,
+            prune_collapsed = result.prune_messages_collapsed,
             "bonus pipeline"
         );
     }
@@ -549,11 +581,15 @@ fn attach_bonus_header(
     parts.headers.insert(
         "x-nodeai-bonus",
         format!(
-            "rtk={};saved={};caveman={};memory={}",
+            "rtk={};saved={};caveman={};memory={};prune={};prune_saved={}",
             bonus.rtk_applied as u8,
             bonus.rtk_tokens_saved,
             bonus.caveman_applied as u8,
-            bonus.memory_injected as u8
+            bonus.memory_injected as u8,
+            bonus.prune_applied as u8,
+            bonus
+                .prune_tokens_before
+                .saturating_sub(bonus.prune_tokens_after)
         )
         .parse()
         .unwrap_or_else(|_| "rtk=0".parse().unwrap()),
@@ -779,7 +815,7 @@ mod tests {
             caveman_level: 0,
             ..Default::default()
         };
-        let result = apply_bonus_pipeline(&mut body, &profile, &[]);
+        let result = apply_bonus_pipeline(&mut body, &profile, &[], 32_768);
         assert!(result.rtk_applied || result.rtk_tokens_saved > 0);
     }
 }

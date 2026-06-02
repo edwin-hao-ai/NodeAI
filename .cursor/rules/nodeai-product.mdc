@@ -24,6 +24,9 @@ alwaysApply: true
 
 默认 ON：智能压缩(RTK)、简洁回复(Caveman L1)、智能选模型、限流自动换路、记忆注入、格式转换(不可见)。
 
+- **Prune 上下文整理**：8787 始终做 **token 预算裁剪**；**摘要**仅在设置 `prune: true` 时（默认 OFF，与 PRD MVP 一致）。进度见 `tasks.md` §8787 / Chat。
+- **Chat Agent**：读/写/列目录，工作区默认 `~/Documents/NodeAI`，`write_file` 须用户确认。进度见 `tasks.md` §Chat 与 Agent / nodeai-runtime。
+
 粘性优先叙事：**按 App 账单、实时面板、不断工、记忆** > 单独强调压缩算法。
 
 ## 技术栈
@@ -39,4 +42,4 @@ alwaysApply: true
 
 ## 文档来源
 
-实现前对照 `docs/PRD.md` §3.4（用户文案）、§3.7（Built-in Bonus）、§5.12（自有 Key）。
+实现前对照 `docs/PRD.md` §3.4（用户文案）、§3.7（Built-in Bonus）、§5.1（Chat+Agent）、§5.12（自有 Key）；**任务勾选**对照根目录 `tasks.md`。

@@ -19,6 +19,26 @@ pub fn cloud_is_dev_local(base_url: &str) -> bool {
     u.contains("127.0.0.1") || u.contains("localhost")
 }
 
+/// Quick TCP probe — Cloud dev API listening (default :8788).
+pub fn cloud_api_reachable(base_url: &str) -> bool {
+    use std::net::{SocketAddr, TcpStream};
+    use std::time::Duration;
+
+    let url = base_url.trim().trim_end_matches('/');
+    let host_port = url
+        .strip_prefix("http://")
+        .or_else(|| url.strip_prefix("https://"))
+        .unwrap_or(url);
+    let (host, port) = match host_port.rsplit_once(':') {
+        Some((h, p)) => (h, p.parse::<u16>().unwrap_or(8788)),
+        None => (host_port, 8788),
+    };
+    let Ok(addr) = format!("{host}:{port}").parse::<SocketAddr>() else {
+        return false;
+    };
+    TcpStream::connect_timeout(&addr, Duration::from_millis(500)).is_ok()
+}
+
 #[derive(Debug, Clone)]
 pub struct CloudConfig {
     pub base_url: String,

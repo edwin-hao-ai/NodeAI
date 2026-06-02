@@ -36,6 +36,8 @@ export function SettingsView() {
     setView,
     smartRouteEnabled,
     toggleSmartRoute,
+    agentEnabled,
+    setAgentEnabled,
   } = useApp();
 
   const [portInput, setPortInput] = useState(String(gatewayPort));
@@ -49,7 +51,6 @@ export function SettingsView() {
     failover: true,
     hybridFb: false,
     budgetAlert: true,
-    agentFiles: true,
   });
 
   const pushBonus = useCallback(
@@ -336,7 +337,7 @@ export function SettingsView() {
               <h4>{tr("setAgent")}</h4>
               <p style={{ fontSize: 12, color: "var(--on-surface-variant)" }}>{tr("setAgentSub")}</p>
             </div>
-            <Switch on={sw.agentFiles} onToggle={() => setSw((s) => ({ ...s, agentFiles: !s.agentFiles }))} />
+            <Switch on={agentEnabled} onToggle={() => setAgentEnabled(!agentEnabled)} />
           </div>
           <div className="setting">
             <div>

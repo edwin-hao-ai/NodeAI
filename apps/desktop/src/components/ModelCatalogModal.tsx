@@ -96,7 +96,13 @@ export function ModelCatalogModal({ open, onClose }: ModelCatalogModalProps) {
           </p>
           {!gatewayLive && (
             <p className="catalog-head-sub" style={{ color: "var(--warning)", marginTop: 4 }}>
-              {!cloudSession ? tr("catalogLoginHint") : tr("catalogEnvHint")}
+              {!gatewayHealth?.reachable
+                ? tr("catalogCloudLocalHint")
+                : !gatewayHealth?.configured
+                  ? tr("catalogGatewayKeyHint")
+                  : !cloudSession
+                    ? tr("catalogLoginHint")
+                    : tr("catalogEnvHint")}
             </p>
           )}
           {!gatewayLive && !cloudSession && gatewayHealth?.configured && (

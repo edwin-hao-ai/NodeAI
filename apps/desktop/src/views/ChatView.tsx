@@ -1,22 +1,19 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AgentWriteConfirm } from "../components/AgentWriteConfirm";
 import { getStarterPrompts } from "../data/chatStarters";
 import { fmtMoney } from "../lib/format";
-import { streamChatCompletion } from "../lib/chat";
+import { runAgentChat, streamChatRound, toApiMessages } from "../lib/chat";
 import type { ChatAttachment } from "../lib/chat/attachments";
-import { fileToAttachment } from "../lib/chat/attachments";
+import { buildMessageContent, fileToAttachment } from "../lib/chat/attachments";
+import type { ChatToolCall, StoredChatMessage } from "../lib/chat/sessions";
 import { streamText } from "../lib/streamText";
+import { useChat } from "../state/ChatContext";
 import { useApp } from "../state/AppContext";
 
-type ChatMessage =
-  | { id: string; role: "user"; text: string }
-  | {
-      id: string;
-      role: "assistant";
-      text: string;
-      thinking?: string;
-      aha?: boolean;
-      streaming?: boolean;
-    };
+type ChatMessage = StoredChatMessage & {
+  aha?: boolean;
+  streaming?: boolean;
+};
 
 function markOnboardSendMsg() {
   try {
@@ -30,8 +27,6 @@ function markOnboardSendMsg() {
     /* ignore */
   }
 }
-
-const CHAT_STORAGE = "nodeai-chat-messages";
 
 export function ChatView() {
   const {
@@ -58,7 +53,11 @@ export function ChatView() {
     usageSnapshot,
     openAuth,
     showToast,
+    agentEnabled,
+    gatewayCatalog,
   } = useApp();
+
+  const { messages, setMessages, activeSessionId } = useChat();
 
   const [attachments, setAttachments] = useState<ChatAttachment[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -67,31 +66,32 @@ export function ChatView() {
   const [ctxOpen, setCtxOpen] = useState(false);
   const [input, setInput] = useState("");
   const [startersHidden, setStartersHidden] = useState(firstChatDone);
-  const [extraMessages, setExtraMessages] = useState<ChatMessage[]>(() => {
-    try {
-      const raw = localStorage.getItem(CHAT_STORAGE);
-      if (raw) {
-        const parsed = JSON.parse(raw) as ChatMessage[];
-        if (Array.isArray(parsed)) return parsed;
-      }
-    } catch {
-      /* ignore */
-    }
-    return [];
-  });
   const [sending, setSending] = useState(false);
+  const [writeConfirm, setWriteConfirm] = useState<{
+    call: ChatToolCall;
+    resolve: (ok: boolean) => void;
+  } | null>(null);
   const [wsOpen, setWsOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const streamCancelRef = useRef<(() => void) | null>(null);
+  const sessionRef = useRef(activeSessionId);
+
+  useEffect(() => {
+    if (sessionRef.current === activeSessionId) return;
+    sessionRef.current = activeSessionId;
+    streamCancelRef.current?.();
+    streamCancelRef.current = null;
+    setSending(false);
+    setInput("");
+    setAttachments([]);
+  }, [activeSessionId]);
 
   const starterPrompts = getStarterPrompts(lang, "both");
   const savedLabel = fmtMoney(usageSnapshot?.periods?.today?.saved_yuan ?? 0, lang);
-
-  useEffect(() => {
-    const done = extraMessages.filter((m) => !("streaming" in m && m.streaming));
-    if (done.length) localStorage.setItem(CHAT_STORAGE, JSON.stringify(done));
-  }, [extraMessages]);
+  const monthSaved = fmtMoney(usageSnapshot?.periods?.month?.saved_yuan ?? 0, lang);
+  const chatRequests =
+    usageSnapshot?.app_stats?.chat?.requests ?? usageSnapshot?.apps?.chat ?? 0;
 
   const scrollToBottom = useCallback(() => {
     const el = scrollRef.current;
@@ -100,7 +100,7 @@ export function ChatView() {
 
   useEffect(() => {
     scrollToBottom();
-  }, [extraMessages, scrollToBottom]);
+  }, [messages, scrollToBottom]);
 
   useEffect(() => {
     if (firstChatDone) setStartersHidden(true);
@@ -111,6 +111,53 @@ export function ChatView() {
       streamCancelRef.current?.();
     },
     [],
+  );
+
+  const contextWindow = useMemo(() => {
+    const entry = gatewayCatalog?.find((m) => m.id === activeGatewayModel);
+    return entry?.context_window ?? 32_768;
+  }, [gatewayCatalog, activeGatewayModel]);
+
+  const chatOptions = useMemo(
+    () => ({
+      memories,
+      lang,
+      memoryInject: true,
+      cloudToken: cloudSession,
+      trafficPath: localMode ? ("byok" as const) : ("hosted" as const),
+      route: { smartRouteEnabled, activeIntent, activeGatewayModel },
+      contextWindow,
+      agentEnabled,
+    }),
+    [
+      activeGatewayModel,
+      activeIntent,
+      agentEnabled,
+      cloudSession,
+      contextWindow,
+      lang,
+      localMode,
+      memories,
+      smartRouteEnabled,
+    ],
+  );
+
+  const appendBonusNote = useCallback(
+    (text: string, bonus: { rtk?: boolean; saved?: number; prune?: boolean; pruneSaved?: number } | null) => {
+      let out = text;
+      if (bonus?.rtk && bonus.saved && bonus.saved > 0) {
+        out += lang === "zh"
+          ? `\n\n（智能压缩已生效，约省 ${bonus.saved} tokens）`
+          : `\n\n(Smart compress saved ~${bonus.saved} tokens)`;
+      }
+      if (bonus?.prune && bonus.pruneSaved && bonus.pruneSaved > 0) {
+        out += lang === "zh"
+          ? `\n\n（上下文整理已生效，约省 ${bonus.pruneSaved} tokens）`
+          : `\n\n(Context prune saved ~${bonus.pruneSaved} tokens)`;
+      }
+      return out;
+    },
+    [lang],
   );
 
   const sendMessage = useCallback(
@@ -128,111 +175,129 @@ export function ChatView() {
       const wasFirst = !firstChatDone;
       if (wasFirst) setStartersHidden(true);
 
+      const historySnapshot = messages;
       const userId = `u-${Date.now()}`;
-      setExtraMessages((msgs) => [...msgs, { id: userId, role: "user", text: trimmed || tr("composerPh") }]);
+      const msgId = `a-${Date.now()}`;
+
+      setMessages((msgs) => [
+        ...msgs,
+        { id: userId, role: "user", text: trimmed || tr("composerPh") },
+        { id: msgId, role: "assistant", text: "", thinking: "" },
+      ]);
       setInput("");
       setAttachments([]);
       setSending(true);
       scrollToBottom();
 
-      const msgId = `a-${Date.now()}`;
-      setExtraMessages((msgs) => [
-        ...msgs,
-        {
-          id: msgId,
-          role: "assistant",
-          text: "",
-          thinking: "",
-          aha: wasFirst,
-          streaming: true,
-        },
-      ]);
+      const patchAssistant = (patch: Partial<ChatMessage>) => {
+        setMessages((msgs) =>
+          msgs.map((m) => (m.id === msgId && m.role === "assistant" ? { ...m, ...patch } : m)),
+        );
+        scrollToBottom();
+      };
+
+      const finishAssistant = (
+        assistantText: string,
+        thinking?: string,
+        bonus?: { rtk?: boolean; saved?: number; prune?: boolean; pruneSaved?: number } | null,
+      ) => {
+        const withBonus = appendBonusNote(assistantText, bonus ?? null);
+        if (wasFirst && withBonus) {
+          markOnboardSendMsg();
+          markFirstChatDone();
+        }
+        patchAssistant({ text: withBonus, thinking: thinking || undefined });
+        setSending(false);
+        scrollToBottom();
+      };
 
       try {
-        const { content, thinking, bonus, streamed, error } = await streamChatCompletion(
-          gatewayBaseUrl,
-          trimmed,
-          {
-            memories,
-            lang,
-            memoryInject: true,
+        if (agentEnabled) {
+          const { result, uiMessages } = await runAgentChat({
+            baseUrl: gatewayBaseUrl,
+            history: historySnapshot,
+            userText: trimmed,
             attachments: pendingAttachments,
-            cloudToken: cloudSession,
-            trafficPath: localMode ? "byok" : "hosted",
-            route: { smartRouteEnabled, activeIntent, activeGatewayModel },
+            workspace,
+            options: chatOptions,
+            onDelta: (update) => {
+              patchAssistant({ text: update.content, thinking: update.thinking });
+            },
+            onToolStart: () => scrollToBottom(),
+            onToolResult: () => scrollToBottom(),
+            confirmWrite: ({ call }) =>
+              new Promise<boolean>((resolve) => {
+                setWriteConfirm({ call, resolve });
+              }),
+          });
+
+          if (result.error && !result.content && !uiMessages.length) {
+            setMessages((msgs) => msgs.filter((m) => m.id !== msgId && m.id !== userId));
+            showToast(`${tr("toastChatFailed")}: ${result.error}`);
+            setSending(false);
+            return;
+          }
+
+          setMessages((msgs) => {
+            const base = msgs.filter((m) => m.id !== msgId);
+            return [
+              ...base,
+              ...uiMessages,
+              {
+                id: msgId,
+                role: "assistant" as const,
+                text: appendBonusNote(result.content ?? "", result.bonus),
+                thinking: result.thinking || undefined,
+              },
+            ];
+          });
+          if (wasFirst && result.content) {
+            markOnboardSendMsg();
+            markFirstChatDone();
+          }
+          setSending(false);
+          scrollToBottom();
+          return;
+        }
+
+        const apiMessages = [
+          ...toApiMessages(historySnapshot),
+          {
+            role: "user" as const,
+            content: buildMessageContent(trimmed, pendingAttachments),
           },
+        ];
+        const { content, thinking, bonus, streamed, error } = await streamChatRound(
+          gatewayBaseUrl,
+          apiMessages,
+          chatOptions,
           (update) => {
-            setExtraMessages((msgs) =>
-              msgs.map((m) =>
-                m.id === msgId && m.role === "assistant"
-                  ? { ...m, text: update.content, thinking: update.thinking || m.thinking }
-                  : m,
-              ),
-            );
-            scrollToBottom();
+            patchAssistant({ text: update.content, thinking: update.thinking });
           },
         );
 
         if (error && !content) {
-          setExtraMessages((msgs) => msgs.filter((m) => m.id !== msgId));
+          setMessages((msgs) => msgs.filter((m) => m.id !== msgId && m.id !== userId));
           showToast(`${tr("toastChatFailed")}: ${error}`);
           setSending(false);
           return;
         }
 
-        let assistantText = content ?? "";
-        if (bonus?.rtk && bonus.saved > 0) {
-          assistantText += lang === "zh"
-            ? `\n\n（智能压缩已生效，约省 ${bonus.saved} tokens）`
-            : `\n\n(Smart compress saved ~${bonus.saved} tokens)`;
-        }
-
-        if (wasFirst && assistantText) {
-          markOnboardSendMsg();
-          markFirstChatDone();
-        }
-
+        const assistantText = content ?? "";
         if (!streamed && assistantText) {
           streamCancelRef.current?.();
+          const withBonus = appendBonusNote(assistantText, bonus);
           streamCancelRef.current = streamText(
-            assistantText,
-            (partial) => {
-              setExtraMessages((msgs) =>
-                msgs.map((m) =>
-                  m.id === msgId && m.role === "assistant" ? { ...m, text: partial } : m,
-                ),
-              );
-              scrollToBottom();
-            },
-            () => {
-              setExtraMessages((msgs) =>
-                msgs.map((m) =>
-                  m.id === msgId && m.role === "assistant" ? { ...m, streaming: false } : m,
-                ),
-              );
-              setSending(false);
-              scrollToBottom();
-            },
+            withBonus,
+            (partial) => patchAssistant({ text: partial }),
+            () => finishAssistant(withBonus, thinking || undefined, bonus ?? undefined),
           );
           return;
         }
 
-        setExtraMessages((msgs) =>
-          msgs.map((m) =>
-            m.id === msgId && m.role === "assistant"
-              ? {
-                  ...m,
-                  text: assistantText,
-                  thinking: thinking || m.thinking,
-                  streaming: false,
-                }
-              : m,
-          ),
-        );
-        setSending(false);
-        scrollToBottom();
+        finishAssistant(assistantText, thinking || undefined, bonus ?? undefined);
       } catch (err) {
-        setExtraMessages((msgs) => msgs.filter((m) => m.id !== msgId));
+        setMessages((msgs) => msgs.filter((m) => m.id !== msgId && m.id !== userId));
         showToast(
           `${tr("toastChatFailed")}: ${err instanceof Error ? err.message : "unknown"}`,
         );
@@ -240,22 +305,24 @@ export function ChatView() {
       }
     },
     [
-      activeGatewayModel,
-      activeIntent,
+      agentEnabled,
+      appendBonusNote,
+      attachments,
+      chatOptions,
+      cloudSession,
       firstChatDone,
       gatewayBaseUrl,
       lang,
+      localMode,
       markFirstChatDone,
-      memories,
+      messages,
+      openAuth,
       scrollToBottom,
       sending,
-      smartRouteEnabled,
-      cloudSession,
-      localMode,
-      attachments,
-      tr,
-      openAuth,
+      setMessages,
       showToast,
+      tr,
+      workspace,
     ],
   );
 
@@ -278,7 +345,11 @@ export function ChatView() {
     }
   };
 
-  const showStarters = !firstChatDone && !startersHidden;
+  const showStarters = !firstChatDone && !startersHidden && messages.length === 0;
+  const ctxSummary =
+    memories.length > 0
+      ? tr("ctxStripLive").replace("{n}", String(memories.length))
+      : tr("ctxStripEmpty");
 
   return (
     <>
@@ -294,12 +365,12 @@ export function ChatView() {
         </button>
         <button type="button" className="chat-hub-link" onClick={() => setView("hub")}>
           <span className="material-symbols-outlined">monitoring</span>
-          <span className="mono">1.2K/s</span>
+          {chatRequests > 0 && <span className="mono">{chatRequests}</span>}
           <span>{tr("chatLiveLink")}</span>
         </button>
       </header>
       <div className="chat-topstack">
-        {!roiBannerHidden && (
+        {!roiBannerHidden && monthSaved !== fmtMoney(0, lang) && (
           <div className="roi-banner">
             <span>
               <span
@@ -308,7 +379,7 @@ export function ChatView() {
               >
                 savings
               </span>{" "}
-              {tr("roiBannerPre")} <strong className="mono">+¥191</strong> {tr("roiBannerPost")}
+              {tr("roiBannerPre")} <strong className="mono">{monthSaved}</strong> {tr("roiBannerPost")}
             </span>
             <button type="button" onClick={dismissRoiBanner} aria-label="close">
               <span className="material-symbols-outlined" style={{ fontSize: 18 }}>
@@ -317,7 +388,7 @@ export function ChatView() {
             </button>
           </div>
         )}
-        {!connectBannerHidden && (
+        {!connectBannerHidden && !cloudSession && !localMode && (
           <div className="connect-banner show">
             <div>
               <strong>{tr("connectBannerTitle")}</strong>
@@ -327,8 +398,8 @@ export function ChatView() {
               <button type="button" className="btn-connect ghost" onClick={dismissConnectBanner}>
                 {tr("connectLater")}
               </button>
-              <button type="button" className="btn-connect" onClick={() => setView("gateway")}>
-                {tr("connectNow")}
+              <button type="button" className="btn-connect" onClick={() => openAuth("login")}>
+                {tr("setSignInBtn")}
               </button>
             </div>
           </div>
@@ -339,7 +410,7 @@ export function ChatView() {
           </span>
           <span>
             <strong>{tr("ctxStripLbl")}</strong>
-            <span>{lang === "zh" ? tr("ctxStripSummary") : tr("ctxStripSummaryEn")}</span>
+            <span>{ctxSummary}</span>
           </span>
           <div className="context-strip-actions">
             <button type="button" onClick={() => setView("memory")}>
@@ -351,47 +422,75 @@ export function ChatView() {
           </div>
         </div>
         <div className={`chat-ctx-advanced${ctxOpen ? " open" : ""}`}>
-          <textarea rows={2} placeholder={tr("chatCtxPh")} defaultValue={tr("chatCtxDefault")} />
+          <textarea rows={2} placeholder={tr("chatCtxPh")} />
           <p className="chat-ctx-hint">{tr("chatCtxHint")}</p>
         </div>
       </div>
       <div className="chat-body">
         <div className="chat-scroll" ref={scrollRef}>
           <div className="chat-inner">
-            {extraMessages.length === 0 && !firstChatDone && (
-              <div className="chat-empty-hint" style={{ fontSize: 13, color: "var(--on-surface-variant)", padding: "12px 0" }}>
-                {tr("startersHead")}
+            {messages.length === 0 && (
+              <div
+                className="chat-empty-hint"
+                style={{ fontSize: 13, color: "var(--on-surface-variant)", padding: "12px 0" }}
+              >
+                {tr("chatEmptyHint")}
               </div>
             )}
-            {extraMessages.map((msg) =>
-              msg.role === "user" ? (
-                <div key={msg.id} className="msg user">
-                  <div className="msg-role">{tr("you")}</div>
-                  <div className="msg-body">
-                    <p>{msg.text}</p>
+            {messages.map((msg, idx) => {
+              const isLastAssistant =
+                msg.role === "assistant" && idx === messages.length - 1 && sending;
+              const showAha = msg.role === "assistant" && idx === 1 && firstChatDone && messages.length === 2;
+
+              if (msg.role === "tool") {
+                return (
+                  <div key={msg.id} className="msg tool">
+                    <div className="msg-role">{msg.toolName ?? tr("agentToolLbl")}</div>
+                    <div className="msg-body">
+                      <pre className="tool-result mono">{msg.text}</pre>
+                    </div>
                   </div>
-                </div>
-              ) : (
+                );
+              }
+
+              if (msg.role === "user") {
+                return (
+                  <div key={msg.id} className="msg user">
+                    <div className="msg-role">{tr("you")}</div>
+                    <div className="msg-body">
+                      <p>{msg.text}</p>
+                    </div>
+                  </div>
+                );
+              }
+
+              return (
                 <div key={msg.id} className="msg assistant">
                   <div className="msg-role">NodeAI</div>
                   <div className="msg-body">
+                    {msg.toolCalls?.map((call) => (
+                      <div key={call.id} className="tool-call-chip">
+                        <span className="material-symbols-outlined">handyman</span>
+                        <span>{call.name}</span>
+                      </div>
+                    ))}
                     {msg.thinking ? (
                       <div className="thinking-block">
                         <div className="thinking-label">{tr("chatThinkingLbl")}</div>
                         <p className="thinking-text">
                           {msg.thinking}
-                          {msg.streaming ? "▍" : ""}
+                          {isLastAssistant ? "▍" : ""}
                         </p>
                       </div>
                     ) : null}
                     {msg.text ? (
                       <p>
                         {msg.text}
-                        {msg.streaming && !msg.thinking ? "▍" : msg.streaming && msg.text ? "▍" : ""}
+                        {isLastAssistant && !msg.thinking ? "▍" : isLastAssistant && msg.text ? "▍" : ""}
                       </p>
                     ) : null}
-                    {!msg.text && msg.streaming && !msg.thinking ? <p>▍</p> : null}
-                    {msg.aha && !msg.streaming && (
+                    {!msg.text && isLastAssistant && !msg.thinking ? <p>▍</p> : null}
+                    {showAha && !isLastAssistant && (
                       <div className="aha-banner">
                         <span className="material-symbols-outlined">celebration</span>
                         <div className="aha-text">
@@ -403,7 +502,7 @@ export function ChatView() {
                         </button>
                       </div>
                     )}
-                    {!msg.streaming && !msg.aha && (
+                    {!isLastAssistant && msg.text && (
                       <div className="msg-actions">
                         <button type="button" className="remember-btn" onClick={() => rememberText(msg.text)}>
                           <span className="material-symbols-outlined" style={{ fontSize: 14 }}>
@@ -415,8 +514,8 @@ export function ChatView() {
                     )}
                   </div>
                 </div>
-              ),
-            )}
+              );
+            })}
           </div>
         </div>
       </div>
@@ -548,6 +647,20 @@ export function ChatView() {
           </p>
         </div>
       </div>
+      <AgentWriteConfirm
+        lang={lang}
+        open={Boolean(writeConfirm)}
+        call={writeConfirm?.call ?? null}
+        workspace={workspace}
+        onConfirm={() => {
+          writeConfirm?.resolve(true);
+          setWriteConfirm(null);
+        }}
+        onCancel={() => {
+          writeConfirm?.resolve(false);
+          setWriteConfirm(null);
+        }}
+      />
     </>
   );
 }

@@ -171,6 +171,15 @@ impl UsageStore {
         if result.memory_injected {
             guard.bonus.memory_injections += 1;
         }
+        if result.prune_applied {
+            let saved = result
+                .prune_tokens_before
+                .saturating_sub(result.prune_tokens_after);
+            if saved > 0 {
+                guard.bonus.rtk_tokens_saved += saved;
+                guard.bonus.save_compress_yuan += saved as f64 * 0.000002;
+            }
+        }
     }
 
     pub fn snapshot(&self) -> HashMap<String, u64> {

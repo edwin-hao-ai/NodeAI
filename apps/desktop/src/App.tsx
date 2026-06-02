@@ -8,6 +8,7 @@ import { Menubar } from "./components/Menubar";
 import { Sidebar } from "./components/Sidebar";
 import { Toast } from "./components/Toast";
 import { AppProvider, useApp, type ViewId } from "./state/AppContext";
+import { ChatProvider } from "./state/ChatContext";
 import { AuthView } from "./views/AuthView";
 import { BillingView } from "./views/BillingView";
 import { ChatView } from "./views/ChatView";
@@ -111,7 +112,9 @@ function AppShell() {
 export default function App() {
   return (
     <AppProvider>
-      <AppShell />
+      <ChatProvider>
+        <AppShell />
+      </ChatProvider>
     </AppProvider>
   );
 }

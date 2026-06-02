@@ -1,0 +1,50 @@
+---
+description: 本地开发优先——localhost Cloud、dev 脚本、Gateway Key；暂缓 Stripe/远程部署
+alwaysApply: true
+---
+
+# NodeAI：本地开发阶段
+
+**当前产品目标：** 本机完整可用与可测；**不是**上线、Stripe、远程 Cloud。
+
+## 环境默认值
+
+| 项 | 正确 | 错误 |
+|----|------|------|
+| Cloud API | `http://127.0.0.1:8788`（`nodeai-cloud-dev`） | 虚构 `api.nodeai.app` 或假设 Release 开箱即用 |
+| 8787 代理 | Tauri 内嵌或 standalone | 混写含额度与 BYOK 路径 |
+| Gateway Key | **仅** `~/.nodeai/.env` → Cloud 服务端 | 桌面持 `AI_GATEWAY_API_KEY` 拉目录（除 `NODEAI_DEV_DIRECT_GATEWAY=1`） |
+
+## 启动顺序
+
+```bash
+./scripts/dev.sh          # 推荐：Cloud :8788 + Tauri dev
+# 或
+cargo run -p nodeai-cloud --bin nodeai-cloud-dev --release
+cd apps/desktop && npm run tauri dev
+```
+
+Debug 构建会尝试自动 spawn `nodeai-cloud-dev`（8788 未监听时）。
+
+## `/health` 三态（勿混为一谈）
+
+| 字段 | 含义 |
+|------|------|
+| `cloud.reachable` | :8788 在跑 |
+| `cloud.gateway_registry` | 已配 `AI_GATEWAY_API_KEY` |
+| `cloud.configured` | 二者皆真 → 可拉模型目录 / 含额度 Chat |
+
+UI 须分开展示：**Cloud 未启动** / **缺 Gateway Key** / **未登录**，勿统一成「catalogEnvHint」一句糊住。
+
+## 暂缓（除非用户明确要求）
+
+- Stripe / PlanView 真付款
+- 远程 Cloud 部署、Release DMG 生产开箱叙事
+- 计费精度审计、云端账单同步
+
+## 验证声称「能用」前
+
+1. Cloud `/health` 200  
+2. 注册 → 登录 → `/v1/models` 有 Session  
+3. Chat 流式成功  
+4. `/v1/nodeai/usage` ledger 随请求增长  

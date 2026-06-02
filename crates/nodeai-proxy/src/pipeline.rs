@@ -23,9 +23,14 @@ impl BonusState {
         *self.profile.lock().expect("bonus lock") = profile;
     }
 
-    pub fn transform_body(&self, body: &mut Value, memories: &[String]) -> nodeai_core::BonusApplyResult {
+    pub fn transform_body(
+        &self,
+        body: &mut Value,
+        memories: &[String],
+        context_window: u64,
+    ) -> nodeai_core::BonusApplyResult {
         let profile = self.get_profile();
-        apply_bonus_pipeline(body, &profile, memories)
+        apply_bonus_pipeline(body, &profile, memories, context_window)
     }
 }
 

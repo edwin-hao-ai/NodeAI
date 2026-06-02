@@ -12,17 +12,30 @@ alwaysApply: true
 完成或启动以下任一工作时，**同步更新 tasks.md**（同一轮 commit 内一并提交）：
 
 - 新功能、修复、架构变更（☑️ / ☐ 勾选）
+- **Chat / Agent / Prune / Bonus 管道**任何行为或 UI 变更
 - 测试层级变化（单元 / 集成 / E2E / Live Gateway）
 - 打包产物或平台支持变化
 - 明确废弃或新列入「待做」项
+
+## 必跟踪模块（不可漏更新）
+
+| 模块 | tasks.md 章节 | 改代码时至少核对 |
+|------|---------------|------------------|
+| **Prune** | 8787 边缘代理 · Prune 行 | `nodeai-core/bonus.rs`、`routes.rs` bonus 头、设置 Prune 开关 |
+| **Agent** | nodeai-runtime · 桌面 Chat 与 Agent | `agent.rs`、Tauri commands、`lib/chat/agentLoop.ts`、确认 UI |
+| **Chat 会话** | 桌面 UI — Chat 与 Agent | `ChatContext`、`sessions.ts`、多轮/API 历史 |
+| **Bonus 其它** | 8787 RTK/Caveman/usage | `bonus.rs`、`bonusApi.ts`、Hub/Billing 展示 |
+
+新增子能力时：**先加 ☐ 行再实现**，完成后改 ☑️；不要只写在 commit message 里。
 
 ## 格式约定
 
 - 已完成：`☑️`
 - 未完成：`☐`
 - 测试表须注明：**命令**、**是否需要密钥**、**最近是否跑过 / 结果**
-- E2E 区分：脚本化 curl、桌面 UI E2E、Release 开箱 — 不要混为一谈
+- E2E 区分：脚本化 curl、**Prune 长上下文**、**Agent 写文件**、桌面 UI E2E、Release 开箱 — 不要混为一谈
 - 打包路径写实际 DMG/App 位置（本地构建时）
+- 实现落点可写一行路径（便于 Agent 接续），但不要堆会话笔记
 
 ## 不要写进 tasks.md
 
@@ -33,7 +46,8 @@ alwaysApply: true
 
 | 文档 | 用途 |
 |------|------|
-| `tasks.md` | 人类 + Agent 的任务/测试看板 |
+| `tasks.md` | 人类 + Agent 的任务/测试看板（**唯一进度真相源**） |
 | `docs/CONTINUATION.md` | 新会话快速恢复上下文 |
 | `docs/TESTING.md` | 测试命令细节 |
 | `docs/superpowers/plans/…` | 历史实现计划（不必与 tasks 逐条重复） |
+| `.cursor/rules/nodeai-product.mdc` | 产品口径；与 tasks 冲突时以 PRD + tasks 为准 |

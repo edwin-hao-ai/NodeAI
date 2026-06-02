@@ -141,6 +141,8 @@ export function parseBonusHeader(header: string | null): {
   saved: number;
   caveman: boolean;
   memory: boolean;
+  prune: boolean;
+  pruneSaved: number;
 } | null {
   if (!header) return null;
   const parts = Object.fromEntries(
@@ -154,6 +156,8 @@ export function parseBonusHeader(header: string | null): {
     saved: Number(parts.saved) || 0,
     caveman: parts.caveman === "1",
     memory: parts.memory === "1",
+    prune: parts.prune === "1",
+    pruneSaved: Number(parts.prune_saved) || 0,
   };
 }
 

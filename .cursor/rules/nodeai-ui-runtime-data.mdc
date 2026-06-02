@@ -1,0 +1,48 @@
+---
+description: 桌面 UI 接真数据——产品配置 vs 运行时、usage 能力边界、空态
+globs: apps/desktop/**/*.{ts,tsx}
+alwaysApply: false
+---
+
+# NodeAI：UI 运行时数据
+
+## 两层数据（不可混用）
+
+| 层 | 位置 | 内容 |
+|----|------|------|
+| **产品配置** | `lib/product/apps.ts`、`plans.ts`、`bonusCards.ts` | App 模板、套餐定义、能力卡片文案 |
+| **运行时** | `usageSnapshot`、`gatewayCatalog`、`cloudUser`、memories API | 请求数、花费、ledger、连接态 |
+
+```typescript
+// ❌ DEMO.APPS 的 share/rate/today/lastSeen
+// ✅ liveAppsFromUsage(usageSnapshot) — lib/apps/live.ts
+```
+
+## 用量 / 账单：先后端再 UI
+
+`/v1/nodeai/usage` 须先有 **ledger + period + app_stats**，Hub/Billing 才能去 demo。
+
+| 反例 | 正例 |
+|------|------|
+| 只接 `usageSnapshot.bonus`，其余仍 `DEMO.BUDGET` | periods.today / ledger / budget 全走 API |
+| `setInterval` 随机刷新路由日志 | `recentRouteLines(usageSnapshot)` |
+| 静态 `SPARK` / `BAR_VALS` 数组 | `sparklineFromLedger` / `dailySpendBars` |
+
+## 连接态
+
+- **Cursor 已连接** = `usageSnapshot` 中 `cursor` 有请求，非「模拟已连接」按钮
+- GatewayView 展示 `KNOWN_APPS` + live stats，不用 `DEMO.APPS` 假 rate
+
+## Chat / Memory
+
+- Chat：**禁止**顶部静态 demo 对话块（易让用户以为全是假的）；空态用 starter chips
+- Memory：`GET/POST /v1/nodeai/memories`（SQLite），禁止 seed `DEMO.MEMORIES` 到 localStorage
+
+## i18n 与导出
+
+- 新 `tr("key")` **必须**同时写入 `i18n/zh.json` 与 `en.json`
+- 改 `lib/route.ts` 时保留 `route/display` 的 re-export（`getRouteLineShort`、`RouteState` 等）
+
+## 空态
+
+无数据时显示 **0 / 「等待首包」/ `gwWaiting`**，禁止回落 `DEMO.*` 数字。

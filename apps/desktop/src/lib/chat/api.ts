@@ -2,7 +2,10 @@ import type { MemoryItem } from "../memoryStore";
 import { parseBonusHeader } from "../bonusApi";
 import type { ChatAttachment } from "./attachments";
 import { buildMessageContent } from "./attachments";
+import type { ApiChatMessage, ChatToolCall } from "./sessions";
 import { drainSseBuffer } from "./sse";
+import { ToolCallAccumulator } from "./toolCalls";
+import { AGENT_TOOLS } from "./tools";
 
 const CHAT_APP_KEY = "sk-nodeai-chat";
 
@@ -21,6 +24,8 @@ export interface ChatRequestOptions {
   cloudToken?: string | null;
   trafficPath?: "hosted" | "byok";
   sourceId?: string | null;
+  contextWindow?: number;
+  agentEnabled?: boolean;
 }
 
 export interface ChatStreamUpdate {
@@ -31,6 +36,7 @@ export interface ChatStreamUpdate {
 export interface ChatResult {
   content: string | null;
   thinking: string | null;
+  toolCalls: ChatToolCall[];
   bonus: ReturnType<typeof parseBonusHeader>;
   streamed: boolean;
   error?: string;
@@ -63,6 +69,9 @@ function buildHeaders(options?: ChatRequestOptions): Record<string, string> {
   if (options?.sourceId) {
     headers["X-NodeAI-Source"] = options.sourceId;
   }
+  if (options?.contextWindow && options.contextWindow > 0) {
+    headers["X-NodeAI-Context-Window"] = String(options.contextWindow);
+  }
   return headers;
 }
 
@@ -72,13 +81,32 @@ function resolveRequestModel(options?: ChatRequestOptions): string {
   return route.activeGatewayModel;
 }
 
-async function readJsonCompletion(resp: Response): Promise<{ content: string | null; thinking: string | null }> {
+function mapToolCalls(
+  calls: Array<{ id: string; type: "function"; function: { name: string; arguments: string } }>,
+): ChatToolCall[] {
+  return calls.map((call) => ({
+    id: call.id,
+    name: call.function.name,
+    arguments: call.function.arguments,
+  }));
+}
+
+async function readJsonCompletion(resp: Response): Promise<{
+  content: string | null;
+  thinking: string | null;
+  toolCalls: ChatToolCall[];
+}> {
   const data = (await resp.json()) as {
     choices?: {
       message?: {
         content?: string | unknown;
         reasoning_content?: string;
         reasoning?: string;
+        tool_calls?: Array<{
+          id: string;
+          type: "function";
+          function: { name: string; arguments: string };
+        }>;
       };
     }[];
   };
@@ -89,7 +117,8 @@ async function readJsonCompletion(resp: Response): Promise<{ content: string | n
     message?.reasoning_content?.trim() ||
     message?.reasoning?.trim() ||
     null;
-  return { content, thinking };
+  const toolCalls = message?.tool_calls ? mapToolCalls(message.tool_calls) : [];
+  return { content, thinking, toolCalls };
 }
 
 async function readErrorMessage(resp: Response): Promise<string> {
@@ -102,31 +131,37 @@ async function readErrorMessage(resp: Response): Promise<string> {
   return `HTTP ${resp.status}`;
 }
 
-export async function streamChatCompletion(
+export async function streamChatRound(
   baseUrl: string,
-  userText: string,
+  apiMessages: ApiChatMessage[],
   options: ChatRequestOptions | undefined,
   onDelta: (update: ChatStreamUpdate) => void,
 ): Promise<ChatResult> {
   const url = `${baseUrl.replace(/\/$/, "")}/chat/completions`;
   const model = resolveRequestModel(options);
-  const messageContent = buildMessageContent(userText, options?.attachments ?? []);
+  const body: Record<string, unknown> = {
+    model,
+    messages: apiMessages,
+    max_tokens: 2048,
+    stream: true,
+  };
+  if (options?.agentEnabled) {
+    body.tools = AGENT_TOOLS;
+    body.tool_choice = "auto";
+  }
+
   let resp: Response;
   try {
     resp = await fetch(url, {
       method: "POST",
       headers: buildHeaders(options),
-      body: JSON.stringify({
-        model,
-        messages: [{ role: "user", content: messageContent }],
-        max_tokens: 512,
-        stream: true,
-      }),
+      body: JSON.stringify(body),
     });
   } catch (err) {
     return {
       content: null,
       thinking: null,
+      toolCalls: [],
       bonus: null,
       streamed: false,
       error: err instanceof Error ? err.message : "network error",
@@ -138,6 +173,7 @@ export async function streamChatCompletion(
     return {
       content: null,
       thinking: null,
+      toolCalls: [],
       bonus,
       streamed: false,
       error: await readErrorMessage(resp),
@@ -146,8 +182,8 @@ export async function streamChatCompletion(
 
   const ct = resp.headers.get("content-type") ?? "";
   if (!ct.includes("text/event-stream") || !resp.body) {
-    const { content, thinking } = await readJsonCompletion(resp);
-    return { content, thinking, bonus, streamed: false };
+    const { content, thinking, toolCalls } = await readJsonCompletion(resp);
+    return { content, thinking, toolCalls, bonus, streamed: false };
   }
 
   const reader = resp.body.getReader();
@@ -155,6 +191,7 @@ export async function streamChatCompletion(
   let buffer = "";
   let content = "";
   let thinking = "";
+  const toolAcc = new ToolCallAccumulator();
 
   while (true) {
     const { done, value } = await reader.read();
@@ -164,6 +201,7 @@ export async function streamChatCompletion(
     buffer = chunk.rest;
     for (const delta of chunk.contentDeltas) content += delta;
     for (const delta of chunk.thinkingDeltas) thinking += delta;
+    for (const delta of chunk.toolCallDeltas) toolAcc.ingest(delta);
     if (chunk.contentDeltas.length || chunk.thinkingDeltas.length) {
       onDelta({ content, thinking });
     }
@@ -173,9 +211,25 @@ export async function streamChatCompletion(
   return {
     content: content || null,
     thinking: thinking || null,
+    toolCalls: mapToolCalls(toolAcc.build()),
     bonus,
     streamed: true,
   };
+}
+
+export async function streamChatCompletion(
+  baseUrl: string,
+  history: { role: "user" | "assistant"; content: string }[],
+  userText: string,
+  options: ChatRequestOptions | undefined,
+  onDelta: (update: ChatStreamUpdate) => void,
+): Promise<ChatResult> {
+  const messageContent = buildMessageContent(userText, options?.attachments ?? []);
+  const apiMessages: ApiChatMessage[] = [
+    ...history.map((m) => ({ role: m.role, content: m.content })),
+    { role: "user", content: messageContent },
+  ];
+  return streamChatRound(baseUrl, apiMessages, options, onDelta);
 }
 
 /** Non-streaming fallback. */
@@ -201,17 +255,19 @@ export async function requestChatCompletion(
       return {
         content: null,
         thinking: null,
+        toolCalls: [],
         bonus,
         streamed: false,
         error: await readErrorMessage(resp),
       };
     }
-    const { content, thinking } = await readJsonCompletion(resp);
-    return { content, thinking, bonus, streamed: false };
+    const { content, thinking, toolCalls } = await readJsonCompletion(resp);
+    return { content, thinking, toolCalls, bonus, streamed: false };
   } catch (err) {
     return {
       content: null,
       thinking: null,
+      toolCalls: [],
       bonus: null,
       streamed: false,
       error: err instanceof Error ? err.message : "network error",

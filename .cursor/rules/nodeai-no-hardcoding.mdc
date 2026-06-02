@@ -15,7 +15,10 @@ alwaysApply: true
 | 用户/登录态 | 侧栏写死 `"Demo"`、前端 `demoCloudToken()` | `POST /v1/nodeai/auth/login` → Cloud 签发 token + user |
 | 用量/账单 | `DEMO.BUDGET`、`DEMO.APPS` 数字 | `/v1/nodeai/usage`、后续 Cloud 账单 API |
 | 精选模型 | `CURATED_MODEL_IDS` 静态数组 | 从 live catalog 算法选取（如 `featuredModelsFromCatalog`） |
-| 连接状态 | 按钮「模拟 Cursor 已连接」当真实状态 | Keychain / 8787 探测 / 用户确认 |
+| 连接状态 | 按钮「模拟 Cursor 已连接」当真实状态 | `usageSnapshot` / 首包检测 |
+| Chat 历史 | 顶部静态 `demoUser` / 假 tool-card | 仅真实消息；空态用 starter |
+| 实时面板 | 写死 sparkline / 7 日柱 / 随机路由日志 | 从 `usage.ledger` 聚合 |
+| Plan 升级 | `(demo)` toast 当已交付 | 本地阶段：toast 说明暂缓，不接 Stripe |
 
 ## 允许
 
@@ -29,6 +32,7 @@ alwaysApply: true
 2. 未登录/未配置时是否 **空态 + 引导**，而非 demo 数字？
 3. 是否误用 `data/demo.ts` 或 `DEMO.*`？（Hub/Billing 等待 API 前应显示 skeleton/「暂无数据」）
 4. Rust 侧 Gateway Key、Session 是否只在 **Cloud 服务端**？
+5. **UI 是否只接了 usage 的 bonus 字段**，其余仍 demo？（须 periods + ledger + app_stats）
 
 ## 反例 → 正例
 

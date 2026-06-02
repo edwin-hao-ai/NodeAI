@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:full": "bash ../../scripts/dev.sh",
     "build": "tsc && vite build",
     "test": "vitest run",
     "test:watch": "vitest",

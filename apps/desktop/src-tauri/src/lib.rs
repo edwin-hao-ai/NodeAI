@@ -1,9 +1,12 @@
+mod cloud_dev;
 use std::sync::Mutex;
 
 use keyring::Entry;
 use nodeai_core::{save_sources_file, AppSettings, ByokSourceRecord, ProxyStatus, SourcesFile};
 use nodeai_proxy::{ProxyHandle, status_from_config};
+use nodeai_runtime::{default_workspace_path, ensure_workspace, execute_tool, AgentToolCall, RuntimeContext};
 use serde::Deserialize;
+use serde_json::json;
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::TrayIconBuilder;
 use tauri::Manager;
@@ -166,6 +169,38 @@ fn sync_model_sources(
     save_sources_file(&file)
 }
 
+#[tauri::command]
+fn agent_default_workspace() -> Result<String, String> {
+    let path = default_workspace_path();
+    let resolved = ensure_workspace(&path.to_string_lossy())?;
+    Ok(resolved.to_string_lossy().to_string())
+}
+
+#[tauri::command]
+fn agent_ensure_workspace(path: String) -> Result<String, String> {
+    let resolved = ensure_workspace(&path)?;
+    Ok(resolved.to_string_lossy().to_string())
+}
+
+#[tauri::command]
+fn agent_execute_tool(
+    workspace: String,
+    name: String,
+    arguments: serde_json::Value,
+) -> Result<serde_json::Value, String> {
+    let ctx = RuntimeContext {
+        app_slug: "chat".into(),
+        workspace_root: Some(workspace),
+    };
+    let call = AgentToolCall { name, arguments };
+    let result = execute_tool(&ctx, &call);
+    Ok(json!({
+        "name": result.name,
+        "output": result.output,
+        "ok": result.ok,
+    }))
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tracing_subscriber::fmt()
@@ -179,6 +214,9 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             nodeai_core::load_dotenv();
+            #[cfg(debug_assertions)]
+            cloud_dev::ensure_cloud_dev_background();
+
             let settings = AppSettings::default();
             let proxy_config = settings.proxy.clone();
 
@@ -224,6 +262,9 @@ pub fn run() {
             cloud_session_status,
             get_cloud_session,
             sync_model_sources,
+            agent_default_workspace,
+            agent_ensure_workspace,
+            agent_execute_tool,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

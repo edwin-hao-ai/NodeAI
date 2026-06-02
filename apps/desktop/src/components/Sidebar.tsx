@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { I18nKey } from "../i18n";
+import { useChat } from "../state/ChatContext";
 import { useApp, type ViewId } from "../state/AppContext";
 
 const MAIN_NAV: { view: ViewId; icon: string; filled?: boolean; i18n: I18nKey }[] = [
@@ -19,6 +20,7 @@ const MORE_NAV: { view: ViewId; icon: string; i18n: I18nKey }[] = [
 
 export function Sidebar() {
   const { view, setView, tr, localMode, setCatalogOpen, cloudUser, openAuth } = useApp();
+  const { sessions, activeSessionId, createSession, selectSession } = useChat();
   const [moreOpen, setMoreOpen] = useState(false);
   const chatMode = view === "chat";
 
@@ -27,18 +29,28 @@ export function Sidebar() {
       {chatMode && (
         <>
           <div className="sidebar-top">
-            <button className="btn-new-chat" type="button">
+            <button className="btn-new-chat" type="button" onClick={createSession}>
               <span className="material-symbols-outlined">edit_square</span>
               <span>{tr("newChat")}</span>
             </button>
           </div>
           <div className="chat-history">
-            <button className="hist-item active" type="button">
-              {tr("hist1")}
-            </button>
-            <button className="hist-item" type="button">
-              {tr("hist2")}
-            </button>
+            {sessions.length === 0 ? (
+              <div className="hist-item" style={{ opacity: 0.6, cursor: "default" }}>
+                {tr("chatHistEmpty")}
+              </div>
+            ) : (
+              sessions.map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  className={`hist-item${s.id === activeSessionId ? " active" : ""}`}
+                  onClick={() => selectSession(s.id)}
+                >
+                  {s.title}
+                </button>
+              ))
+            )}
           </div>
         </>
       )}
