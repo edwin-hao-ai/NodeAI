@@ -122,15 +122,14 @@ export function ModelsView() {
         </div>
       </div>
       <div className="vpn-list-col">
+        {localMode && <LocalModePrompt compact subKey="localModePromptModelsSub" />}
         <div className="section-label-sm">
           {smartRouteEnabled ? tr("vpnListSmart") : tr("vpnListFixed")}
         </div>
         <div className="vpn-node-list">
-          {localMode ? (
-            <LocalModePrompt subKey="localModePromptModelsSub" />
-          ) : needsCloudLogin ? (
+          {needsCloudLogin && !localMode ? (
             <LoginPrompt titleKey="loginPromptTitle" subKey="loginPromptModelsSub" />
-          ) : catalogLoading ? (
+          ) : catalogLoading && !localMode ? (
             <CatalogLoading />
           ) : smartRouteEnabled ? (
             <>

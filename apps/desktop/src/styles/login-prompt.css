@@ -10,8 +10,31 @@
   background: var(--surface-container);
 }
 .login-prompt--compact {
-  padding: 14px 16px;
-  margin-bottom: 16px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+  gap: 12px;
+  align-items: center;
+}
+.login-prompt--compact .login-prompt-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+}
+.login-prompt--compact .login-prompt-icon .material-symbols-outlined {
+  font-size: 18px;
+}
+.login-prompt--compact .login-prompt-body p {
+  margin: 0 0 8px;
+  font-size: 11px;
+}
+.login-prompt--compact .login-prompt-body strong {
+  font-size: 13px;
+  margin-bottom: 2px;
+}
+.login-prompt--compact .login-prompt-actions .btn-primary,
+.login-prompt--compact .login-prompt-actions .btn-outlined {
+  padding: 6px 12px;
+  font-size: 12px;
 }
 .login-prompt-icon {
   flex-shrink: 0;
@@ -47,6 +70,15 @@
   gap: 8px;
   align-items: center;
 }
+.login-prompt-actions .btn-primary {
+  padding: 8px 14px;
+  font-size: 12px;
+}
+.login-prompt-actions .btn-outlined {
+  padding: 7px 14px;
+  font-size: 12px;
+  color: var(--on-surface);
+}
 .login-prompt-link {
   border: none;
   background: none;
@@ -57,8 +89,13 @@
   text-decoration: underline;
   text-underline-offset: 2px;
 }
-.vpn-node-list .login-prompt {
-  margin: 4px 0 8px;
+.local-mode-prompt.login-prompt--compact {
+  border-color: var(--outline-variant);
+  background: var(--surface-container);
+  margin-bottom: 10px;
+}
+.vpn-list-col > .login-prompt--compact {
+  margin-bottom: 12px;
 }
 .catalog-loading {
   display: flex;
@@ -134,18 +171,35 @@
   background: color-mix(in srgb, var(--error, #c62828) 8%, transparent);
 }
 .sidebar-account .acct-signin-btn {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   width: 100%;
-  margin-top: 6px;
-  padding: 8px 10px;
-  border: none;
-  border-radius: 8px;
-  background: var(--primary);
-  color: var(--on-primary, #fff);
+  margin-top: 8px;
+  padding: 7px 10px;
+  border: 1px solid color-mix(in srgb, var(--primary) 40%, var(--outline-variant));
+  border-radius: 999px;
+  background: transparent;
+  color: var(--primary);
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
+  transition: background 150ms ease, border-color 150ms ease;
 }
 .sidebar-account .acct-signin-btn:hover {
-  filter: brightness(1.05);
+  background: color-mix(in srgb, var(--primary) 10%, var(--surface-container));
+  border-color: color-mix(in srgb, var(--primary) 55%, var(--outline-variant));
+}
+
+/* Models browse row polish */
+.models-browse-btn {
+  margin-top: 4px;
+}
+.models-browse-btn .models-browse-text > span:first-child {
+  font-size: 13px;
+  font-weight: 500;
+}
+.models-browse-btn > .material-symbols-outlined {
+  font-size: 20px;
 }
