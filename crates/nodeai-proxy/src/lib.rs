@@ -1,3 +1,11 @@
+use std::sync::Arc;
+
+use axum::Router;
+use nodeai_core::{default_virtual_models, load_dotenv, CloudConfig, GatewayConfig, ProxyConfig, ProxyStatus};
+use tokio::sync::oneshot;
+use tower_http::cors::CorsLayer;
+use tower_http::trace::TraceLayer;
+
 pub mod auth;
 pub mod byok;
 pub mod cloud;
@@ -8,23 +16,16 @@ mod smart_route;
 mod store;
 mod usage;
 
-use std::net::SocketAddr;
-use std::sync::Arc;
-
-use axum::Router;
-use nodeai_core::{default_virtual_models, load_dotenv, CloudConfig, GatewayConfig, ProxyConfig, ProxyStatus};
-use tokio::sync::oneshot;
-use tower_http::cors::CorsLayer;
-use tower_http::trace::TraceLayer;
-
 #[derive(Clone)]
 pub struct ProxyState {
     pub config: ProxyConfig,
+    /// Offline virtual aliases; live catalog fetched per-request via NodeAI Cloud.
     pub catalog: Arc<Vec<nodeai_core::ModelCatalogEntry>>,
     pub usage: usage::UsageStore,
     pub bonus: pipeline::BonusState,
+    /// Dev-only escape hatch: desktop holds Gateway key (NODEAI_DEV_DIRECT_GATEWAY=1).
     pub gateway: Option<GatewayConfig>,
-    pub cloud: Option<CloudConfig>,
+    pub cloud: CloudConfig,
     pub db: Arc<store::UsageDb>,
 }
 
@@ -41,35 +42,31 @@ impl ProxyHandle {
     }
 }
 
-async fn bootstrap_catalog(gateway: &Option<GatewayConfig>) -> Vec<nodeai_core::ModelCatalogEntry> {
-    if let Some(gw) = gateway {
-        match gateway::fetch_models(gw).await {
-            Ok(models) => {
-                tracing::info!(count = models.len(), "loaded model catalog from AI Gateway");
-                return models;
-            }
-            Err(err) => {
-                tracing::warn!(%err, "AI Gateway model fetch failed; using fallback catalog");
-            }
-        }
-    }
-    default_virtual_models()
+fn dev_direct_gateway() -> bool {
+    std::env::var("NODEAI_DEV_DIRECT_GATEWAY")
+        .ok()
+        .is_some_and(|v| v == "1" || v.eq_ignore_ascii_case("true"))
 }
 
 pub async fn start(config: ProxyConfig) -> Result<ProxyHandle, std::io::Error> {
     load_dotenv();
-    let gateway = GatewayConfig::from_env();
     let cloud = CloudConfig::from_env();
-    if gateway.is_some() {
-        tracing::info!("AI Gateway configured for allowance path");
+    let gateway = if dev_direct_gateway() {
+        GatewayConfig::from_env()
     } else {
-        tracing::warn!("AI_GATEWAY_API_KEY not set — allowance chat will return 503");
-    }
-    if cloud.is_some() {
-        tracing::info!("NodeAI Cloud relay configured");
+        None
+    };
+
+    tracing::info!(
+        url = %cloud.base_url,
+        dev_local = cloud.dev_local(),
+        "NodeAI Cloud API configured"
+    );
+    if gateway.is_some() {
+        tracing::warn!("NODEAI_DEV_DIRECT_GATEWAY=1: desktop holds Gateway key (dev only, not production)");
     }
 
-    let catalog = Arc::new(bootstrap_catalog(&gateway).await);
+    let catalog = Arc::new(default_virtual_models());
 
     let db = Arc::new(store::UsageDb::open_default());
     if let Err(err) = db.init() {
@@ -121,6 +118,8 @@ pub async fn start(config: ProxyConfig) -> Result<ProxyHandle, std::io::Error> {
         },
     })
 }
+
+use std::net::SocketAddr;
 
 pub async fn status_from_config(config: &ProxyConfig) -> ProxyStatus {
     let addr: SocketAddr = format!("{}:{}", config.host, config.port)

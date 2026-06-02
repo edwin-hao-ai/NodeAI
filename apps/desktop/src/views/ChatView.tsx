@@ -9,7 +9,14 @@ import { useApp } from "../state/AppContext";
 
 type ChatMessage =
   | { id: string; role: "user"; text: string }
-  | { id: string; role: "assistant"; text: string; aha?: boolean; streaming?: boolean };
+  | {
+      id: string;
+      role: "assistant";
+      text: string;
+      thinking?: string;
+      aha?: boolean;
+      streaming?: boolean;
+    };
 
 function markOnboardSendMsg() {
   try {
@@ -46,6 +53,8 @@ export function ChatView() {
     memories,
     cloudSession,
     localMode,
+    openAuth,
+    showToast,
   } = useApp();
 
   const [attachments, setAttachments] = useState<ChatAttachment[]>([]);
@@ -94,6 +103,12 @@ export function ChatView() {
       const hasAttachments = pendingAttachments.length > 0;
       if ((!trimmed && !hasAttachments) || sending) return;
 
+      if (!localMode && !cloudSession) {
+        showToast(tr("toastChatNeedLogin"));
+        openAuth("login");
+        return;
+      }
+
       const wasFirst = !firstChatDone;
       if (wasFirst) setStartersHidden(true);
 
@@ -111,13 +126,14 @@ export function ChatView() {
           id: msgId,
           role: "assistant",
           text: "",
+          thinking: "",
           aha: wasFirst,
           streaming: true,
         },
       ]);
 
       try {
-        const { content, bonus, streamed } = await streamChatCompletion(
+        const { content, thinking, bonus, streamed, error } = await streamChatCompletion(
           gatewayBaseUrl,
           trimmed,
           {
@@ -129,33 +145,38 @@ export function ChatView() {
             trafficPath: localMode ? "byok" : "hosted",
             route: { smartRouteEnabled, activeIntent, activeGatewayModel },
           },
-          (partial) => {
+          (update) => {
             setExtraMessages((msgs) =>
               msgs.map((m) =>
-                m.id === msgId && m.role === "assistant" ? { ...m, text: partial } : m,
+                m.id === msgId && m.role === "assistant"
+                  ? { ...m, text: update.content, thinking: update.thinking || m.thinking }
+                  : m,
               ),
             );
             scrollToBottom();
           },
         );
 
-        const fallbackReply =
-          lang === "zh"
-            ? "（演示）已收到你的消息，NodeAI 会按当前线路自动选模型并作答。"
-            : "(demo) Got your message — NodeAI will pick a model on your current route.";
-        let assistantText = content ?? (wasFirst ? tr("ahaReply") : fallbackReply);
+        if (error && !content) {
+          setExtraMessages((msgs) => msgs.filter((m) => m.id !== msgId));
+          showToast(`${tr("toastChatFailed")}: ${error}`);
+          setSending(false);
+          return;
+        }
+
+        let assistantText = content ?? "";
         if (bonus?.rtk && bonus.saved > 0) {
           assistantText += lang === "zh"
             ? `\n\n（智能压缩已生效，约省 ${bonus.saved} tokens）`
             : `\n\n(Smart compress saved ~${bonus.saved} tokens)`;
         }
 
-        if (wasFirst) {
+        if (wasFirst && assistantText) {
           markOnboardSendMsg();
           markFirstChatDone();
         }
 
-        if (!streamed && content) {
+        if (!streamed && assistantText) {
           streamCancelRef.current?.();
           streamCancelRef.current = streamText(
             assistantText,
@@ -183,13 +204,22 @@ export function ChatView() {
         setExtraMessages((msgs) =>
           msgs.map((m) =>
             m.id === msgId && m.role === "assistant"
-              ? { ...m, text: assistantText, streaming: false }
+              ? {
+                  ...m,
+                  text: assistantText,
+                  thinking: thinking || m.thinking,
+                  streaming: false,
+                }
               : m,
           ),
         );
         setSending(false);
         scrollToBottom();
-      } catch {
+      } catch (err) {
+        setExtraMessages((msgs) => msgs.filter((m) => m.id !== msgId));
+        showToast(
+          `${tr("toastChatFailed")}: ${err instanceof Error ? err.message : "unknown"}`,
+        );
         setSending(false);
       }
     },
@@ -208,6 +238,8 @@ export function ChatView() {
       localMode,
       attachments,
       tr,
+      openAuth,
+      showToast,
     ],
   );
 
@@ -361,7 +393,22 @@ export function ChatView() {
                 <div key={msg.id} className="msg assistant">
                   <div className="msg-role">NodeAI</div>
                   <div className="msg-body">
-                    <p>{msg.text}{msg.streaming ? "▍" : ""}</p>
+                    {msg.thinking ? (
+                      <div className="thinking-block">
+                        <div className="thinking-label">{tr("chatThinkingLbl")}</div>
+                        <p className="thinking-text">
+                          {msg.thinking}
+                          {msg.streaming ? "▍" : ""}
+                        </p>
+                      </div>
+                    ) : null}
+                    {msg.text ? (
+                      <p>
+                        {msg.text}
+                        {msg.streaming && !msg.thinking ? "▍" : msg.streaming && msg.text ? "▍" : ""}
+                      </p>
+                    ) : null}
+                    {!msg.text && msg.streaming && !msg.thinking ? <p>▍</p> : null}
                     {msg.aha && !msg.streaming && (
                       <div className="aha-banner">
                         <span className="material-symbols-outlined">celebration</span>

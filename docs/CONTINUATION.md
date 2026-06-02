@@ -25,7 +25,8 @@ NodeAI/
 │       ├── chat/          # SSE 流式 + 请求头
 │       └── route/         # VPN 线路展示
 ├── crates/nodeai-core/    # Bonus(RTK/Caveman)、intent 映射、配置
-├── crates/nodeai-proxy/   # 8787 边缘：Gateway 转发、Bonus 管道、SQLite 用量
+├── crates/nodeai-cloud/   # Cloud API 客户端 + dev 服务（Gateway Key 服务端）
+├── crates/nodeai-proxy/   # 8787 边缘：Cloud relay、BYOK、Bonus 管道、SQLite 用量
 └── prototypes/            # dashboard.html 对照源
 ```
 
@@ -35,25 +36,37 @@ NodeAI/
 
 | 能力 | 说明 |
 |------|------|
-| **Vercel AI Gateway** | `.env` `AI_GATEWAY_API_KEY`；279 模型；**定价来自 Gateway live API（USD/1M）** |
-| **8787 代理** | health、models、chat（含 SSE 透传）、usage、bonus 配置 |
+| **NodeAI Cloud 模型目录** | 桌面 Session → 8787 → Cloud `/v1/models`；Gateway Key **仅 Cloud dev/生产服务端** |
+| **8787 代理** | health、models（Cloud 拉取）、chat（Cloud relay + SSE）、usage、bonus 配置 |
 | **RTK + Caveman L1** | 出站前压缩/简洁 system；`x-nodeai-bonus` 头；`/v1/nodeai/usage` 分项 |
 | **Smart Route（代理层）** | `X-NodeAI-Intent` + `X-NodeAI-Smart-Route` → 按场景改 model |
 | **Chat** | 真 SSE 流式；记忆注入 header；首次 Chat 激活 |
 | **SQLite 用量** | `~/.nodeai/usage.db` 持久化 app 计数 + bonus 指标 |
 | **429 Failover** | 设置 `failover` 开启时 Gateway 429/503 自动换 `gemini-2.5-flash` |
-| **Embeddings** | `POST /v1/embeddings` 转发 Gateway |
+| **Embeddings** | `POST /v1/embeddings` 经 Cloud relay（需 Session） |
 | **BYOK 路由** | `sources.json` + Keychain Key → proxy `X-NodeAI-Path: byok` 转发 |
-| **Cloud 鉴权骨架** | Keychain session；设 `NODEAI_CLOUD_BASE_URL` 时走 Cloud relay |
+| **Cloud 鉴权** | Keychain session；`NODEAI_CLOUD_BASE_URL` 或 `NODEAI_CLOUD_DEV=1` → 本地 8788 |
 | **原生托盘** | macOS/Windows menu bar 图标 + 打开/退出 |
 | **Chat 附件** | 文件/图片 chips，多模态 messages |
-| **UI** | 模型目录（Gateway 价、厂商筛选吸顶）、设置↔bonus API、Hub/Billing/Menubar 读 live metrics |
+| **UI** | 模型目录（Cloud 价、厂商筛选吸顶）、设置↔bonus API、Hub/Billing/Menubar 读 live metrics |
+
+### 本地 Cloud dev 流程
+
+```bash
+# 终端 1：Cloud API（~/.nodeai/.env 需 AI_GATEWAY_API_KEY，仅服务端）
+NODEAI_CLOUD_DEV=1 cargo run -p nodeai-cloud --bin nodeai-cloud-dev
+
+# 终端 2：8787 边缘
+NODEAI_CLOUD_BASE_URL=http://127.0.0.1:8788 cargo run -p nodeai-proxy --bin nodeai-proxy-standalone
+
+# 桌面：Settings 登录 demo → 打开模型目录应见完整 registry
+```
 
 ---
 
 ## 仍待做
 
-- NodeAI Cloud **真实**后端（当前为 session + 可选 relay 骨架）
+- NodeAI Cloud **生产**部署（当前 `nodeai-cloud-dev` 为本地 stub）
 - `nodeai-runtime` 格式转换、Agent 工具确认
 - macOS/Windows CI 打包签名
 

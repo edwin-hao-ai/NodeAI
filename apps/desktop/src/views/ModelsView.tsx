@@ -1,5 +1,5 @@
-import { DEMO } from "../data/demo";
-import { catalogModelPool, findCatalogModel } from "../lib/catalog";
+import { PRODUCT_INTENTS } from "../lib/product/intents";
+import { catalogModelPool, findCatalogModel, featuredModelsFromCatalog } from "../lib/catalog";
 import {
   MODEL_TYPE_ICON,
   fmtModelPrice,
@@ -22,17 +22,21 @@ export function ModelsView() {
     routeAppCount,
     setCatalogOpen,
     gatewayCatalog,
+    cloudConfigured,
+    gatewayLive,
   } = useApp();
 
-  const modelPool = catalogModelPool(gatewayCatalog);
+  const modelPool = catalogModelPool(gatewayCatalog, cloudConfigured);
+  const pinnedModels = gatewayLive ? featuredModelsFromCatalog(modelPool, 6) : [];
 
   const autoMode = smartRouteEnabled && activeIntent === "auto";
   const resolved = smartRouteEnabled
     ? resolvedModelForRoute(
         { smartRouteEnabled, activeIntent, activeGatewayModel },
         gatewayCatalog,
+        cloudConfigured,
       )
-    : findCatalogModel(activeGatewayModel, gatewayCatalog);
+    : findCatalogModel(activeGatewayModel, gatewayCatalog, cloudConfigured);
 
   const title = autoMode
     ? tr("autoRouteTitle")
@@ -44,7 +48,7 @@ export function ModelsView() {
     ? tr("autoRouteSub")
     : smartRouteEnabled && resolved
       ? resolved.displayName[lang]
-      : !smartRouteEnabled && DEMO.INTENTS.find((i) => i.id === activeIntent)
+      : !smartRouteEnabled && PRODUCT_INTENTS.find((i) => i.id === activeIntent)
         ? intentLabel(lang, activeIntent)
         : null;
 
@@ -125,8 +129,8 @@ export function ModelsView() {
                 )}
               </button>
               <div className="vpn-scene-label">{tr("vpnSceneLabel")}</div>
-              {DEMO.INTENTS.map((i) => {
-                const m = findCatalogModel(i.defaultModel, gatewayCatalog);
+              {PRODUCT_INTENTS.map((i) => {
+                const m = findCatalogModel(i.defaultModel, gatewayCatalog, cloudConfigured);
                 const active = i.id === activeIntent;
                 return (
                   <button
@@ -150,9 +154,8 @@ export function ModelsView() {
               })}
             </>
           ) : (
-            DEMO.CURATED_MODEL_IDS.map((id) => {
-              const m = findCatalogModel(id, gatewayCatalog);
-              if (!m) return null;
+            pinnedModels.map((m) => {
+              const id = m.id;
               const active = id === activeGatewayModel;
               return (
                 <button

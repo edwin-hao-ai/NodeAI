@@ -7,9 +7,14 @@ pub mod models;
 pub mod sources;
 
 pub use bonus::{apply_bonus_pipeline, compress_rtk_text, estimate_tokens, BonusApplyResult, CompressionProfile};
-pub use cloud::{cloud_base_url_from_env, is_valid_session_token, CloudConfig};
+pub mod virtual_models;
+pub use cloud::{
+    cloud_base_url_from_env, cloud_is_dev_local, is_valid_session_token, CloudConfig,
+    DEFAULT_CLOUD_BASE_URL,
+};
+pub use virtual_models::{resolve_request_model, resolve_virtual_model_id};
 pub use config::{AppSettings, ProxyConfig, TrafficPath};
-pub use env::{load_dotenv, GatewayConfig};
+pub use env::{load_dotenv, nodeai_data_dir, GatewayConfig};
 pub use intent::default_model_for_intent;
 pub use models::{
     default_virtual_models, GatewayModelPricing, ModelCatalogEntry, ProxyStatus, VirtualModelAlias,

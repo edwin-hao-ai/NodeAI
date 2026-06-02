@@ -1,5 +1,6 @@
 export type { GatewayCatalogEntry, GatewayModelPricing } from "./types";
-export { fetchGatewayCatalog } from "./api";
+export { fetchGatewayCatalog, fetchGatewayHealth, isLiveGatewayCatalog } from "./api";
+export type { CloudHealth, GatewayHealth } from "./api";
 export {
   gatewayEntryToModel,
   gatewayKindToCatalogType,

@@ -17,6 +17,8 @@ pub fn router() -> Router<ProxyState> {
         .route("/health", get(health))
         .route("/v1/nodeai/usage", get(usage_stats))
         .route("/v1/nodeai/bonus", get(get_bonus).put(set_bonus))
+        .route("/v1/nodeai/auth/login", post(cloud_login))
+        .route("/v1/nodeai/auth/register", post(cloud_register))
         .route("/v1/models", get(list_models))
         .route("/v1/chat/completions", post(chat_completions))
         .route("/v1/embeddings", post(embeddings))
@@ -28,9 +30,14 @@ async fn health(State(state): State<ProxyState>) -> impl IntoResponse {
     Json(json!({
         "ok": true,
         "service": "nodeai-proxy",
-        "gateway": {
-            "configured": state.gateway.is_some(),
+        "cloud": {
+            "configured": true,
+            "dev_local": state.cloud.dev_local(),
+            "base_url": state.cloud.base_url,
             "models": state.catalog.len(),
+        },
+        "gateway": {
+            "direct_dev": state.gateway.is_some(),
         },
         "bonus": {
             "rtk": profile.rtk,
@@ -61,12 +68,151 @@ async fn set_bonus(
     Json(profile)
 }
 
-async fn list_models(State(state): State<ProxyState>) -> Json<Value> {
+async fn list_models(State(state): State<ProxyState>, headers: HeaderMap) -> impl IntoResponse {
+    let cloud_token = headers
+        .get("x-nodeai-cloud-token")
+        .and_then(|v| v.to_str().ok());
+
+    if let Ok(session) = crate::cloud::require_session(cloud_token) {
+        let cloud = &state.cloud;
+        match nodeai_cloud::fetch_models(cloud, session).await {
+                    Ok(remote) => {
+                        tracing::info!(
+                            count = remote.len(),
+                            "model registry from Vercel AI Gateway via NodeAI Cloud"
+                        );
+                        let data = nodeai_cloud::merge_with_virtual((*state.catalog).clone(), remote);
+                        return (
+                            [("x-nodeai-catalog-source", "vercel-gateway")],
+                            Json(json!({
+                                "object": "list",
+                                "data": data,
+                            })),
+                        )
+                            .into_response();
+            }
+            Err(err) => {
+                tracing::warn!(%err, "Gateway registry fetch via Cloud failed");
+                return (
+                    StatusCode::BAD_GATEWAY,
+                    Json(json!({
+                        "error": {
+                            "message": err,
+                            "type": "gateway_registry_error",
+                            "code": "cloud_registry_unreachable"
+                        }
+                    })),
+                )
+                    .into_response();
+            }
+        }
+    } else if let Err(err) = crate::cloud::require_session(cloud_token) {
+        return cloud_auth_required(&err).into_response();
+    }
+
+    if let Some(gw) = state.gateway.as_ref() {
+        match crate::gateway::fetch_models(gw).await {
+            Ok(remote) => {
+                tracing::info!(count = remote.len(), "model registry from Vercel AI Gateway (dev direct)");
+                let data = nodeai_cloud::merge_with_virtual((*state.catalog).clone(), remote);
+                return (
+                    [("x-nodeai-catalog-source", "vercel-gateway")],
+                    Json(json!({
+                        "object": "list",
+                        "data": data,
+                    })),
+                )
+                    .into_response();
+            }
+            Err(err) => tracing::warn!(%err, "dev direct Gateway model fetch failed"),
+        }
+    }
+
     let data: Vec<ModelCatalogEntry> = (*state.catalog).clone();
-    Json(json!({
-        "object": "list",
-        "data": data,
-    }))
+    (
+        [("x-nodeai-catalog-source", "offline-virtual")],
+        Json(json!({
+            "object": "list",
+            "data": data,
+        })),
+    )
+        .into_response()
+}
+
+async fn cloud_login(
+    State(state): State<ProxyState>,
+    Json(body): Json<Value>,
+) -> Response {
+    let cloud = &state.cloud;
+    let email = body
+        .get("email")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .trim();
+    let password = body
+        .get("password")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .trim();
+    if email.is_empty() {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(json!({
+                "error": {
+                    "message": "email required",
+                    "type": "nodeai_auth_invalid",
+                    "code": "email_required"
+                }
+            })),
+        )
+            .into_response();
+    }
+    match nodeai_cloud::create_session(cloud, email, password).await {
+        Ok(session) => Json(json!({
+            "token": session.token,
+            "user": session.user,
+        }))
+        .into_response(),
+        Err(err) => {
+            tracing::warn!(%err, "cloud login failed");
+            (
+                StatusCode::BAD_GATEWAY,
+                Json(json!({
+                    "error": {
+                        "message": err,
+                        "type": "nodeai_cloud_auth_error",
+                        "code": "cloud_auth_failed"
+                    }
+                })),
+            )
+                .into_response()
+        }
+    }
+}
+
+async fn cloud_register(
+    State(state): State<ProxyState>,
+    Json(body): Json<Value>,
+) -> Response {
+    let cloud = &state.cloud;
+    let email = body.get("email").and_then(|v| v.as_str()).unwrap_or("").trim();
+    let password = body.get("password").and_then(|v| v.as_str()).unwrap_or("");
+    let name = body.get("name").and_then(|v| v.as_str());
+    if email.is_empty() {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(json!({ "error": { "message": "email required" } })),
+        )
+            .into_response();
+    }
+    match nodeai_cloud::register_account(cloud, email, password, name).await {
+        Ok(user) => Json(json!({ "user": user })).into_response(),
+        Err(err) => (
+            StatusCode::BAD_REQUEST,
+            Json(json!({ "error": { "message": err } })),
+        )
+            .into_response(),
+    }
 }
 
 fn bearer_token(headers: &HeaderMap) -> Option<String> {
@@ -117,6 +263,11 @@ fn apply_request_pipeline(
         crate::smart_route::apply_smart_route(body, intent, &profile);
     }
 
+    let intent = headers
+        .get("x-nodeai-intent")
+        .and_then(|v| v.to_str().ok());
+    nodeai_core::resolve_request_model(body, intent, smart);
+
     let result = apply_bonus_pipeline(state, headers, body);
     if let Err(err) = state.db.persist(&state.usage.full_snapshot()) {
         tracing::warn!(%err, "usage db persist failed");
@@ -157,8 +308,8 @@ async fn chat_completions(
     let force_byok = std::env::var("NODEAI_FORCE_BYOK")
         .ok()
         .is_some_and(|v| v == "1" || v.eq_ignore_ascii_case("true"));
-    let gateway_ready = state.gateway.is_some();
-    let (path, app_slug) = resolve_traffic(&headers, auth.as_deref(), gateway_ready, force_byok);
+    let hosted_ready = true;
+    let (path, app_slug) = resolve_traffic(&headers, auth.as_deref(), hosted_ready, force_byok);
     let model = body
         .get("model")
         .and_then(|m| m.as_str())
@@ -171,57 +322,35 @@ async fn chat_completions(
 
     let bonus = apply_request_pipeline(&state, &headers, &mut body);
 
-    tracing::info!(?path, ?app_slug, %model, gateway_ready, "chat completion");
+    tracing::info!(?path, ?app_slug, %model, hosted_ready, "chat completion");
 
     match path {
         TrafficPath::HostedQuota => {
             let cloud_token = headers
                 .get("x-nodeai-cloud-token")
                 .and_then(|v| v.to_str().ok());
-            if let Some(cloud) = state.cloud.as_ref() {
-                match crate::cloud::require_session(cloud_token) {
-                    Ok(session) => {
-                        if let Some(gw) = state.gateway.as_ref() {
-                            let failover = state.bonus.get_profile().failover;
-                            match crate::cloud::chat_completions(
-                                cloud,
-                                gw,
-                                session,
-                                &body,
-                                app_slug.as_deref(),
-                                failover,
-                            )
-                            .await
-                            {
-                                Ok(resp) => return attach_bonus_header(resp, &bonus),
-                                Err(err) => {
-                                    tracing::error!(%err, "NodeAI Cloud relay failed");
-                                    return cloud_error(&err).into_response();
-                                }
-                            }
+            let cloud = &state.cloud;
+            match crate::cloud::require_session(cloud_token) {
+                Ok(session) => {
+                    let failover = state.bonus.get_profile().failover;
+                    match crate::cloud::chat_completions(
+                        cloud,
+                        session,
+                        &body,
+                        app_slug.as_deref(),
+                        failover,
+                    )
+                    .await
+                    {
+                        Ok(resp) => return attach_bonus_header(resp, &bonus),
+                        Err(err) => {
+                            tracing::error!(%err, "NodeAI Cloud relay failed");
+                            return cloud_error(&err).into_response();
                         }
                     }
-                    Err(err) => return cloud_auth_required(&err).into_response(),
                 }
+                Err(err) => return cloud_auth_required(&err).into_response(),
             }
-            if let Some(gw) = state.gateway.as_ref() {
-                let failover = state.bonus.get_profile().failover;
-                match crate::gateway::chat_completions(
-                    gw,
-                    &body,
-                    app_slug.as_deref(),
-                    failover,
-                )
-                .await
-                {
-                    Ok(resp) => return attach_bonus_header(resp, &bonus),
-                    Err(err) => {
-                        tracing::error!(%err, "AI Gateway chat forward failed");
-                        return gateway_error(&err).into_response();
-                    }
-                }
-            }
-            hosted_quota_unavailable().into_response()
         }
         TrafficPath::ByokLocal => {
             let slug = app_slug.unwrap_or_default();
@@ -294,7 +423,7 @@ fn hosted_quota_unavailable() -> (StatusCode, Json<Value>) {
         StatusCode::SERVICE_UNAVAILABLE,
         Json(json!({
             "error": {
-                "message": "Allowance path is not configured. Set AI_GATEWAY_API_KEY in .env and restart NodeAI.",
+                "message": "Allowance path requires NodeAI Cloud. Sign in with your NodeAI account or configure NODEAI_CLOUD_BASE_URL.",
                 "type": "nodeai_not_configured",
                 "code": "cloud_api_pending"
             }
@@ -415,8 +544,28 @@ async fn forward_byok_upstream(
 
 async fn embeddings(
     State(state): State<ProxyState>,
+    headers: HeaderMap,
     Json(body): Json<Value>,
 ) -> Response {
+    let cloud_token = headers
+        .get("x-nodeai-cloud-token")
+        .and_then(|v| v.to_str().ok());
+
+    let cloud = &state.cloud;
+    match crate::cloud::require_session(cloud_token) {
+        Ok(session) => {
+            match crate::cloud::embeddings(cloud, session, &body).await {
+                Ok(resp) => return resp,
+                Err(err) => {
+                    tracing::error!(%err, "NodeAI Cloud embeddings relay failed");
+                    return cloud_error(&err).into_response();
+                }
+            }
+        }
+        Err(err) if state.gateway.is_none() => return cloud_auth_required(&err).into_response(),
+        Err(_) => {}
+    }
+
     if let Some(gw) = state.gateway.as_ref() {
         match crate::gateway::embeddings(gw, &body).await {
             Ok(resp) => return resp,

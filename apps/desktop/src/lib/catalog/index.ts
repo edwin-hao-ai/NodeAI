@@ -12,3 +12,4 @@ export function fmtModelCaption(lang: Lang, m: GatewayModel): string {
 
 // Re-export pool helpers for views that import from catalog
 export { catalogModelPool, findCatalogModel } from "../model/pool";
+export { featuredModelsFromCatalog } from "./featured";

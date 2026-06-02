@@ -22,9 +22,10 @@ alwaysApply: true
 
 1. 并行查看：`git status`、`git diff`、`git log -1 --oneline`（对齐 message 风格）
 2. `git add` 仅相关文件（勿 add  secrets）
-3. 用 HEREDOC 写 1–2 句 commit message，说明 **why**
-4. `git commit` 后 `git status` 确认成功
-5. **不要** 除非用户要求，否则不 `git push`
+3. 若本次改动完成 `tasks.md` 中的条目，**同步更新 tasks.md**（见 `.cursor/rules/nodeai-tasks.mdc`）
+4. 用 HEREDOC 写 1–2 句 commit message，说明 **why**
+5. `git commit` 后 `git status` 确认成功
+6. **不要** 除非用户要求，否则不 `git push`
 
 ## JS 原型额外检查
 

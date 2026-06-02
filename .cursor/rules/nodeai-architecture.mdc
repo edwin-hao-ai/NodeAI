@@ -16,12 +16,23 @@ alwaysApply: true
 | 领域 | `lib/model/`、`lib/catalog/`、`lib/gateway/` | 类型、定价、目录查询、Gateway 归一化 |
 | 基础设施 | `lib/*Api.ts`、`lib/chat.ts` | fetch、8787 请求 |
 | Rust 核心 | `crates/nodeai-core/` | 类型、Bonus 算法、配置；**无 HTTP** |
-| Rust 边缘 | `crates/nodeai-proxy/` | 路由、转发、计量；Bonus 调用 core，不内联算法 |
+| Rust 边缘 | `crates/nodeai-proxy/` | 8787 路由、转发、计量；Bonus 调用 core |
+| Rust 云端 | `crates/nodeai-cloud/` | NodeAI Cloud API 客户端 + 本地 dev 服务；**Gateway Key 仅在此层** |
+
+## 双路径与模型目录（不可违背）
+
+| 路径 | 流量 | Gateway Key |
+|------|------|-------------|
+| **含额度** | 桌面 8787 → **NodeAI Cloud API** → Gateway | 仅 Cloud 服务端 |
+| **自有 Key** | 8787 → 桌面 Runtime → 用户 Provider | 无 |
+
+- 模型价格/目录 **唯一来源**：`GET NodeAI Cloud /v1/models`（需 Session）；桌面 **禁止** 持 `AI_GATEWAY_API_KEY` 拉目录（除 `NODEAI_DEV_DIRECT_GATEWAY=1` 开发捷径）。
+- 离线时 8787 仅返回 `default_virtual_models()`（5 个 `nodeai-*` 别名）。
 
 ## 必须遵守
 
 1. **单一职责**：一个文件只做一类事（例如「收藏 localStorage」与「目录分节」分开）。
-2. **数据源头唯一**：模型价格只来自 Gateway `/v1/models` 的 `pricing`；禁止用 `demo.ts` 覆盖 live 价。
+2. **数据源头唯一**：模型价格只来自 **NodeAI Cloud** `/v1/models` 的 `pricing`（经 8787 代理）；禁止用 `demo.ts` 覆盖 live 价。
 3. **禁止上帝文件**：单文件超过 ~200 行且含 2+ 领域时，拆模块并用 `index.ts` 薄导出。
 4. **UI 不直连 demo**：View 通过 `AppContext` 或 `lib/model/pool` 取模型；Settings 开关走 `bonusApi`，不复制一份 state。
 5. **Rust**：`routes.rs` 编排管道；压缩在 `nodeai-core/bonus.rs`；计量在 `usage.rs`；不在 `chat_completions` 里写 100 行逻辑。
@@ -48,3 +59,7 @@ alwaysApply: true
 // ❌ routes.rs 内 80 行 RTK 字符串处理
 // ✅ apply_bonus_pipeline(&mut body, &profile, &memories) in nodeai-core
 ```
+
+## 禁止硬编码
+
+见 `nodeai-no-hardcoding.mdc` — 运行时数据来自 API/用户态，不得用 `DEMO.*` 冒充 live 数据。

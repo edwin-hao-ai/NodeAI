@@ -1,14 +1,13 @@
-import { DEMO } from "../../data/demo";
 import type { GatewayCatalogEntry } from "../gateway/types";
 import { catalogModelPool } from "../model/pool";
-import { demoModelById } from "../model/demo";
 import type { GatewayModel } from "../model/types";
 import type { CatalogType } from "./ui";
+import { featuredModelsFromCatalog } from "./featured";
 
 export type CatalogSort = "featured" | "cheap" | "fast" | "context";
 
-function pool(gateway: GatewayCatalogEntry[] | null): GatewayModel[] {
-  return catalogModelPool(gateway);
+function pool(gateway: GatewayCatalogEntry[] | null, cloudConfigured = false): GatewayModel[] {
+  return catalogModelPool(gateway, cloudConfigured);
 }
 
 export function catModelMatches(
@@ -34,22 +33,22 @@ export function catSortModels(arr: GatewayModel[], sort: CatalogSort): GatewayMo
   } else if (sort === "context") {
     a.sort((x, y) => (y.ctx ?? 0) - (x.ctx ?? 0));
   } else {
-    a.sort(
-      (x, y) =>
-        (DEMO.CURATED_MODEL_IDS as readonly string[]).indexOf(y.id) -
-        (DEMO.CURATED_MODEL_IDS as readonly string[]).indexOf(x.id),
-    );
+    a.sort((x, y) => x.id.localeCompare(y.id));
   }
   return a;
 }
 
-export function catalogProviders(catalogType: CatalogType, gateway: GatewayCatalogEntry[] | null): string[] {
-  const models = pool(gateway).filter((m) => catalogType === "all" || m.type === catalogType);
+export function catalogProviders(
+  catalogType: CatalogType,
+  gateway: GatewayCatalogEntry[] | null,
+  cloudConfigured = false,
+): string[] {
+  const models = pool(gateway, cloudConfigured).filter((m) => catalogType === "all" || m.type === catalogType);
   return [...new Set(models.map((m) => m.provider))];
 }
 
 function resolveModel(id: string, all: GatewayModel[]) {
-  return all.find((m) => m.id === id) ?? demoModelById(id);
+  return all.find((m) => m.id === id);
 }
 
 export function buildCatalogSections(
@@ -60,8 +59,9 @@ export function buildCatalogSections(
   favs: string[],
   recents: string[],
   gateway: GatewayCatalogEntry[] | null,
+  cloudConfigured = false,
 ): { titleKey?: string; count?: number; models: GatewayModel[] }[] {
-  const all = pool(gateway);
+  const all = pool(gateway, cloudConfigured);
   const noFilter = !query && catalogType === "all" && catalogProvider === "all";
 
   if (!noFilter) {
@@ -82,12 +82,10 @@ export function buildCatalogSections(
   if (favModels.length) sections.push({ titleKey: "catFav", models: favModels });
   if (recentModels.length) sections.push({ titleKey: "catRecent", models: recentModels });
 
-  const curated = DEMO.CURATED_MODEL_IDS.map((id) => resolveModel(id, all)).filter(
-    Boolean,
-  ) as GatewayModel[];
-  sections.push({ titleKey: "catFeatured", models: curated });
+  const curated = featuredModelsFromCatalog(all);
+  if (curated.length) sections.push({ titleKey: "catFeatured", models: curated });
 
-  const pinned = new Set([...favs, ...recents, ...DEMO.CURATED_MODEL_IDS]);
+  const pinned = new Set([...favs, ...recents, ...curated.map((m) => m.id)]);
   const rest = catSortModels(all.filter((m) => !pinned.has(m.id)), sort);
   sections.push({ titleKey: "catAll", count: rest.length, models: rest });
   return sections;

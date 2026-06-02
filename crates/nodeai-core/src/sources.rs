@@ -2,6 +2,8 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
+use crate::env::nodeai_data_dir;
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ByokSourceRecord {
     pub id: String,
@@ -17,16 +19,6 @@ pub struct SourcesFile {
     pub default_source_id: Option<String>,
     #[serde(default)]
     pub sources: Vec<ByokSourceRecord>,
-}
-
-pub fn nodeai_data_dir() -> PathBuf {
-    std::env::var("NODEAI_DATA_DIR")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| {
-            dirs::home_dir()
-                .unwrap_or_else(|| PathBuf::from("."))
-                .join(".nodeai")
-        })
 }
 
 pub fn sources_path() -> PathBuf {

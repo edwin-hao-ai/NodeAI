@@ -20,9 +20,17 @@ import {
   getRouteLineShort,
   type RouteState,
 } from "../lib/route";
-import { fetchGatewayCatalog, type GatewayCatalogEntry } from "../lib/gateway";
+import { fetchGatewayCatalog, fetchGatewayHealth, isLiveGatewayCatalog, type GatewayCatalogEntry, type CloudHealth } from "../lib/gateway";
 import { fetchUsageSnapshot, loadBonusProfileLocal, saveBonusProfileLocal, syncBonusProfile, type UsageSnapshot } from "../lib/bonusApi";
-import { demoCloudToken, getCloudSession, saveCloudSession } from "../lib/cloudSession";
+import {
+  loadStoredCloudUser,
+  saveStoredCloudUser,
+  signInViaProxy,
+  registerViaProxy,
+  type CloudUser,
+} from "../lib/cloudAuth";
+import { getCloudSession, saveCloudSession } from "../lib/cloudSession";
+import { findProductIntent, PRODUCT_INTENTS } from "../lib/product/intents";
 import { syncModelSources } from "../lib/sourcesSync";
 import { findCatalogModel } from "../lib/catalog";
 import { type I18nKey, type Lang, t } from "../i18n";
@@ -63,10 +71,14 @@ interface AppContextValue extends RouteState {
   gatewayPort: number;
   gatewayBaseUrl: string;
   gatewayCatalog: GatewayCatalogEntry[] | null;
+  gatewayHealth: CloudHealth | null;
+  gatewayLive: boolean;
+  cloudConfigured: boolean;
   usageSnapshot: UsageSnapshot | null;
   cursorConnected: boolean;
   localMode: boolean;
   cloudSession: string | null;
+  cloudUser: CloudUser | null;
   roiBannerHidden: boolean;
   connectBannerHidden: boolean;
   onboardDismissed: boolean;
@@ -105,7 +117,8 @@ interface AppContextValue extends RouteState {
   setWorkspace: (path: string) => void;
   openAuth: (mode: AuthMode) => void;
   closeAuth: () => void;
-  loginDemo: () => void;
+  signInWithCloud: (email: string, password: string) => Promise<boolean>;
+  signUpWithCloud: (email: string, password: string) => Promise<boolean>;
   showToast: (msg: string) => void;
   tr: (key: I18nKey) => string;
   routeLine: string;
@@ -189,6 +202,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }));
   const [proxy, setProxy] = useState<ProxyStatus | null>(null);
   const [gatewayCatalog, setGatewayCatalog] = useState<GatewayCatalogEntry[] | null>(null);
+  const [gatewayHealth, setGatewayHealth] = useState<CloudHealth | null>(null);
   const [usageSnapshot, setUsageSnapshot] = useState<UsageSnapshot | null>(null);
   const [gatewayPort, setGatewayPortState] = useState(() => {
     const raw = parseInt(localStorage.getItem(STORAGE_PORT) || "", 10);
@@ -201,6 +215,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     () => new URLSearchParams(window.location.search).get("mode") === "local",
   );
   const [cloudSession, setCloudSession] = useState<string | null>(null);
+  const [cloudUser, setCloudUser] = useState<CloudUser | null>(() => loadStoredCloudUser());
   const [roiBannerHidden, setRoiBannerHidden] = useState(
     () => localStorage.getItem(STORAGE_ROI) === "1",
   );
@@ -255,15 +270,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!proxy?.running) {
       setGatewayCatalog(null);
+      setGatewayHealth(null);
       return;
     }
     let cancelled = false;
     const load = async () => {
       try {
-        const models = await fetchGatewayCatalog(gatewayBaseUrl);
-        if (!cancelled) setGatewayCatalog(models.length ? models : null);
+        const health = await fetchGatewayHealth(gatewayPort);
+        if (!cancelled) setGatewayHealth(health);
+
+        let session = cloudSession ?? (await getCloudSession());
+
+        const models = await fetchGatewayCatalog(gatewayBaseUrl, session);
+        if (!cancelled) setGatewayCatalog(models);
       } catch {
-        if (!cancelled) setGatewayCatalog(null);
+        if (!cancelled) {
+          setGatewayCatalog(null);
+          setGatewayHealth(null);
+        }
       }
     };
     load();
@@ -272,10 +296,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
       cancelled = true;
       window.clearInterval(id);
     };
-  }, [gatewayBaseUrl, proxy?.running]);
+  }, [gatewayBaseUrl, gatewayPort, proxy?.running, cloudSession]);
+
+  const gatewayLive = useMemo(
+    () =>
+      Boolean(
+        gatewayHealth?.configured && cloudSession && isLiveGatewayCatalog(gatewayCatalog),
+      ),
+    [gatewayHealth, gatewayCatalog, cloudSession],
+  );
+
+  const cloudConfigured = Boolean(gatewayHealth?.configured);
 
   useEffect(() => {
-    void getCloudSession().then((token) => setCloudSession(token));
+    void getCloudSession().then((token) => {
+      if (token) setCloudSession(token);
+    });
+    const user = loadStoredCloudUser();
+    if (user) setCloudUser(user);
   }, []);
 
   useEffect(() => {
@@ -335,7 +373,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
             const done = finish(cur);
             showToast(
               t(lang, "toastRouteApplied")
-                .replace("{line}", getRouteLineShort(lang, done, gatewayCatalog))
+                .replace("{line}", getRouteLineShort(lang, done, gatewayCatalog, cloudConfigured))
                 .replace("{n}", String(countRouteApps(cursorConnected))),
             );
             return done;
@@ -345,33 +383,33 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setRoute((r) => finish(r));
       }
     },
-    [lang, cursorConnected, persistRoute, showToast, gatewayCatalog],
+    [lang, cursorConnected, persistRoute, showToast, gatewayCatalog, cloudConfigured],
   );
 
   const selectIntent = useCallback(
     (id: string) => {
       setRoute((r) => {
-        const intent = DEMO.INTENTS.find((i) => i.id === id);
+        const intent = findProductIntent(id);
         let activeGatewayModel = r.activeGatewayModel;
-        if (intent?.defaultModel && findCatalogModel(intent.defaultModel, gatewayCatalog)) {
+        if (intent?.defaultModel && findCatalogModel(intent.defaultModel, gatewayCatalog, cloudConfigured)) {
           activeGatewayModel = intent.defaultModel;
         }
         return { ...r, activeIntent: id, activeGatewayModel };
       });
       applyRouteChanged(true);
     },
-    [applyRouteChanged, gatewayCatalog],
+    [applyRouteChanged, gatewayCatalog, cloudConfigured],
   );
 
   const selectGatewayModel = useCallback(
     (id: string) => {
       setRoute((r) => {
-        const m = findCatalogModel(id, gatewayCatalog);
+        const m = findCatalogModel(id, gatewayCatalog, cloudConfigured);
         let activeIntent = r.activeIntent;
-        const match = DEMO.INTENTS.find((i) => i.defaultModel === id);
+        const match = PRODUCT_INTENTS.find((i) => i.defaultModel === id);
         if (match) activeIntent = match.id;
         else if (m) {
-          const byType = DEMO.INTENTS.find((i) => i.modelType === m.type);
+          const byType = PRODUCT_INTENTS.find((i) => i.modelType === m.type);
           if (byType) activeIntent = byType.id;
         }
         return {
@@ -383,7 +421,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       });
       applyRouteChanged(true);
     },
-    [applyRouteChanged, gatewayCatalog],
+    [applyRouteChanged, gatewayCatalog, cloudConfigured],
   );
 
   const toggleSmartRoute = useCallback(() => {
@@ -426,8 +464,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const tr = useCallback((key: I18nKey) => t(lang, key), [lang]);
 
   const routeLine = useMemo(
-    () => getRouteLineShort(lang, route, gatewayCatalog),
-    [lang, route, gatewayCatalog],
+    () => getRouteLineShort(lang, route, gatewayCatalog, cloudConfigured),
+    [lang, route, gatewayCatalog, cloudConfigured],
   );
   const routeAppCount = useMemo(() => countRouteApps(cursorConnected), [cursorConnected]);
 
@@ -505,15 +543,39 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setView("models");
   }, []);
 
-  const loginDemo = useCallback(() => {
-    const token = demoCloudToken();
-    void saveCloudSession(token)
-      .then(() => setCloudSession(token))
-      .catch(() => setCloudSession(token));
-    localStorage.setItem("nodeai-user", JSON.stringify({ name: "Demo", email: "demo@nodeai.app", plan: "pro-trial" }));
-    showToast(t(lang, "toastLogin"));
-    setView("models");
-  }, [lang, showToast]);
+  const signInWithCloud = useCallback(
+    async (email: string, password: string) => {
+      const result = await signInViaProxy(gatewayBaseUrl, email, password);
+      if (!result.ok) {
+        showToast(result.error || t(lang, "toastLoginFailed"));
+        return false;
+      }
+      try {
+        await saveCloudSession(result.data.token);
+      } catch {
+        /* keychain optional */
+      }
+      setCloudSession(result.data.token);
+      setCloudUser(result.data.user);
+      saveStoredCloudUser(result.data.user);
+      showToast(t(lang, "toastLogin"));
+      setView("models");
+      return true;
+    },
+    [gatewayBaseUrl, lang, showToast],
+  );
+
+  const signUpWithCloud = useCallback(
+    async (email: string, password: string) => {
+      const reg = await registerViaProxy(gatewayBaseUrl, email, password);
+      if (!reg.ok) {
+        showToast(reg.error || t(lang, "toastRegisterFailed"));
+        return false;
+      }
+      return signInWithCloud(email, password);
+    },
+    [gatewayBaseUrl, lang, showToast, signInWithCloud],
+  );
 
   const value = useMemo<AppContextValue>(
     () => ({
@@ -525,10 +587,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
       gatewayPort,
       gatewayBaseUrl,
       gatewayCatalog,
+      gatewayHealth,
+      gatewayLive,
+      cloudConfigured,
       usageSnapshot,
       cursorConnected,
       localMode,
       cloudSession,
+      cloudUser,
       roiBannerHidden,
       connectBannerHidden,
       onboardDismissed,
@@ -583,7 +649,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setWorkspace,
       openAuth,
       closeAuth,
-      loginDemo,
+      signInWithCloud,
+      signUpWithCloud,
       showToast,
       tr,
       routeLine,
@@ -597,10 +664,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
       proxy,
       gatewayPort,
       gatewayCatalog,
+      gatewayHealth,
+      gatewayLive,
+      cloudConfigured,
       usageSnapshot,
       cursorConnected,
       localMode,
       cloudSession,
+      cloudUser,
       roiBannerHidden,
       connectBannerHidden,
       onboardDismissed,
@@ -622,7 +693,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setWorkspace,
       openAuth,
       closeAuth,
-      loginDemo,
+      signInWithCloud,
+      signUpWithCloud,
       toggleSmartRoute,
       selectIntent,
       selectGatewayModel,

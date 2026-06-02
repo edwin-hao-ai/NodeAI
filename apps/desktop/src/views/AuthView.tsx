@@ -3,7 +3,7 @@ import { BrandMark } from "../components/BrandMark";
 import { useApp } from "../state/AppContext";
 
 export function AuthView() {
-  const { tr, lang, toggleLang, openAuth, closeAuth, signInWithCloud, showToast } = useApp();
+  const { tr, lang, toggleLang, openAuth, closeAuth, signInWithCloud, signUpWithCloud, showToast } = useApp();
   const [mode, setMode] = useState<"login" | "register">(
     () => (sessionStorage.getItem("nodeai-auth-mode") as "login" | "register") || "login",
   );
@@ -18,7 +18,11 @@ export function AuthView() {
     }
     setBusy(true);
     try {
-      await signInWithCloud(email.trim(), password);
+      if (mode === "register") {
+        await signUpWithCloud(email.trim(), password);
+      } else {
+        await signInWithCloud(email.trim(), password);
+      }
     } finally {
       setBusy(false);
     }

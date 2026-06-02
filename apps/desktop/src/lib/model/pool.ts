@@ -1,16 +1,28 @@
 import type { GatewayCatalogEntry } from "../gateway/types";
-import { gatewayEntryToModel } from "../gateway/normalize";
-import { demoModelById, demoModelPool } from "./demo";
+import { gatewayEntryToModel, isLiveGatewayCatalog } from "../gateway";
 import type { GatewayModel } from "./types";
 
-export function catalogModelPool(gateway: GatewayCatalogEntry[] | null): GatewayModel[] {
-  if (!gateway?.length) return demoModelPool();
-  return gateway.map(gatewayEntryToModel);
+export function catalogModelPool(
+  gateway: GatewayCatalogEntry[] | null,
+  cloudConfigured = false,
+): GatewayModel[] {
+  if (gateway?.length) {
+    return gateway.map(gatewayEntryToModel);
+  }
+  if (cloudConfigured) {
+    return [];
+  }
+  return [];
+}
+
+export function isGatewayRegistryLive(gateway: GatewayCatalogEntry[] | null): boolean {
+  return isLiveGatewayCatalog(gateway);
 }
 
 export function findCatalogModel(
   id: string,
   gateway: GatewayCatalogEntry[] | null,
+  cloudConfigured = false,
 ): GatewayModel | undefined {
-  return catalogModelPool(gateway).find((m) => m.id === id) ?? demoModelById(id);
+  return catalogModelPool(gateway, cloudConfigured).find((m) => m.id === id);
 }

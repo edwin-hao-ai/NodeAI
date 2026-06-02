@@ -159,6 +159,11 @@
     .tool-card { margin: 8px 0; padding: 9px 11px; border-radius: 8px; background: var(--surface-container); border: 1px solid var(--outline-variant);
       font-size: 12px; display: flex; gap: 10px; align-items: flex-start; }
     .tool-card .material-symbols-outlined { color: var(--primary); font-size: 18px; }
+    .thinking-block { margin: 0 0 10px; padding: 10px 12px; border-radius: 8px; background: var(--surface-container-low);
+      border: 1px dashed var(--outline-variant); }
+    .thinking-label { font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;
+      color: var(--secondary); margin-bottom: 6px; }
+    .thinking-text { margin: 0; font-size: 13px; line-height: 1.45; color: var(--on-surface-variant); white-space: pre-wrap; }
     .tool-detail { color: var(--on-surface-variant); font-family: 'Roboto Mono', monospace; font-size: 11px; margin-top: 2px; }
     .code-block { margin: 8px 0; background: var(--surface-low); border: 1px solid var(--outline-variant); border-radius: 8px; overflow: hidden; font-size: 12px; }
     .code-head { padding: 5px 10px; background: var(--surface-high); font-size: 11px; color: var(--on-surface-variant); border-bottom: 1px solid var(--outline-variant); }

@@ -178,6 +178,9 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
+            if cfg!(debug_assertions) && std::env::var("NODEAI_CLOUD_DEV").ok().is_none() {
+                std::env::set_var("NODEAI_CLOUD_DEV", "1");
+            }
             nodeai_core::load_dotenv();
             let settings = AppSettings::default();
             let proxy_config = settings.proxy.clone();

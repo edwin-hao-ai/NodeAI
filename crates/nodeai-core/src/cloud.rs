@@ -1,9 +1,27 @@
-/// Optional NodeAI Cloud relay base (hosted quota billing path).
-pub fn cloud_base_url_from_env() -> Option<String> {
-    std::env::var("NODEAI_CLOUD_BASE_URL")
+/// Production NodeAI Cloud API (override with NODEAI_CLOUD_BASE_URL).
+pub const DEFAULT_CLOUD_BASE_URL: &str = "https://api.nodeai.app";
+
+/// Resolve Cloud API base URL: env override → dev localhost → built-in production URL.
+pub fn cloud_base_url_from_env() -> String {
+    if let Some(url) = std::env::var("NODEAI_CLOUD_BASE_URL")
         .ok()
         .map(|s| s.trim().trim_end_matches('/').to_string())
         .filter(|s| !s.is_empty())
+    {
+        return url;
+    }
+    let dev = std::env::var("NODEAI_CLOUD_DEV")
+        .ok()
+        .is_some_and(|v| v == "1" || v.eq_ignore_ascii_case("true"));
+    if dev {
+        return "http://127.0.0.1:8788".into();
+    }
+    DEFAULT_CLOUD_BASE_URL.to_string()
+}
+
+pub fn cloud_is_dev_local(base_url: &str) -> bool {
+    let u = base_url.to_lowercase();
+    u.contains("127.0.0.1") || u.contains("localhost")
 }
 
 #[derive(Debug, Clone)]
@@ -12,8 +30,14 @@ pub struct CloudConfig {
 }
 
 impl CloudConfig {
-    pub fn from_env() -> Option<Self> {
-        cloud_base_url_from_env().map(|base_url| Self { base_url })
+    pub fn from_env() -> Self {
+        Self {
+            base_url: cloud_base_url_from_env(),
+        }
+    }
+
+    pub fn dev_local(&self) -> bool {
+        cloud_is_dev_local(&self.base_url)
     }
 }
 

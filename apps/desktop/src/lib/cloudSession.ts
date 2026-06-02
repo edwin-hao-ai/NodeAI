@@ -23,8 +23,3 @@ export async function cloudSessionActive(): Promise<boolean> {
     return false;
   }
 }
-
-/** Demo / dev token when Tauri invoke unavailable (browser-only vite preview). */
-export function demoCloudToken(): string {
-  return `nodeai_session_demo_${Date.now()}`;
-}

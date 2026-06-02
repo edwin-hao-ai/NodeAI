@@ -1,9 +1,26 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 const PLACEHOLDER_KEY: &str = "your_vercel_ai_gateway_key_here";
 
-/// Load repo `.env` when running from Tauri or `cargo` without exported vars.
+/// Shared data dir: `~/.nodeai` (or `NODEAI_DATA_DIR`).
+pub fn nodeai_data_dir() -> PathBuf {
+    std::env::var("NODEAI_DATA_DIR")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| {
+            dirs::home_dir()
+                .unwrap_or_else(|| PathBuf::from("."))
+                .join(".nodeai")
+        })
+}
+
+/// Load Gateway / Cloud env vars from standard locations.
 pub fn load_dotenv() {
+    // User data dir first — Cloud URL and other desktop settings live here.
+    let user_env = nodeai_data_dir().join(".env");
+    if user_env.exists() {
+        let _ = dotenvy::from_path(&user_env);
+    }
+
     if gateway_api_key_from_env().is_some() {
         return;
     }
@@ -11,6 +28,22 @@ pub fn load_dotenv() {
     if gateway_api_key_from_env().is_some() {
         return;
     }
+
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(mac_env) = exe
+            .parent()
+            .and_then(|macos| macos.parent())
+            .map(|contents| contents.join("Resources/.env"))
+        {
+            if mac_env.exists() {
+                let _ = dotenvy::from_path(&mac_env);
+                if gateway_api_key_from_env().is_some() {
+                    return;
+                }
+            }
+        }
+    }
+
     for rel in ["../../.env", "../../../.env", "../../../../.env"] {
         if let Ok(manifest) = std::env::var("CARGO_MANIFEST_DIR") {
             let path = Path::new(&manifest).join(rel);

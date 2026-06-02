@@ -10,6 +10,7 @@ path = "src/bin/standalone.rs"
 
 [dependencies]
 nodeai-core = { path = "../nodeai-core" }
+nodeai-cloud = { path = "../nodeai-cloud" }
 axum = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

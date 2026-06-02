@@ -18,7 +18,7 @@ const MORE_NAV: { view: ViewId; icon: string; i18n: I18nKey }[] = [
 ];
 
 export function Sidebar() {
-  const { view, setView, tr, localMode, setCatalogOpen } = useApp();
+  const { view, setView, tr, localMode, setCatalogOpen, cloudUser } = useApp();
   const [moreOpen, setMoreOpen] = useState(false);
   const chatMode = view === "chat";
 
@@ -112,8 +112,10 @@ export function Sidebar() {
         <div className="acct-row" role="button" tabIndex={0} onClick={() => setView("plan")} onKeyDown={() => {}}>
           <div className="acct-avatar">{localMode ? "L" : "N"}</div>
           <div style={{ minWidth: 0, flex: 1 }}>
-            <div className="acct-name">{localMode ? tr("acctLocal") : "Demo"}</div>
-            <div className="acct-plan">{localMode ? tr("acctLocalSub") : tr("acctTrial")}</div>
+            <div className="acct-name">{localMode ? tr("acctLocal") : cloudUser?.name ?? tr("authLoginBtn")}</div>
+            <div className="acct-plan">
+              {localMode ? tr("acctLocalSub") : cloudUser ? tr("acctTrial") : tr("catalogSubLogin")}
+            </div>
           </div>
           <span className="material-symbols-outlined" style={{ fontSize: 18, color: "var(--on-surface-variant)" }}>
             chevron_right

@@ -1,0 +1,39 @@
+---
+description: 维护 tasks.md 项目任务清单与测试状态
+alwaysApply: true
+---
+
+# NodeAI：tasks.md 维护
+
+项目总览与测试状态以仓库根目录 **[tasks.md](../../tasks.md)** 为准。
+
+## 何时更新
+
+完成或启动以下任一工作时，**同步更新 tasks.md**（同一轮 commit 内一并提交）：
+
+- 新功能、修复、架构变更（☑️ / ☐ 勾选）
+- 测试层级变化（单元 / 集成 / E2E / Live Gateway）
+- 打包产物或平台支持变化
+- 明确废弃或新列入「待做」项
+
+## 格式约定
+
+- 已完成：`☑️`
+- 未完成：`☐`
+- 测试表须注明：**命令**、**是否需要密钥**、**最近是否跑过 / 结果**
+- E2E 区分：脚本化 curl、桌面 UI E2E、Release 开箱 — 不要混为一谈
+- 打包路径写实际 DMG/App 位置（本地构建时）
+
+## 不要写进 tasks.md
+
+- 密钥、`.env` 内容
+- 与任务无关的会话笔记（用 `docs/CONTINUATION.md` 作 Agent 接续）
+
+## 与其它文档
+
+| 文档 | 用途 |
+|------|------|
+| `tasks.md` | 人类 + Agent 的任务/测试看板 |
+| `docs/CONTINUATION.md` | 新会话快速恢复上下文 |
+| `docs/TESTING.md` | 测试命令细节 |
+| `docs/superpowers/plans/…` | 历史实现计划（不必与 tasks 逐条重复） |

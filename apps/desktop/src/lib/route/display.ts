@@ -1,9 +1,9 @@
 import type { Lang } from "../../i18n";
 import { t } from "../../i18n";
-import { DEMO } from "../../data/demo";
 import type { GatewayCatalogEntry } from "../gateway/types";
-import { findCatalogModel } from "../model/pool";
+import { findCatalogModel, catalogModelPool } from "../model/pool";
 import type { GatewayModel } from "../model/types";
+import { findProductIntent, PRODUCT_INTENTS } from "../product/intents";
 
 export interface RouteState {
   smartRouteEnabled: boolean;
@@ -13,37 +13,61 @@ export interface RouteState {
 }
 
 export function intentLabel(lang: Lang, intentId: string): string {
-  const intent = DEMO.INTENTS.find((i) => i.id === intentId);
-  return intent ? t(lang, intent.nameKey as keyof typeof import("../../i18n/zh.json")) : intentId;
+  const intent = findProductIntent(intentId);
+  return intent ? t(lang, intent.nameKey) : intentId;
+}
+
+function resolveIntentModel(
+  intentId: string,
+  catalog: GatewayCatalogEntry[] | null,
+  cloudConfigured: boolean,
+): GatewayModel | undefined {
+  const intent = findProductIntent(intentId);
+  if (!intent) return undefined;
+  const preferred = findCatalogModel(intent.defaultModel, catalog, cloudConfigured);
+  if (preferred) return preferred;
+  return catalogModelPoolFallback(intent.modelType, catalog, cloudConfigured);
+}
+
+function catalogModelPoolFallback(
+  type: GatewayModel["type"],
+  catalog: GatewayCatalogEntry[] | null,
+  cloudConfigured: boolean,
+): GatewayModel | undefined {
+  return catalogModelPool(catalog, cloudConfigured).find((m) => m.type === type);
 }
 
 export function resolvedModelForRoute(
   state: Pick<RouteState, "smartRouteEnabled" | "activeIntent" | "activeGatewayModel">,
   catalog: GatewayCatalogEntry[] | null,
+  cloudConfigured = false,
 ): GatewayModel | undefined {
   if (state.smartRouteEnabled) {
-    const intent = DEMO.INTENTS.find((i) => i.id === state.activeIntent);
-    const id = intent?.defaultModel || state.activeGatewayModel;
-    return findCatalogModel(id, catalog) ?? findCatalogModel(state.activeGatewayModel, catalog);
+    const fromIntent = resolveIntentModel(state.activeIntent, catalog, cloudConfigured);
+    if (fromIntent) return fromIntent;
+    return findCatalogModel(state.activeGatewayModel, catalog, cloudConfigured);
   }
-  return findCatalogModel(state.activeGatewayModel, catalog);
+  return findCatalogModel(state.activeGatewayModel, catalog, cloudConfigured);
 }
 
 export function getRouteLineShort(
   lang: Lang,
   state: Pick<RouteState, "smartRouteEnabled" | "activeIntent" | "activeGatewayModel">,
   catalog: GatewayCatalogEntry[] | null,
+  cloudConfigured = false,
 ): string {
   if (state.smartRouteEnabled && state.activeIntent === "auto") {
     return `${t(lang, "autoRouteTitle")} · ${t(lang, "autoRouteLineSub")}`;
   }
-  const intent = DEMO.INTENTS.find((i) => i.id === state.activeIntent);
+  const intent = findProductIntent(state.activeIntent);
   const scene = intent ? intentLabel(lang, intent.id) : "";
   if (state.smartRouteEnabled) {
-    const resolved = resolvedModelForRoute(state, catalog);
+    const resolved = resolvedModelForRoute(state, catalog, cloudConfigured);
     const modelName = resolved?.displayName[lang] ?? "";
     return modelName ? `${scene} · ${modelName}` : scene || t(lang, "smartRouteTitle");
   }
-  const m = findCatalogModel(state.activeGatewayModel, catalog);
+  const m = findCatalogModel(state.activeGatewayModel, catalog, cloudConfigured);
   return m ? m.displayName[lang] : state.activeGatewayModel;
 }
+
+export { PRODUCT_INTENTS };

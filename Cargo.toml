@@ -2,7 +2,9 @@
 resolver = "2"
 members = [
     "crates/nodeai-core",
+    "crates/nodeai-cloud",
     "crates/nodeai-proxy",
+    "crates/nodeai-runtime",
     "apps/desktop/src-tauri",
 ]
 

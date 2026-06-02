@@ -1,10 +1,23 @@
 /** Incrementally parse OpenAI-compatible SSE from a text buffer. */
-export function drainSseBuffer(buffer: string): {
+export interface SseDrainResult {
   rest: string;
-  deltas: string[];
+  contentDeltas: string[];
+  thinkingDeltas: string[];
   finished: boolean;
-} {
-  const deltas: string[] = [];
+}
+
+function extractThinking(delta: Record<string, unknown> | undefined): string | null {
+  if (!delta) return null;
+  for (const key of ["reasoning_content", "reasoning", "thinking"] as const) {
+    const value = delta[key];
+    if (typeof value === "string" && value.length > 0) return value;
+  }
+  return null;
+}
+
+export function drainSseBuffer(buffer: string): SseDrainResult {
+  const contentDeltas: string[] = [];
+  const thinkingDeltas: string[] = [];
   let finished = false;
   const lines = buffer.split("\n");
   const rest = lines.pop() ?? "";
@@ -19,15 +32,35 @@ export function drainSseBuffer(buffer: string): {
     }
     try {
       const json = JSON.parse(data) as {
-        choices?: { delta?: { content?: string }; finish_reason?: string | null }[];
+        choices?: {
+          delta?: Record<string, unknown>;
+          finish_reason?: string | null;
+        }[];
       };
-      const delta = json.choices?.[0]?.delta?.content;
-      if (delta) deltas.push(delta);
+      const delta = json.choices?.[0]?.delta;
+      const content = delta?.content;
+      if (typeof content === "string" && content) contentDeltas.push(content);
+      const thinking = extractThinking(delta);
+      if (thinking) thinkingDeltas.push(thinking);
       if (json.choices?.[0]?.finish_reason) finished = true;
     } catch {
       /* ignore partial json */
     }
   }
 
-  return { rest, deltas, finished };
+  return { rest, contentDeltas, thinkingDeltas, finished };
+}
+
+/** @deprecated use contentDeltas from SseDrainResult */
+export function drainSseBufferLegacy(buffer: string): {
+  rest: string;
+  deltas: string[];
+  finished: boolean;
+} {
+  const parsed = drainSseBuffer(buffer);
+  return {
+    rest: parsed.rest,
+    deltas: parsed.contentDeltas,
+    finished: parsed.finished,
+  };
 }

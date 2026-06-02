@@ -41,7 +41,7 @@ interface ModelCatalogModalProps {
 }
 
 export function ModelCatalogModal({ open, onClose }: ModelCatalogModalProps) {
-  const { lang, tr, smartRouteEnabled, activeGatewayModel, selectGatewayModel, selectIntent, showToast, gatewayCatalog } =
+  const { lang, tr, smartRouteEnabled, activeGatewayModel, selectGatewayModel, selectIntent, showToast, gatewayCatalog, gatewayLive, gatewayHealth, cloudSession, cloudConfigured, openAuth } =
     useApp();
 
   const [query, setQuery] = useState("");
@@ -62,14 +62,14 @@ export function ModelCatalogModal({ open, onClose }: ModelCatalogModalProps) {
   }, [open]);
 
   const providers = useMemo(
-    () => catalogProviders(catalogType, gatewayCatalog),
-    [catalogType, gatewayCatalog],
+    () => catalogProviders(catalogType, gatewayCatalog, cloudConfigured),
+    [catalogType, gatewayCatalog, cloudConfigured],
   );
-  const modelPool = useMemo(() => catalogModelPool(gatewayCatalog), [gatewayCatalog]);
+  const modelPool = useMemo(() => catalogModelPool(gatewayCatalog, cloudConfigured), [gatewayCatalog, cloudConfigured]);
   const sections = useMemo(
     () =>
-      buildCatalogSections(query, catalogType, catalogProvider, sort, favs, recents, gatewayCatalog),
-    [query, catalogType, catalogProvider, sort, favs, recents, gatewayCatalog],
+      buildCatalogSections(query, catalogType, catalogProvider, sort, favs, recents, gatewayCatalog, cloudConfigured),
+    [query, catalogType, catalogProvider, sort, favs, recents, gatewayCatalog, cloudConfigured],
   );
 
   const pickModel = (id: string) => {
@@ -85,7 +85,33 @@ export function ModelCatalogModal({ open, onClose }: ModelCatalogModalProps) {
       <div className="modal-head">
         <div>
           <h3>{tr("catalogTitle")}</h3>
-          <p className="catalog-head-sub">{tr("catalogSub")}</p>
+          <p className="catalog-head-sub">
+            {gatewayLive
+              ? tr("catalogSub")
+              : !gatewayHealth?.configured
+                ? tr("catalogSubOffline")
+                : !cloudSession
+                  ? tr("catalogSubLogin")
+                  : tr("catalogSubPending")}
+          </p>
+          {!gatewayLive && (
+            <p className="catalog-head-sub" style={{ color: "var(--warning)", marginTop: 4 }}>
+              {!cloudSession ? tr("catalogLoginHint") : tr("catalogEnvHint")}
+            </p>
+          )}
+          {!gatewayLive && !cloudSession && gatewayHealth?.configured && (
+            <button
+              type="button"
+              className="btn-primary"
+              style={{ marginTop: 12 }}
+              onClick={() => {
+                openAuth("login");
+                onClose();
+              }}
+            >
+              {tr("catalogLoginBtn")}
+            </button>
+          )}
         </div>
         <button className="modal-close" type="button" onClick={onClose} aria-label="close">
           <span className="material-symbols-outlined">close</span>

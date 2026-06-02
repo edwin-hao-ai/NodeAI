@@ -1,0 +1,49 @@
+---
+description: 禁止硬编码假数据；UI 必须来自 API/用户态/产品配置
+alwaysApply: true
+---
+
+# NodeAI：禁止硬编码
+
+**每实现或修改一个功能，必须自查是否引入硬编码。**
+
+## 禁止（运行时假数据）
+
+| 类型 | 错误 | 正确 |
+|------|------|------|
+| 模型目录/价格 | `demo.ts` GATEWAY_MODELS、38 条假列表 | `GET /v1/models`（Cloud → Gateway）+ Session |
+| 用户/登录态 | 侧栏写死 `"Demo"`、前端 `demoCloudToken()` | `POST /v1/nodeai/auth/login` → Cloud 签发 token + user |
+| 用量/账单 | `DEMO.BUDGET`、`DEMO.APPS` 数字 | `/v1/nodeai/usage`、后续 Cloud 账单 API |
+| 精选模型 | `CURATED_MODEL_IDS` 静态数组 | 从 live catalog 算法选取（如 `featuredModelsFromCatalog`） |
+| 连接状态 | 按钮「模拟 Cursor 已连接」当真实状态 | Keychain / 8787 探测 / 用户确认 |
+
+## 允许
+
+- **i18n 文案**（`i18n/*.json`）
+- **产品配置**（`lib/product/*`）— 场景 intent、默认 slug；须在 UI 中 **fallback 到 live catalog**，不能替代 Gateway 列表
+- **原型**（`prototypes/`）— 不得 import 进 `apps/desktop` 生产路径
+
+## 实现前检查清单
+
+1. 数据是否来自 **8787 / Cloud / Keychain / 用户输入**？
+2. 未登录/未配置时是否 **空态 + 引导**，而非 demo 数字？
+3. 是否误用 `data/demo.ts` 或 `DEMO.*`？（Hub/Billing 等待 API 前应显示 skeleton/「暂无数据」）
+4. Rust 侧 Gateway Key、Session 是否只在 **Cloud 服务端**？
+
+## 反例 → 正例
+
+```typescript
+// ❌ 未登录仍展示 38 个假模型
+return demoModelPool();
+
+// ✅ Cloud 已配置：空列表 + 登录；有 Session：map Gateway catalog
+return gateway?.length ? gateway.map(gatewayEntryToModel) : [];
+```
+
+```typescript
+// ❌ 前端生成 session
+const token = `nodeai_session_demo_${Date.now()}`;
+
+// ✅ 代理 → Cloud 鉴权
+const { token, user } = await signInViaProxy(baseUrl, email, password);
+```

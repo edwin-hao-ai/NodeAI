@@ -41,7 +41,14 @@ describe("drainSseBuffer", () => {
     const chunk = drainSseBuffer(
       'data: {"choices":[{"delta":{"content":"Hi"}}]}\n\ndata: [DONE]\n\n',
     );
-    expect(chunk.deltas).toEqual(["Hi"]);
+    expect(chunk.contentDeltas).toEqual(["Hi"]);
     expect(chunk.finished).toBe(true);
+  });
+
+  it("parses reasoning deltas", () => {
+    const chunk = drainSseBuffer(
+      'data: {"choices":[{"delta":{"reasoning_content":"think"}}]}\n\n',
+    );
+    expect(chunk.thinkingDeltas).toEqual(["think"]);
   });
 });
