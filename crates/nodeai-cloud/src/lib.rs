@@ -43,6 +43,27 @@ pub async fn register_account(
         .map_err(|_| "register: invalid user payload".to_string())
 }
 
+pub async fn fetch_session_user(cloud: &CloudConfig, session: &str) -> Result<CloudUser, String> {
+    let url = format!("{}/v1/auth/me", cloud.base_url.trim_end_matches('/'));
+    let resp = Client::new()
+        .get(&url)
+        .bearer_auth(session)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    if resp.status() == reqwest::StatusCode::UNAUTHORIZED {
+        return Err("cloud session invalid or expired".into());
+    }
+    if !resp.status().is_success() {
+        let status = resp.status();
+        let body = resp.text().await.unwrap_or_default();
+        return Err(format!("cloud auth me {status}: {body}"));
+    }
+    let payload: Value = resp.json().await.map_err(|e| e.to_string())?;
+    serde_json::from_value(payload.get("user").cloned().unwrap_or(json!({})))
+        .map_err(|_| "cloud auth me: invalid user payload".to_string())
+}
+
 pub async fn create_session(
     cloud: &CloudConfig,
     email: &str,

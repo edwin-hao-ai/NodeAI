@@ -1,5 +1,5 @@
 ---
-description: 本地开发优先——localhost Cloud、dev 脚本、Gateway Key；暂缓 Stripe/远程部署
+description: 本地 Cloud 必须先就绪；验证/打包前 Agent 自动 ensure_cloud；localhost 默认
 alwaysApply: true
 ---
 
@@ -13,18 +13,30 @@ alwaysApply: true
 |----|------|------|
 | Cloud API | `http://127.0.0.1:8788`（`nodeai-cloud-dev`） | 虚构 `api.nodeai.app` 或假设 Release 开箱即用 |
 | 8787 代理 | Tauri 内嵌或 standalone | 混写含额度与 BYOK 路径 |
-| Gateway Key | **仅** `~/.nodeai/.env` → Cloud 服务端 | 桌面持 `AI_GATEWAY_API_KEY` 拉目录（除 `NODEAI_DEV_DIRECT_GATEWAY=1`） |
+| Gateway Key | **仅** `~/.nodeai/.env` → Cloud 服务端 | 桌面持 `AI_GATEWAY_API_KEY` 拉目录 |
 
-## 启动顺序
+## Agent 必须：验证 / 打包前先启动 Cloud
+
+用户报 **「本地 Cloud 未就绪」** 或要做以下任一操作时，**先执行**（勿只提示用户手动跑）：
 
 ```bash
-./scripts/dev.sh          # 推荐：Cloud :8788 + Tauri dev
-# 或
-cargo run -p nodeai-cloud --bin nodeai-cloud-dev --release
-cd apps/desktop && npm run tauri dev
+./scripts/ensure_cloud.sh
 ```
 
-Debug 构建会尝试自动 spawn `nodeai-cloud-dev`（8788 未监听时）。
+适用场景：
+
+- 跑 `./scripts/test_local.sh`、`test_integration.sh`、`test_prune.sh`
+- `npm run tauri dev` / `npm run tauri build` 前后要测登录、Chat、模型目录
+- 用户打开 Release `.app` / `.dmg` 做验收（Cloud 须已在 :8788）
+- 任何声称「含额度路径可用」的回复之前
+
+`ensure_cloud.sh` 幂等：已在跑则跳过；日志 `.nodeai/cloud-dev.log`，PID `.nodeai/cloud-dev.pid`。
+
+一键全栈：`./scripts/dev.sh`（Cloud + Tauri dev）。
+
+桌面 App 启动时：若 Cloud URL 为 localhost 且 :8788 未监听，Tauri 用 **内置 sidecar** `nodeai-cloud-dev` 自动拉起（Release/DMG 亦同，不依赖本机 cargo）。
+
+前端 `AppContext` 在 Cloud 不可达时每 3s 调用 `ensure_cloud_dev` 直至 `/health` 就绪。
 
 ## `/health` 三态（勿混为一谈）
 
@@ -34,17 +46,17 @@ Debug 构建会尝试自动 spawn `nodeai-cloud-dev`（8788 未监听时）。
 | `cloud.gateway_registry` | 已配 `AI_GATEWAY_API_KEY` |
 | `cloud.configured` | 二者皆真 → 可拉模型目录 / 含额度 Chat |
 
-UI 须分开展示：**Cloud 未启动** / **缺 Gateway Key** / **未登录**，勿统一成「catalogEnvHint」一句糊住。
+UI 须分开展示：**Cloud 未启动** / **缺 Gateway Key** / **未登录**。
 
 ## 暂缓（除非用户明确要求）
 
 - Stripe / PlanView 真付款
-- 远程 Cloud 部署、Release DMG 生产开箱叙事
+- 远程 Cloud 部署
 - 计费精度审计、云端账单同步
 
 ## 验证声称「能用」前
 
-1. Cloud `/health` 200  
-2. 注册 → 登录 → `/v1/models` 有 Session  
-3. Chat 流式成功  
-4. `/v1/nodeai/usage` ledger 随请求增长  
+1. `./scripts/ensure_cloud.sh` → Cloud `/health` 200
+2. 注册 → 登录 → `/v1/models` 有 Session
+3. Chat 流式成功
+4. `/v1/nodeai/usage` ledger 随请求增长

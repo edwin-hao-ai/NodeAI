@@ -37,10 +37,14 @@ export async function fetchGatewayHealth(proxyPort: number): Promise<CloudHealth
   }
 }
 
+export type CatalogFetchResult =
+  | { ok: true; data: GatewayCatalogEntry[] }
+  | { ok: false; status: number | "network" };
+
 export async function fetchGatewayCatalog(
   baseUrl: string,
   cloudSession?: string | null,
-): Promise<GatewayCatalogEntry[] | null> {
+): Promise<CatalogFetchResult> {
   const url = `${baseUrl.replace(/\/$/, "")}/models`;
   const headers: Record<string, string> = {};
   if (cloudSession) {
@@ -48,12 +52,12 @@ export async function fetchGatewayCatalog(
   }
   try {
     const resp = await fetch(url, { headers });
-    if (resp.status === 401) return null;
-    if (!resp.ok) return null;
+    if (resp.status === 401) return { ok: false, status: 401 };
+    if (!resp.ok) return { ok: false, status: resp.status };
     const data = (await resp.json()) as { data?: GatewayCatalogEntry[] };
-    return data.data ?? null;
+    return { ok: true, data: data.data ?? [] };
   } catch {
-    return null;
+    return { ok: false, status: "network" };
   }
 }
 

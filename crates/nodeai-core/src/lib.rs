@@ -13,7 +13,8 @@ pub use bonus::{
 };
 pub mod virtual_models;
 pub use cloud::{
-    cloud_api_reachable, cloud_base_url_from_env, cloud_is_dev_local, is_valid_session_token,
+    cloud_api_reachable, cloud_api_healthy, cloud_base_url_from_env, cloud_dev_port_free,
+    cloud_is_dev_local, is_valid_session_token,
     CloudConfig, DEFAULT_CLOUD_BASE_URL,
 };
 pub use virtual_models::{resolve_request_model, resolve_virtual_model_id};

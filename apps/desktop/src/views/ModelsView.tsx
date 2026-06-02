@@ -6,6 +6,9 @@ import {
   intentLabel,
   resolvedModelForRoute,
 } from "../lib/route";
+import { CatalogLoading } from "../components/CatalogLoading";
+import { LocalModePrompt } from "../components/LocalModePrompt";
+import { LoginPrompt } from "../components/LoginPrompt";
 import { useApp } from "../state/AppContext";
 
 export function ModelsView() {
@@ -24,10 +27,17 @@ export function ModelsView() {
     gatewayCatalog,
     cloudConfigured,
     gatewayLive,
+    cloudLoggedIn,
+    needsCloudLogin,
+    catalogLoading,
+    localMode,
   } = useApp();
 
   const modelPool = catalogModelPool(gatewayCatalog, cloudConfigured);
-  const pinnedModels = gatewayLive ? featuredModelsFromCatalog(modelPool, 6) : [];
+  const pinnedModels =
+    gatewayLive || (cloudLoggedIn && modelPool.length > 0)
+      ? featuredModelsFromCatalog(modelPool, 6)
+      : [];
 
   const autoMode = smartRouteEnabled && activeIntent === "auto";
   const resolved = smartRouteEnabled
@@ -77,7 +87,14 @@ export function ModelsView() {
             <span>{liveLbl}</span>
           </p>
           <h1 className="vpn-route-title">{title}</h1>
-          {sub && <p className="vpn-route-model">{sub}</p>}
+          {catalogLoading ? (
+            <p className="vpn-route-model catalog-loading-inline">
+              <span className="catalog-loading-dot" aria-hidden />
+              {tr("catalogLoadingTitle")}
+            </p>
+          ) : (
+            sub && <p className="vpn-route-model">{sub}</p>
+          )}
           {!routeApplying && (
             <p className="vpn-synced-line">
               {tr("vpnSyncedApps").replace("{n}", String(routeAppCount))}
@@ -107,7 +124,13 @@ export function ModelsView() {
           {smartRouteEnabled ? tr("vpnListSmart") : tr("vpnListFixed")}
         </div>
         <div className="vpn-node-list">
-          {smartRouteEnabled ? (
+          {localMode ? (
+            <LocalModePrompt subKey="localModePromptModelsSub" />
+          ) : needsCloudLogin ? (
+            <LoginPrompt titleKey="loginPromptTitle" subKey="loginPromptModelsSub" />
+          ) : catalogLoading ? (
+            <CatalogLoading />
+          ) : smartRouteEnabled ? (
             <>
               <button
                 type="button"

@@ -9,16 +9,20 @@ const HOSTED_SOURCE = {
 };
 
 export function SourcesView() {
-  const { lang, tr, modelSources, setSourceModalOpen } = useApp();
+  const { lang, tr, localMode, modelSources, setSourceModalOpen } = useApp();
 
   const allSources = [
-    {
-      id: HOSTED_SOURCE.id,
-      name: HOSTED_SOURCE.name[lang],
-      url: HOSTED_SOURCE.url,
-      path: "hosted" as const,
-      status: HOSTED_SOURCE.status[lang],
-    },
+    ...(!localMode
+      ? [
+          {
+            id: HOSTED_SOURCE.id,
+            name: HOSTED_SOURCE.name[lang],
+            url: HOSTED_SOURCE.url,
+            path: "hosted" as const,
+            status: HOSTED_SOURCE.status[lang],
+          },
+        ]
+      : []),
     ...modelSources.map((s) => ({
       id: s.id,
       name: s.name,
@@ -55,6 +59,12 @@ export function SourcesView() {
           </div>
         </div>
       </div>
+
+      <div className="stat-card" style={{ marginBottom: 12, fontSize: 12, lineHeight: 1.6 }}>
+        <div style={{ fontWeight: 500, marginBottom: 6 }}>{tr("byokPrivacyTitle")}</div>
+        <p style={{ margin: 0, color: "var(--on-surface-variant)" }}>{tr("byokPrivacyBody")}</p>
+      </div>
+
       {allSources.map((s) => (
         <div key={s.id} className="stat-card" style={{ marginBottom: 10 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -69,11 +79,17 @@ export function SourcesView() {
           <p style={{ fontSize: 12, color: "var(--on-surface-variant)", marginTop: 6 }}>{s.status}</p>
         </div>
       ))}
+
+      {!localMode && (
+        <p style={{ fontSize: 12, color: "var(--on-surface-variant)", marginBottom: 12 }}>{tr("fallbackHostedTitle")}</p>
+      )}
+      <p style={{ fontSize: 12, color: "var(--on-surface-variant)", marginBottom: 12 }}>{tr("fallbackByokTitle")}</p>
+
       <button className="btn-add-app" type="button" style={{ marginTop: 8 }} onClick={() => setSourceModalOpen(true)}>
         <span className="material-symbols-outlined" style={{ fontSize: 20 }}>
           add
         </span>
-        <span>{tr("addApp")}</span>
+        <span>{tr("sourceAdd")}</span>
       </button>
     </PageScroll>
   );

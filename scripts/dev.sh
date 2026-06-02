@@ -6,37 +6,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-CLOUD_URL="${NODEAI_CLOUD_BASE_URL:-http://127.0.0.1:8788}"
-CLOUD_HEALTH="${CLOUD_URL%/}/health"
-
-cloud_up() {
-  curl -sf "$CLOUD_HEALTH" >/dev/null 2>&1
-}
-
-start_cloud() {
-  echo ">> Starting NodeAI Cloud dev ($CLOUD_URL)..."
-  cargo run -p nodeai-cloud --bin nodeai-cloud-dev --release >>"$ROOT/.nodeai/cloud-dev.log" 2>&1 &
-  echo $! >"$ROOT/.nodeai/cloud-dev.pid"
-}
-
-if ! cloud_up; then
-  mkdir -p "$ROOT/.nodeai"
-  start_cloud
-  echo ">> Waiting for Cloud health..."
-  for _ in $(seq 1 40); do
-    if cloud_up; then
-      echo ">> Cloud is up."
-      break
-    fi
-    sleep 0.5
-  done
-  if ! cloud_up; then
-    echo "ERROR: Cloud did not start. See $ROOT/.nodeai/cloud-dev.log"
-    exit 1
-  fi
-else
-  echo ">> Cloud already running ($CLOUD_URL)"
-fi
+"$ROOT/scripts/ensure_cloud.sh"
 
 if [[ ! -f "$HOME/.nodeai/.env" ]] || ! grep -qE '^AI_GATEWAY_API_KEY=.+' "$HOME/.nodeai/.env" 2>/dev/null; then
   echo ""

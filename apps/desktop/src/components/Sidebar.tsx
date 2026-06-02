@@ -19,7 +19,8 @@ const MORE_NAV: { view: ViewId; icon: string; i18n: I18nKey }[] = [
 ];
 
 export function Sidebar() {
-  const { view, setView, tr, localMode, setCatalogOpen, cloudUser, openAuth } = useApp();
+  const { view, setView, tr, localMode, setCatalogOpen, cloudUser, cloudLoggedIn, openSignIn, signOutWithCloud } =
+    useApp();
   const { sessions, activeSessionId, createSession, selectSession } = useChat();
   const [moreOpen, setMoreOpen] = useState(false);
   const chatMode = view === "chat";
@@ -126,27 +127,45 @@ export function Sidebar() {
           role="button"
           tabIndex={0}
           onClick={() => {
-            if (!cloudUser && !localMode) openAuth("login");
-            else setView("plan");
+            if (cloudLoggedIn) setView("plan");
+            else if (localMode) setView("settings");
+            else openSignIn("login");
           }}
           onKeyDown={(e) => {
             if (e.key === "Enter" || e.key === " ") {
-              if (!cloudUser && !localMode) openAuth("login");
-              else setView("plan");
+              if (cloudLoggedIn) setView("plan");
+              else if (localMode) setView("settings");
+              else openSignIn("login");
             }
           }}
         >
-          <div className="acct-avatar">{localMode ? "L" : "N"}</div>
+          <div className="acct-avatar">{localMode ? "L" : cloudLoggedIn ? (cloudUser?.name?.[0] ?? "N") : "N"}</div>
           <div style={{ minWidth: 0, flex: 1 }}>
-            <div className="acct-name">{localMode ? tr("acctLocal") : cloudUser?.name ?? tr("authLoginBtn")}</div>
+            <div className="acct-name">
+              {localMode ? tr("acctLocal") : cloudLoggedIn ? (cloudUser?.name ?? tr("authLoginBtn")) : tr("authLoginBtn")}
+            </div>
             <div className="acct-plan">
-              {localMode ? tr("acctLocalSub") : cloudUser ? tr("acctTrial") : tr("catalogSubLogin")}
+              {localMode ? tr("acctLocalSub") : cloudLoggedIn ? tr("acctTrial") : tr("catalogSubLogin")}
             </div>
           </div>
           <span className="material-symbols-outlined" style={{ fontSize: 18, color: "var(--on-surface-variant)" }}>
             chevron_right
           </span>
         </div>
+        {localMode && !cloudLoggedIn && (
+          <button type="button" className="acct-signin-btn" onClick={() => openSignIn("login")}>
+            {tr("localModeSignIn")}
+          </button>
+        )}
+        {cloudLoggedIn && !localMode && (
+          <button
+            type="button"
+            className="acct-logout-btn"
+            onClick={() => void signOutWithCloud()}
+          >
+            {tr("logoutBtn")}
+          </button>
+        )}
       </div>
     </aside>
   );

@@ -220,6 +220,11 @@ fn pick_agent_workspace(app: tauri::AppHandle) -> Result<Option<String>, String>
     }
 }
 
+#[tauri::command]
+fn ensure_cloud_dev(app: tauri::AppHandle) -> bool {
+    cloud_dev::ensure_cloud_dev(&app)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tracing_subscriber::fmt()
@@ -232,10 +237,13 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_shell::init())
         .setup(|app| {
             nodeai_core::load_dotenv();
-            #[cfg(debug_assertions)]
-            cloud_dev::ensure_cloud_dev_background();
+            let cloud = nodeai_core::CloudConfig::from_env();
+            if cloud.dev_local() {
+                cloud_dev::ensure_cloud_dev_background(app.handle());
+            }
 
             let settings = AppSettings::default();
             let proxy_config = settings.proxy.clone();
@@ -286,6 +294,7 @@ pub fn run() {
             agent_ensure_workspace,
             agent_execute_tool,
             pick_agent_workspace,
+            ensure_cloud_dev,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

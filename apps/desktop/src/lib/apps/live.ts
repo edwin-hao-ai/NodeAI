@@ -1,6 +1,6 @@
 import type { Lang } from "../../i18n";
 import type { UsageSnapshot } from "../bonusApi";
-import { KNOWN_APPS, templateForUsageSlug, type AppTemplate } from "../product/apps";
+import { KNOWN_APPS, slugFromAppKey, templateForUsageSlug, type AppTemplate } from "../product/apps";
 
 export type AppConnectionStatus = "live" | "wait" | "new";
 
@@ -52,9 +52,10 @@ export function liveAppsFromUsage(usage: UsageSnapshot | null): LiveApp[] {
   const totalToday = Object.values(todayBySlug).reduce((s, v) => s + v.spend, 0);
 
   return KNOWN_APPS.map((tpl) => {
-    const stats = usage?.app_stats?.[tpl.id];
+    const usageSlug = slugFromAppKey(tpl.key) ?? tpl.id;
+    const stats = usage?.app_stats?.[usageSlug] ?? usage?.app_stats?.[tpl.id];
     const today = todayBySlug[tpl.id];
-    const requests = stats?.requests ?? usage?.apps?.[tpl.id] ?? 0;
+    const requests = stats?.requests ?? usage?.apps?.[usageSlug] ?? usage?.apps?.[tpl.id] ?? 0;
     const spendToday = today?.spend ?? 0;
     const share = totalToday > 0 ? Math.round((spendToday / totalToday) * 100) : 0;
     const status: AppConnectionStatus = requests > 0 ? "live" : "wait";
@@ -87,6 +88,10 @@ function startOfLocalDayMs(): number {
   return d.getTime();
 }
 
+function ledgerSlugToAppId(slug: string): string {
+  return templateForUsageSlug(slug)?.id ?? slug;
+}
+
 function spendBySlugSince(
   usage: UsageSnapshot | null,
   sinceMs: number,
@@ -95,11 +100,11 @@ function spendBySlugSince(
   if (!usage?.ledger) return out;
   for (const row of usage.ledger) {
     if (row.ts_ms < sinceMs) continue;
-    const slug = row.app_slug;
-    if (!out[slug]) out[slug] = { spend: 0, tokens: 0, requests: 0 };
-    out[slug].spend += row.cost_yuan;
-    out[slug].tokens += row.prompt_tokens + row.completion_tokens;
-    out[slug].requests += 1;
+    const appId = ledgerSlugToAppId(row.app_slug);
+    if (!out[appId]) out[appId] = { spend: 0, tokens: 0, requests: 0 };
+    out[appId].spend += row.cost_yuan;
+    out[appId].tokens += row.prompt_tokens + row.completion_tokens;
+    out[appId].requests += 1;
   }
   return out;
 }

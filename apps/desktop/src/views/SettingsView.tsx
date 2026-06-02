@@ -34,8 +34,9 @@ export function SettingsView() {
     setGatewayPort,
     proxy,
     localMode,
-    openAuth,
+    openSignIn,
     cloudUser,
+    cloudLoggedIn,
     signOutWithCloud,
     setView,
     smartRouteEnabled,
@@ -125,26 +126,35 @@ export function SettingsView() {
       <div className="setting-group">{tr("setGrpAccount")}</div>
       <div className="setting">
         <div>
-          <h4>{localMode ? tr("acctLocal") : cloudUser?.email ?? tr("authLoginBtn")}</h4>
+          <h4>{localMode ? tr("acctLocal") : cloudLoggedIn ? (cloudUser?.email ?? tr("authLoginBtn")) : tr("authLoginBtn")}</h4>
           <p style={{ fontSize: 12, color: "var(--on-surface-variant)" }}>
             {localMode
               ? tr("acctLocalSub")
-              : cloudUser
+              : cloudLoggedIn
                 ? tr("acctTrial")
                 : tr("catalogSubLogin")}
           </p>
         </div>
-        {cloudUser ? (
+        {cloudLoggedIn ? (
           <button className="btn-outlined" type="button" onClick={() => setView("plan")}>
             {tr("managePlan")}
           </button>
+        ) : localMode ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "flex-end" }}>
+            <button className="btn-primary" type="button" onClick={() => openSignIn("login")}>
+              {tr("localModeSignIn")}
+            </button>
+            <button className="btn-outlined" type="button" onClick={() => setView("sources")}>
+              {tr("localModeSetupKeys")}
+            </button>
+          </div>
         ) : (
-          <button className="btn-outlined" type="button" onClick={() => openAuth("login")}>
+          <button className="btn-outlined" type="button" onClick={() => openSignIn("login")}>
             {tr("setSignInBtn")}
           </button>
         )}
       </div>
-      {cloudUser && (
+      {cloudLoggedIn && (
         <div className="setting">
           <div>
             <h4>{tr("setLogout")}</h4>
@@ -155,17 +165,6 @@ export function SettingsView() {
             onClick={() => void signOutWithCloud()}
           >
             {tr("logoutBtn")}
-          </button>
-        </div>
-      )}
-      {localMode && (
-        <div className="setting">
-          <div>
-            <h4>{tr("setSignInHosted")}</h4>
-            <p style={{ fontSize: 12, color: "var(--on-surface-variant)" }}>{tr("setSignInHostedSub")}</p>
-          </div>
-          <button className="btn-outlined" type="button" onClick={() => openAuth("register")}>
-            {tr("setSignInBtn")}
           </button>
         </div>
       )}
@@ -182,7 +181,7 @@ export function SettingsView() {
             </span>
           </p>
         </div>
-        <Switch on={sw.localServer} onToggle={() => setSw((s) => ({ ...s, localServer: !s.localServer }))} />
+        <Switch on={Boolean(proxy?.running)} onToggle={() => {}} disabled />
       </div>
       <div className="setting">
         <div>

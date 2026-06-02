@@ -1,61 +1,29 @@
 import { useMemo, useState } from "react";
+import { LoginPrompt } from "../components/LoginPrompt";
 import { PageHead, PageScroll } from "../components/ui/PageScroll";
-import { emptyPeriodStats } from "../lib/bonusApi";
+import { emptyPeriodStats, loadBonusProfileLocal } from "../lib/bonusApi";
 import { fmtMoney, fmtTokens } from "../lib/format";
 import { appForLedgerSlug, appName } from "../lib/route";
+import { aggregateBilling, type BillPath, type BillPeriod } from "../lib/usage/billing";
 import { useApp } from "../state/AppContext";
 
-type Period = "today" | "week" | "month";
-type BillPath = "all" | "hosted" | "byok";
-
-function scalePeriod<T extends { spend_yuan: number; tokens: number; requests: number }>(
-  stats: T,
-  scale: number,
-): T {
-  if (scale === 1) return stats;
-  return {
-    ...stats,
-    spend_yuan: stats.spend_yuan * scale,
-    tokens: Math.round(stats.tokens * scale),
-    requests: Math.round(stats.requests * scale),
-  };
-}
-
 export function BillingView() {
-  const { lang, tr, localMode, usageSnapshot } = useApp();
-  const [period, setPeriod] = useState<Period>("today");
+  const { lang, tr, localMode, usageSnapshot, needsCloudLogin } = useApp();
+  const [period, setPeriod] = useState<BillPeriod>("today");
   const [path, setPath] = useState<BillPath>("all");
 
-  const raw =
+  const base =
     period === "today"
       ? usageSnapshot?.periods?.today
       : period === "week"
         ? usageSnapshot?.periods?.week
         : usageSnapshot?.periods?.month;
-  const base = raw ?? emptyPeriodStats();
+  const periodStats = base ?? emptyPeriodStats();
 
-  const scale = path === "hosted" ? 0.65 : path === "byok" ? 0.35 : 1;
-  const p = useMemo(() => {
-    const scaled = scalePeriod(base, scale);
-    const models = base.by_model.map((m) => ({
-      id: m.model,
-      pct: base.spend_yuan > 0 ? Math.round((m.amount_yuan / base.spend_yuan) * 100) : 0,
-      amount: m.amount_yuan * scale,
-      tokens: Math.round(m.tokens * scale),
-      reqs: Math.round(m.requests * scale),
-    }));
-    return {
-      spend: scaled.spend_yuan,
-      saved: scaled.saved_yuan,
-      tokens: scaled.tokens,
-      reqs: scaled.requests,
-      saveCompress: scaled.save_compress_yuan,
-      saveConcise: scaled.save_concise_yuan,
-      saveRoute: scaled.save_route_yuan,
-      savePrune: scaled.save_prune_yuan,
-      models,
-    };
-  }, [base, scale]);
+  const p = useMemo(
+    () => aggregateBilling(period, path, periodStats, usageSnapshot?.ledger),
+    [period, path, periodStats, usageSnapshot?.ledger],
+  );
 
   const ledgerRows = useMemo(() => {
     if (!usageSnapshot?.ledger?.length) return [];
@@ -67,6 +35,14 @@ export function BillingView() {
       })
       .slice(0, 30);
   }, [usageSnapshot, path]);
+
+  const failoverOn = loadBonusProfileLocal().failover;
+  const failoverLabel =
+    p.reqs > 0 && failoverOn
+      ? lang === "zh"
+        ? `限流自动换路已开启 · 本页 ${p.reqs} 次请求`
+        : `Auto failover on · ${p.reqs} requests in view`
+      : tr("billFailoverIdle");
 
   return (
     <PageScroll>
@@ -88,6 +64,10 @@ export function BillingView() {
           </div>
         }
       />
+
+      {needsCloudLogin && (
+        <LoginPrompt titleKey="loginPromptTitle" subKey="loginPromptBillingSub" compact showByok />
+      )}
 
       <div className="bill-path-tabs">
         {(
@@ -202,7 +182,7 @@ export function BillingView() {
         <span className="material-symbols-outlined" style={{ fontSize: 14 }}>
           sync_alt
         </span>
-        <span>{tr("billFailoverOk")}</span>
+        <span>{failoverLabel}</span>
       </div>
 
       <div className="section-head" style={{ marginTop: 16 }}>

@@ -97,6 +97,14 @@ async fn auth_register(
     Ok(Json(json!({ "user": user })))
 }
 
+async fn auth_me(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
+    let user = session_from_headers(&state, &headers)?;
+    Ok(Json(json!({ "user": user })))
+}
+
 async fn auth_session(
     State(state): State<AppState>,
     Json(body): Json<AuthBody>,
@@ -258,6 +266,7 @@ async fn main() {
         .route("/health", get(health))
         .route("/v1/auth/register", post(auth_register))
         .route("/v1/auth/session", post(auth_session))
+        .route("/v1/auth/me", get(auth_me))
         .route("/v1/models", get(list_models))
         .route("/v1/chat/completions", post(chat_completions))
         .layer(CorsLayer::permissive())
@@ -266,6 +275,12 @@ async fn main() {
 
     let addr = format!("127.0.0.1:{port}");
     tracing::info!(%addr, "NodeAI Cloud dev API listening");
-    let listener = tokio::net::TcpListener::bind(&addr).await.expect("bind");
+    let listener = match tokio::net::TcpListener::bind(&addr).await {
+        Ok(l) => l,
+        Err(err) => {
+            tracing::error!(%addr, %err, "Cloud dev bind failed (port in use?)");
+            std::process::exit(1);
+        }
+    };
     axum::serve(listener, app).await.expect("serve");
 }

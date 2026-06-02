@@ -1,13 +1,15 @@
 # NodeAI 项目任务清单
 
 **版本：** 0.1.0  
-**最后更新：** 2026-06-02（BYOK 格式转换 / 混合 Fallback / Prune 账单 / diff 预览 / E2E 脚本 / CI）  
-**最新打包：** `NodeAI_0.1.0_aarch64.dmg`（2026-06-02 17:42 构建 · BYOK/混合Fallback/Prune账单/diff预览）
+**最后更新：** 2026-06-02（登录态统一 / 账单 path 真聚合 / BYOK 本地模式 / Chat 上下文条 / 托盘对齐）  
+**最新打包：** 需重新 `npm run tauri build`（本批 UI 修复尚未打 DMG）
 
 | 产物 | 路径 |
 |------|------|
-| macOS App | `/Users/edwinhao/.cargo/shared-target/release/bundle/macos/NodeAI.app` |
-| DMG | `/Users/edwinhao/.cargo/shared-target/release/bundle/dmg/NodeAI_0.1.0_aarch64.dmg` |
+| macOS App | `~/.cargo/shared-target/release/bundle/macos/NodeAI.app` |
+| DMG | `~/.cargo/shared-target/release/bundle/dmg/NodeAI_0.1.0_aarch64.dmg` |
+
+> **诚实说明：** 后端 L1/L2 脚本可通过，但 **桌面 UI 与 `prototypes/` 仍有差距**（见下方「UI 原型对齐 · 未完成」）。勿将 tasks 中 ☑️ 等同于「用户验收无 bug」。
 
 > **当前阶段：** Cloud API **仅 localhost**（`http://127.0.0.1:8788`）。桌面 / 8787 代理默认连此地址；使用前须先启动 `nodeai-cloud-dev`。暂无远程生产部署。
 
@@ -133,7 +135,10 @@
 | ☑️ | 模型目录弹窗（Cloud 价、厂商筛选、排序） |
 | ☑️ | Cloud 登录 / 注册页（真实 API） |
 | ☑️ | Session 存 Keychain + 侧栏显示 cloudUser |
+| ☑️ | 登录态统一（`cloudLoggedIn` + `/v1/nodeai/auth/me` 启动校验） |
+| ☑️ | BYOK 零登录本地模式（`authByokOnly` → `localMode` 持久化） |
 | ☑️ | 原生托盘（打开 / 退出） |
+| ☐ | 托盘 HUD 与原型 100% 一致（sparkline 速率语义、系统托盘用量） |
 
 ---
 
@@ -150,6 +155,26 @@
 | ☑️ | SourcesView hosted | 产品配置非 DEMO 假 Key |
 | ☑️ | Hub/Billing **Prune 节省**独立分项行 |
 | ☐ | Stripe 订阅 / 升级 | **暂缓** |
+
+---
+
+## UI 原型对齐 · 未完成（对照 `prototypes/dashboard.html` / `auth.html`）
+
+| 状态 | 项 | 说明 |
+|:----:|-----|------|
+| ☑️ | 登录态 / 模型目录 / 401 清 session | 本轮修复 |
+| ☑️ | 账单 path Tab 真 ledger 聚合 | 移除 0.65/0.35 假缩放 |
+| ☑️ | Chat 上下文条常显 + 单对话 prefs 持久化 | `nodeai-chat-ctx-pref` |
+| ☑️ | 首聊 celebrate 弹层 | `markFirstChatDone` 触发 |
+| ☑️ | Menubar 托盘 sparkline + Hub/Chat/Billing 跳转 | 部分对齐 |
+| ☐ | **auth.html 完整 onboarding** | persona 网格、ROI 预览、回复语言、套餐预览 |
+| ☐ | **账单页** 趋势图 / donut / 应用×模型矩阵 / 折叠明细 | 仅 hero + 表 |
+| ☐ | **Hub** apiCapGrid、按模型 stack、sparkline 速率 | 部分静态文案已改 |
+| ☐ | **设置** 回复语言 / BYOK 路由 / Cursor 写记忆 / 预算告警 持久化 | 部分开关仍假 |
+| ☐ | **Plan** 试用剩余天数、商业透明三块 | |
+| ☐ | **OAuth** Google/GitHub | 按钮仍走邮箱登录 |
+| ☐ | **Release 开箱 E2E** | DMG + Cloud sidecar 人工验收 |
+| ☐ | **桌面 UI E2E** | Playwright / Tauri WebDriver |
 
 ---
 

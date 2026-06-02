@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AgentActionConfirm } from "../components/AgentWriteConfirm";
 import { ChatMarkdown } from "../components/ChatMarkdown";
+import { LoginPrompt } from "../components/LoginPrompt";
+import { CatalogLoading } from "../components/CatalogLoading";
 import { getStarterPrompts } from "../data/chatStarters";
 import { fmtMoney } from "../lib/format";
 import { loadHybridFallbackConfirmed, loadHybridFallbackEnabled } from "../lib/hybridFallback";
 import { runAgentChat, streamChatRound, toApiMessages } from "../lib/chat";
+import { loadChatContextPref, saveChatContextPref } from "../lib/chat/contextPref";
 import { pickAgentWorkspace } from "../lib/chat/agentInvoke";
 import type { ChatAttachment } from "../lib/chat/attachments";
 import { buildMessageContent, fileToAttachment } from "../lib/chat/attachments";
@@ -53,12 +56,16 @@ export function ChatView() {
     setWorkspace,
     memories,
     cloudSession,
+    cloudLoggedIn,
     localMode,
+    cursorConnected,
     usageSnapshot,
-    openAuth,
+    openSignIn,
     showToast,
     agentEnabled,
     gatewayCatalog,
+    needsCloudLogin,
+    catalogLoading,
   } = useApp();
 
   const { messages, setMessages, activeSessionId } = useChat();
@@ -68,6 +75,7 @@ export function ChatView() {
   const imageInputRef = useRef<HTMLInputElement>(null);
 
   const [ctxOpen, setCtxOpen] = useState(false);
+  const [ctxDraft, setCtxDraft] = useState(() => loadChatContextPref());
   const [input, setInput] = useState("");
   const [startersHidden, setStartersHidden] = useState(firstChatDone);
   const [sending, setSending] = useState(false);
@@ -173,9 +181,9 @@ export function ChatView() {
       const hasAttachments = pendingAttachments.length > 0;
       if ((!trimmed && !hasAttachments) || sending) return;
 
-      if (!localMode && !cloudSession) {
+      if (!localMode && !cloudLoggedIn) {
         showToast(tr("toastChatNeedLogin"));
-        openAuth("login");
+        openSignIn("login");
         return;
       }
 
@@ -323,7 +331,7 @@ export function ChatView() {
       localMode,
       markFirstChatDone,
       messages,
-      openAuth,
+      openSignIn,
       scrollToBottom,
       sending,
       setMessages,
@@ -354,9 +362,17 @@ export function ChatView() {
 
   const showStarters = !firstChatDone && !startersHidden && messages.length === 0;
   const ctxSummary =
-    memories.length > 0
+    ctxDraft.trim() ||
+    (memories.length > 0
       ? tr("ctxStripLive").replace("{n}", String(memories.length))
-      : tr("ctxStripEmpty");
+      : tr(lang === "zh" ? "ctxStripSummary" : "ctxStripSummaryEn"));
+  const showMemoryStrip = true;
+  const showConnectBanner =
+    !connectBannerHidden &&
+    !localMode &&
+    !cursorConnected &&
+    !firstChatDone &&
+    Boolean(cloudLoggedIn);
 
   return (
     <>
@@ -395,7 +411,7 @@ export function ChatView() {
             </button>
           </div>
         )}
-        {!connectBannerHidden && !cloudSession && !localMode && (
+        {!showConnectBanner ? null : (
           <div className="connect-banner show">
             <div>
               <strong>{tr("connectBannerTitle")}</strong>
@@ -405,12 +421,13 @@ export function ChatView() {
               <button type="button" className="btn-connect ghost" onClick={dismissConnectBanner}>
                 {tr("connectLater")}
               </button>
-              <button type="button" className="btn-connect" onClick={() => openAuth("login")}>
-                {tr("setSignInBtn")}
+              <button type="button" className="btn-connect" onClick={() => setView("gateway")}>
+                {tr("connectGoGateway")}
               </button>
             </div>
           </div>
         )}
+        {showMemoryStrip && (
         <div className="context-strip">
           <span className="material-symbols-outlined" style={{ fontSize: 16, color: "var(--secondary)" }}>
             neurology
@@ -428,15 +445,34 @@ export function ChatView() {
             </button>
           </div>
         </div>
+        )}
+        {showMemoryStrip && (
         <div className={`chat-ctx-advanced${ctxOpen ? " open" : ""}`}>
-          <textarea rows={2} placeholder={tr("chatCtxPh")} />
+          <textarea
+            rows={2}
+            placeholder={tr("chatCtxPh")}
+            value={ctxDraft}
+            onChange={(e) => {
+              setCtxDraft(e.target.value);
+              saveChatContextPref(e.target.value);
+            }}
+          />
           <p className="chat-ctx-hint">{tr("chatCtxHint")}</p>
         </div>
+        )}
       </div>
       <div className="chat-body">
         <div className="chat-scroll" ref={scrollRef}>
           <div className="chat-inner">
-            {messages.length === 0 && (
+            {messages.length === 0 && needsCloudLogin && (
+              <LoginPrompt titleKey="loginPromptTitle" subKey="loginPromptChatSub" />
+            )}
+            {messages.length === 0 && !needsCloudLogin && catalogLoading && (
+              <div className="chat-empty-hint" style={{ padding: "12px 0" }}>
+                <CatalogLoading />
+              </div>
+            )}
+            {messages.length === 0 && !needsCloudLogin && !catalogLoading && (
               <div
                 className="chat-empty-hint"
                 style={{ fontSize: 13, color: "var(--on-surface-variant)", padding: "12px 0" }}

@@ -31,8 +31,16 @@ if curl -sf "http://127.0.0.1:8787/health" >/dev/null 2>&1; then
   NODEAI_PROXY_URL="${NODEAI_PROXY_URL:-http://127.0.0.1:8787}" "$ROOT/scripts/test_integration.sh"
   NODEAI_PROXY_URL="${NODEAI_PROXY_URL:-http://127.0.0.1:8787}" "$ROOT/scripts/test_prune.sh"
 else
-  echo "SKIP: proxy not running on 8787 (start with: cargo run -p nodeai-proxy --bin nodeai-proxy-standalone)"
+  echo "SKIP: proxy not running on 8787 (start with: ./scripts/dev.sh)"
 fi
+echo ""
+
+echo ">> 5b/6 Cloud dev smoke (8788)"
+"$ROOT/scripts/ensure_cloud.sh"
+curl -sf "${NODEAI_CLOUD_BASE_URL:-http://127.0.0.1:8788}/health" | python3 -m json.tool | head -8 || {
+  echo "FAIL: Cloud health check failed"
+  exit 1
+}
 echo ""
 
 if [[ "${1:-}" == "--live" ]]; then

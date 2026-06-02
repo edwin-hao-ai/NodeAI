@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -28,9 +29,11 @@ import {
   signInViaProxy,
   registerViaProxy,
   clearStoredCloudUser,
+  validateCloudSessionViaProxy,
   type CloudUser,
 } from "../lib/cloudAuth";
 import { clearCloudSession, getCloudSession, saveCloudSession } from "../lib/cloudSession";
+import { ensureCloudDev } from "../lib/cloudDev";
 import { findProductIntent, PRODUCT_INTENTS } from "../lib/product/intents";
 import { syncModelSources } from "../lib/sourcesSync";
 import { findCatalogModel } from "../lib/catalog";
@@ -79,8 +82,15 @@ interface AppContextValue extends RouteState {
   usageSnapshot: UsageSnapshot | null;
   cursorConnected: boolean;
   localMode: boolean;
+  enterLocalMode: () => void;
+  exitLocalMode: () => void;
+  openSignIn: (mode?: AuthMode) => void;
   cloudSession: string | null;
   cloudUser: CloudUser | null;
+  cloudLoggedIn: boolean;
+  authReady: boolean;
+  needsCloudLogin: boolean;
+  catalogLoading: boolean;
   roiBannerHidden: boolean;
   connectBannerHidden: boolean;
   onboardDismissed: boolean;
@@ -120,7 +130,7 @@ interface AppContextValue extends RouteState {
   openAuth: (mode: AuthMode) => void;
   closeAuth: () => void;
   signInWithCloud: (email: string, password: string) => Promise<boolean>;
-  signUpWithCloud: (email: string, password: string) => Promise<boolean>;
+  signUpWithCloud: (email: string, password: string, name?: string) => Promise<boolean>;
   signOutWithCloud: () => Promise<void>;
   showToast: (msg: string) => void;
   tr: (key: I18nKey) => string;
@@ -146,6 +156,7 @@ const STORAGE_VIEW_SAVINGS = "nodeai-onboard-steps";
 const STORAGE_WS = "nodeai-workspace";
 const STORAGE_AGENT = "nodeai-agent-enabled";
 const STORAGE_SOURCES = "nodeai-sources";
+const STORAGE_LOCAL_MODE = "nodeai-local-mode";
 const WS_DEMO_PATHS = ["~/Documents/NodeAI", "~/Projects/my-app", "~/Desktop/工作"];
 const DEFAULT_PORT = 8787;
 
@@ -211,11 +222,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [cursorConnectedManual, setCursorConnectedManual] = useState(
     () => localStorage.getItem(STORAGE_CURSOR) === "1",
   );
-  const [localMode] = useState(
-    () => new URLSearchParams(window.location.search).get("mode") === "local",
+  const [localMode, setLocalModeState] = useState(
+    () =>
+      new URLSearchParams(window.location.search).get("mode") === "local" ||
+      localStorage.getItem(STORAGE_LOCAL_MODE) === "1",
   );
   const [cloudSession, setCloudSession] = useState<string | null>(null);
   const [cloudUser, setCloudUser] = useState<CloudUser | null>(() => loadStoredCloudUser());
+  const [authReady, setAuthReady] = useState(false);
+  const [catalogFetching, setCatalogFetching] = useState(false);
   const [roiBannerHidden, setRoiBannerHidden] = useState(
     () => localStorage.getItem(STORAGE_ROI) === "1",
   );
@@ -244,6 +259,50 @@ export function AppProvider({ children }: { children: ReactNode }) {
   );
 
   const gatewayBaseUrl = `http://127.0.0.1:${gatewayPort}/v1`;
+
+  const cloudLoggedIn = Boolean(cloudSession);
+  const needsCloudLogin = authReady && !cloudLoggedIn && !localMode;
+
+  const signOutRef = useRef<() => Promise<void>>(async () => {});
+  const gatewayCatalogRef = useRef(gatewayCatalog);
+  gatewayCatalogRef.current = gatewayCatalog;
+
+  useEffect(() => {
+    let cancelled = false;
+    const bootstrap = async () => {
+      const token = await getCloudSession();
+      const storedUser = loadStoredCloudUser();
+
+      if (token) {
+        if (!cancelled) {
+          setCloudSession(token);
+          if (storedUser) setCloudUser(storedUser);
+        }
+        if (proxy?.running) {
+          const check = await validateCloudSessionViaProxy(gatewayBaseUrl, token);
+          if (cancelled) return;
+          if (check.kind === "ok") {
+            setCloudUser(check.user);
+            saveStoredCloudUser(check.user);
+          } else if (check.kind === "invalid") {
+            await signOutRef.current();
+          }
+        }
+      } else {
+        if (storedUser) clearStoredCloudUser();
+        if (!cancelled) {
+          setCloudSession(null);
+          setCloudUser(null);
+        }
+      }
+
+      if (!cancelled) setAuthReady(true);
+    };
+    void bootstrap();
+    return () => {
+      cancelled = true;
+    };
+  }, [gatewayBaseUrl, proxy?.running]);
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
@@ -278,19 +337,31 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
     let cancelled = false;
     const load = async () => {
+      if (!cancelled) setCatalogFetching(true);
       try {
         const health = await fetchGatewayHealth(gatewayPort);
         if (!cancelled) setGatewayHealth(health);
 
-        let session = cloudSession ?? (await getCloudSession());
+        const session = cloudSession ?? (await getCloudSession());
+        if (session && !cloudSession) setCloudSession(session);
 
-        const models = await fetchGatewayCatalog(gatewayBaseUrl, session);
-        if (!cancelled) setGatewayCatalog(models);
+        const result = await fetchGatewayCatalog(gatewayBaseUrl, session);
+        if (cancelled) return;
+        if (result.ok) {
+          setGatewayCatalog(result.data.length ? result.data : null);
+        } else if (result.status === 401 && session) {
+          const check = await validateCloudSessionViaProxy(gatewayBaseUrl, session);
+          if (check.kind === "invalid") void signOutRef.current();
+        } else if (!gatewayCatalogRef.current) {
+          setGatewayCatalog(null);
+        }
       } catch {
         if (!cancelled) {
           setGatewayCatalog(null);
           setGatewayHealth(null);
         }
+      } finally {
+        if (!cancelled) setCatalogFetching(false);
       }
     };
     load();
@@ -301,6 +372,27 @@ export function AppProvider({ children }: { children: ReactNode }) {
     };
   }, [gatewayBaseUrl, gatewayPort, proxy?.running, cloudSession]);
 
+  useEffect(() => {
+    if (!proxy?.running) return;
+    if (gatewayHealth?.reachable) return;
+
+    let cancelled = false;
+    const boot = async () => {
+      await ensureCloudDev();
+      if (cancelled) return;
+      const health = await fetchGatewayHealth(gatewayPort);
+      if (!cancelled && health) setGatewayHealth(health);
+    };
+    void boot();
+    const id = window.setInterval(() => {
+      void boot();
+    }, 3000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [gatewayPort, proxy?.running, gatewayHealth?.reachable]);
+
   const gatewayLive = useMemo(
     () =>
       Boolean(
@@ -309,16 +401,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [gatewayHealth, gatewayCatalog, cloudSession],
   );
 
+  const catalogLoading = useMemo(() => {
+    if (localMode || !cloudLoggedIn || !authReady) return false;
+    if (gatewayLive) return false;
+    return catalogFetching || Boolean(proxy?.running && gatewayHealth?.configured);
+  }, [
+    localMode,
+    cloudLoggedIn,
+    authReady,
+    gatewayLive,
+    catalogFetching,
+    proxy?.running,
+    gatewayHealth?.configured,
+  ]);
+
   const cloudReachable = Boolean(gatewayHealth?.reachable ?? gatewayHealth?.configured);
   const cloudConfigured = Boolean(gatewayHealth?.configured);
-
-  useEffect(() => {
-    void getCloudSession().then((token) => {
-      if (token) setCloudSession(token);
-    });
-    const user = loadStoredCloudUser();
-    if (user) setCloudUser(user);
-  }, []);
 
   useEffect(() => {
     if (modelSources.length) {
@@ -368,6 +466,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setToast(msg);
     window.setTimeout(() => setToast(null), 2800);
   }, []);
+
+  const signOutWithCloud = useCallback(async () => {
+    try {
+      await clearCloudSession();
+    } catch {
+      /* keychain optional */
+    }
+    clearStoredCloudUser();
+    setCloudSession(null);
+    setCloudUser(null);
+    setGatewayCatalog(null);
+    showToast(t(lang, "toastLogout"));
+    setView("models");
+  }, [lang, showToast]);
+  signOutRef.current = signOutWithCloud;
 
   const persistRoute = useCallback((next: RouteState) => {
     localStorage.setItem(
@@ -483,6 +596,32 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const tr = useCallback((key: I18nKey) => t(lang, key), [lang]);
 
+  const enterLocalMode = useCallback(() => {
+    localStorage.setItem(STORAGE_LOCAL_MODE, "1");
+    setLocalModeState(true);
+    void signOutRef.current();
+    setView("settings");
+    showToast(tr("modeLocalEntered"));
+  }, [showToast, tr]);
+
+  const exitLocalMode = useCallback(() => {
+    localStorage.removeItem(STORAGE_LOCAL_MODE);
+    setLocalModeState(false);
+  }, []);
+
+  const openAuth = useCallback((mode: AuthMode) => {
+    sessionStorage.setItem("nodeai-auth-mode", mode);
+    setView("auth");
+  }, []);
+
+  const openSignIn = useCallback(
+    (mode: AuthMode = "login") => {
+      exitLocalMode();
+      openAuth(mode);
+    },
+    [exitLocalMode, openAuth],
+  );
+
   const routeLine = useMemo(
     () => getRouteLineShort(lang, route, gatewayCatalog, cloudConfigured),
     [lang, route, gatewayCatalog, cloudConfigured],
@@ -579,17 +718,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
     };
   }, [setWorkspace]);
 
-  const openAuth = useCallback((mode: AuthMode) => {
-    sessionStorage.setItem("nodeai-auth-mode", mode);
-    setView("auth");
-  }, []);
-
   const closeAuth = useCallback(() => {
     setView("models");
   }, []);
 
   const signInWithCloud = useCallback(
     async (email: string, password: string) => {
+      const cloudUp = await ensureCloudDev();
+      if (!cloudUp) {
+        showToast(t(lang, "toastCloudUnreachable"));
+        return false;
+      }
       const result = await signInViaProxy(gatewayBaseUrl, email, password);
       if (!result.ok) {
         showToast(result.error || t(lang, "toastLoginFailed"));
@@ -598,11 +737,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
       try {
         await saveCloudSession(result.data.token);
       } catch {
-        /* keychain optional */
+        showToast(t(lang, "toastKeychainFailed"));
+        return false;
       }
       setCloudSession(result.data.token);
       setCloudUser(result.data.user);
       saveStoredCloudUser(result.data.user);
+      localStorage.removeItem(STORAGE_LOCAL_MODE);
+      setLocalModeState(false);
       showToast(t(lang, "toastLogin"));
       setView("models");
       return true;
@@ -611,12 +753,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
   );
 
   const signUpWithCloud = useCallback(
-    async (email: string, password: string) => {
+    async (email: string, password: string, name?: string) => {
       if (password.length < 6) {
         showToast(tr("authPasswordMin"));
         return false;
       }
-      const reg = await registerViaProxy(gatewayBaseUrl, email, password);
+      const cloudUp = await ensureCloudDev();
+      if (!cloudUp) {
+        showToast(t(lang, "toastCloudUnreachable"));
+        return false;
+      }
+      const reg = await registerViaProxy(gatewayBaseUrl, email, password, name);
       if (!reg.ok) {
         showToast(reg.error || t(lang, "toastRegisterFailed"));
         return false;
@@ -625,18 +772,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     },
     [gatewayBaseUrl, lang, showToast, signInWithCloud, tr],
   );
-
-  const signOutWithCloud = useCallback(async () => {
-    try {
-      await clearCloudSession();
-    } catch {
-      /* keychain optional */
-    }
-    clearStoredCloudUser();
-    setCloudSession(null);
-    setCloudUser(null);
-    setGatewayCatalog(null);
-  }, []);
 
   const value = useMemo<AppContextValue>(
     () => ({
@@ -655,8 +790,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
       usageSnapshot,
       cursorConnected,
       localMode,
+      enterLocalMode,
+      exitLocalMode,
+      openSignIn,
       cloudSession,
       cloudUser,
+      cloudLoggedIn,
+      authReady,
+      needsCloudLogin,
+      catalogLoading,
       roiBannerHidden,
       connectBannerHidden,
       onboardDismissed,
@@ -698,6 +840,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       markFirstChatDone: () => {
         localStorage.setItem(STORAGE_FIRST_CHAT, "1");
         setFirstChatDone(true);
+        localStorage.setItem(STORAGE_CONNECT_BANNER, "1");
+        setConnectBannerHidden(true);
+        setCelebrateOpen(true);
       },
       markViewSavings,
       rememberText,
@@ -737,8 +882,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
       usageSnapshot,
       cursorConnected,
       localMode,
+      enterLocalMode,
+      exitLocalMode,
+      openSignIn,
       cloudSession,
       cloudUser,
+      cloudLoggedIn,
+      authReady,
+      needsCloudLogin,
+      catalogLoading,
       roiBannerHidden,
       connectBannerHidden,
       onboardDismissed,

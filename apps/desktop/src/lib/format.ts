@@ -1,7 +1,10 @@
 import type { Lang } from "../i18n";
 
 export function fmtMoney(n: number, lang: Lang = "zh"): string {
-  return lang === "zh" ? `¥${n.toFixed(2)}` : `¥${n.toFixed(2)}`;
+  const abs = Math.abs(n);
+  const digits = abs > 0 && abs < 0.01 ? 4 : abs < 1 ? 3 : 2;
+  const prefix = lang === "zh" ? "¥" : "¥";
+  return `${prefix}${n.toFixed(digits)}`;
 }
 
 export function budgetRemain(cap: number, used: number): number {

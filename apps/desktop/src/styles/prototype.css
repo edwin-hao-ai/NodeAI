@@ -946,3 +946,10 @@
       background: var(--surface-highest); border: 1px solid var(--outline-variant); border-radius: 12px; padding: 12px;
       box-shadow: 0 16px 48px rgba(0,0,0,0.5); }
     .tray-popover.open { display: block; }
+    .tray-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 8px 0; }
+    .tray-stat-lbl { font-size: 10px; color: var(--on-surface-variant); }
+    .tray-stat-val { font-size: 14px; font-weight: 500; margin-top: 2px; }
+    .tray-actions { display: flex; gap: 6px; margin-top: 10px; }
+    .tray-actions button { flex: 1; padding: 8px 6px; border-radius: 8px; border: 1px solid var(--outline-variant);
+      background: var(--surface-container); color: inherit; font: inherit; font-size: 11px; cursor: pointer; }
+    .tray-foot { margin-top: 8px; font-size: 10px; color: var(--on-surface-variant); text-align: center; }

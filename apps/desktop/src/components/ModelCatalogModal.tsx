@@ -18,6 +18,8 @@ import {
 } from "../lib/catalog";
 import { fmtModelPrice } from "../lib/route";
 import { useApp } from "../state/AppContext";
+import { CatalogLoading } from "./CatalogLoading";
+import { LoginPrompt } from "./LoginPrompt";
 import { Modal } from "./ui/Modal";
 
 const CAP_KEY: Record<string, I18nKey> = {
@@ -41,7 +43,7 @@ interface ModelCatalogModalProps {
 }
 
 export function ModelCatalogModal({ open, onClose }: ModelCatalogModalProps) {
-  const { lang, tr, smartRouteEnabled, activeGatewayModel, selectGatewayModel, selectIntent, showToast, gatewayCatalog, gatewayLive, gatewayHealth, cloudSession, cloudConfigured, openAuth } =
+  const { lang, tr, smartRouteEnabled, activeGatewayModel, selectGatewayModel, selectIntent, showToast, gatewayCatalog, gatewayLive, gatewayHealth, cloudLoggedIn, authReady, cloudConfigured, openSignIn, catalogLoading, needsCloudLogin } =
     useApp();
 
   const [query, setQuery] = useState("");
@@ -90,9 +92,11 @@ export function ModelCatalogModal({ open, onClose }: ModelCatalogModalProps) {
               ? tr("catalogSub")
               : !gatewayHealth?.configured
                 ? tr("catalogSubOffline")
-                : !cloudSession
-                  ? tr("catalogSubLogin")
-                  : tr("catalogSubPending")}
+                : !authReady
+                  ? tr("catalogSubPending")
+                  : !cloudLoggedIn
+                    ? tr("catalogSubLogin")
+                    : tr("catalogSubPending")}
           </p>
           {!gatewayLive && (
             <p className="catalog-head-sub" style={{ color: "var(--warning)", marginTop: 4 }}>
@@ -100,18 +104,18 @@ export function ModelCatalogModal({ open, onClose }: ModelCatalogModalProps) {
                 ? tr("catalogCloudLocalHint")
                 : !gatewayHealth?.configured
                   ? tr("catalogGatewayKeyHint")
-                  : !cloudSession
+                  : !cloudLoggedIn
                     ? tr("catalogLoginHint")
                     : tr("catalogEnvHint")}
             </p>
           )}
-          {!gatewayLive && !cloudSession && gatewayHealth?.configured && (
+          {!gatewayLive && !cloudLoggedIn && authReady && gatewayHealth?.configured && (
             <button
               type="button"
               className="btn-primary"
               style={{ marginTop: 12 }}
               onClick={() => {
-                openAuth("login");
+                openSignIn("login");
                 onClose();
               }}
             >
@@ -202,8 +206,14 @@ export function ModelCatalogModal({ open, onClose }: ModelCatalogModalProps) {
         </div>
       </div>
       <div className="catalog-list">
-        {sections.length === 0 ? (
-          <div className="cat-empty">{tr("catNoResult")}</div>
+        {catalogLoading && cloudLoggedIn ? (
+          <CatalogLoading />
+        ) : sections.length === 0 ? (
+          needsCloudLogin ? (
+            <LoginPrompt titleKey="loginPromptTitle" subKey="loginPromptModelsSub" />
+          ) : (
+            <div className="cat-empty">{tr("catNoResult")}</div>
+          )
         ) : (
           sections.map((sec, si) => (
             <div key={si}>

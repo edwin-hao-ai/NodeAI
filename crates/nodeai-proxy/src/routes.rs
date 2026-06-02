@@ -26,6 +26,7 @@ pub fn router() -> Router<ProxyState> {
         .route("/v1/nodeai/memories/{id}", delete(delete_memory))
         .route("/v1/nodeai/auth/login", post(cloud_login))
         .route("/v1/nodeai/auth/register", post(cloud_register))
+        .route("/v1/nodeai/auth/me", get(cloud_auth_me))
         .route("/v1/models", get(list_models))
         .route("/v1/chat/completions", post(chat_completions))
         .route("/v1/embeddings", post(embeddings))
@@ -334,6 +335,33 @@ async fn cloud_register(
         Err(err) => (
             StatusCode::BAD_REQUEST,
             Json(json!({ "error": { "message": err } })),
+        )
+            .into_response(),
+    }
+}
+
+async fn cloud_auth_me(State(state): State<ProxyState>, headers: HeaderMap) -> Response {
+    let cloud_token = headers
+        .get("x-nodeai-cloud-token")
+        .and_then(|v| v.to_str().ok());
+    let session = match crate::cloud::require_session(cloud_token) {
+        Ok(s) => s,
+        Err(err) => return cloud_auth_required(&err).into_response(),
+    };
+    match nodeai_cloud::fetch_session_user(&state.cloud, session).await {
+        Ok(user) => Json(json!({ "user": user })).into_response(),
+        Err(err) if err.contains("invalid") || err.contains("401") => {
+            cloud_auth_required(&err).into_response()
+        }
+        Err(err) => (
+            StatusCode::BAD_GATEWAY,
+            Json(json!({
+                "error": {
+                    "message": err,
+                    "type": "nodeai_cloud_auth_error",
+                    "code": "cloud_auth_failed"
+                }
+            })),
         )
             .into_response(),
     }

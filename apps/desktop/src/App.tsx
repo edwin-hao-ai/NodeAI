@@ -20,6 +20,7 @@ import { PlanView } from "./views/PlanView";
 import { SettingsView } from "./views/SettingsView";
 import { SourcesView } from "./views/SourcesView";
 import "./styles/app.css";
+import "./styles/login-prompt.css";
 
 function MainViews() {
   const { view } = useApp();

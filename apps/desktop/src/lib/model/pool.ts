@@ -1,5 +1,6 @@
 import type { GatewayCatalogEntry } from "../gateway/types";
 import { gatewayEntryToModel, isLiveGatewayCatalog } from "../gateway";
+import { defaultVirtualCatalog } from "./virtual";
 import type { GatewayModel } from "./types";
 
 export function catalogModelPool(
@@ -12,7 +13,7 @@ export function catalogModelPool(
   if (cloudConfigured) {
     return [];
   }
-  return [];
+  return defaultVirtualCatalog().map(gatewayEntryToModel);
 }
 
 export function isGatewayRegistryLive(gateway: GatewayCatalogEntry[] | null): boolean {

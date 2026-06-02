@@ -3,7 +3,9 @@ import { sortByFlagshipDesc } from "./flagship";
 
 /** Pick latest flagship models per provider from live Gateway catalog. */
 export function featuredModelsFromCatalog(all: GatewayModel[], limit = 8): GatewayModel[] {
-  const candidates = all.filter((m) => m.priceSource === "gateway" && m.type === "lang");
+  const candidates = all.filter(
+    (m) => m.type === "lang" && (m.priceSource === "gateway" || m.id.startsWith("nodeai-")),
+  );
   const byProvider = new Map<string, GatewayModel>();
   for (const m of sortByFlagshipDesc(candidates)) {
     if (!byProvider.has(m.provider)) {

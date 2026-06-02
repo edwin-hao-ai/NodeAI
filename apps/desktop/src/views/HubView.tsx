@@ -1,9 +1,10 @@
 import { useEffect, useMemo } from "react";
+import { LoginPrompt } from "../components/LoginPrompt";
 import { PageHead, PageScroll } from "../components/ui/PageScroll";
 import { emptyPeriodStats } from "../lib/bonusApi";
 import { BONUS_CARDS } from "../lib/product/bonusCards";
 import { loadBonusProfileLocal } from "../lib/bonusApi";
-import { fmtMoney, fmtRate, sparkAreaPath, sparkPath } from "../lib/format";
+import { fmtMoney, fmtTokens, sparkAreaPath, sparkPath } from "../lib/format";
 import {
   appName,
   dailySpendBars,
@@ -13,6 +14,7 @@ import {
   recentRouteLines,
   sparklineFromLedger,
 } from "../lib/route";
+import { estimateBudgetDaysLeft } from "../lib/usage/billing";
 import { useApp } from "../state/AppContext";
 
 function statusClass(s: string) {
@@ -31,13 +33,14 @@ export function HubView() {
     onboardDismissed,
     dismissOnboard,
     usageSnapshot,
+    needsCloudLogin,
   } = useApp();
 
   const bonusProfile = loadBonusProfileLocal();
   const today = usageSnapshot?.periods?.today ?? emptyPeriodStats();
   const budget = usageSnapshot?.budget;
   const cap = budget?.cap_yuan ?? 48;
-  const used = budget?.used_yuan ?? today.spend_yuan;
+  const used = Math.max(budget?.used_yuan ?? 0, today.spend_yuan);
   const pct = cap > 0 ? used / cap : 0;
   const ringOffset = 138 * (1 - Math.min(pct, 1));
   const remain = Math.max(cap - used, 0);
@@ -89,12 +92,16 @@ export function HubView() {
     <PageScroll>
       <PageHead title={tr("hubTitle")} subtitle={tr("appsSub")} />
 
+      {needsCloudLogin && (
+        <LoginPrompt titleKey="loginPromptTitle" subKey="loginPromptHubSub" compact showByok />
+      )}
+
       {!onboardDismissed && onboardSteps.doneCount < onboardSteps.total && (
         <div className="onboard-card">
           <div className="onboard-head">
             <strong>{tr("obCardTitle")}</strong>
             <button type="button" className="onboard-dismiss" onClick={dismissOnboard}>
-              {tr("connectLater")}
+              {tr("onboardDismiss")}
             </button>
           </div>
           <div className="onboard-steps">
@@ -140,9 +147,9 @@ export function HubView() {
           <div className="stat-card hub-live-spark">
             <div className="stat-lbl">{tr("tokenStream")}</div>
             <div className="spark-meta">
-              <span className="spark-rate mono">{fmtRate(tokenRate)}</span>
+              <span className="spark-rate mono">{fmtTokens(today.tokens)}</span>
               <span style={{ fontSize: 10, color: "var(--on-surface-variant)" }}>
-                {today.requests > 0 ? "live" : "—"}
+                {today.requests > 0 ? `${today.requests} req` : "—"}
               </span>
             </div>
             <svg className="spark-svg" viewBox="0 0 260 40">
@@ -175,7 +182,9 @@ export function HubView() {
                         <span className="app-dot" style={{ background: a.color }} />
                         {appName(lang, a)}
                       </span>
-                      <span className="mono app-flow">{a.requests} req</span>
+                      <span className="mono app-flow">
+                        {a.requests} req · {fmtTokens(a.tokensToday)}
+                      </span>
                     </div>
                     <div className="app-bar">
                       <div
@@ -239,21 +248,17 @@ export function HubView() {
               <span className="material-symbols-outlined" style={{ fontSize: 14 }}>
                 sync_alt
               </span>
-              <span>{tr("actFailoverToday")}</span>
+              <span>
+                {today.requests > 0
+                  ? lang === "zh"
+                    ? `今日 ${today.requests} 次请求 · 限流自动换路已开启`
+                    : `${today.requests} requests today · auto failover on`
+                  : tr("billFailoverIdle")}
+              </span>
             </div>
           </div>
         </div>
       </div>
-
-      {localMode && (
-        <div className="mode-banner show">
-          <span className="material-symbols-outlined">offline_pin</span>
-          <div>
-            <strong>{tr("modeLocalTitle")}</strong>
-            <span>{tr("modeLocalSub")}</span>
-          </div>
-        </div>
-      )}
 
       <div className="grid-3">
         <div className="stat-card highlight">
@@ -263,12 +268,12 @@ export function HubView() {
         </div>
         <div className="stat-card">
           <div className="stat-lbl">{tr("tokenToday")}</div>
-          <div className="stat-val mono">{(today.tokens / 1e6).toFixed(2)}M</div>
+          <div className="stat-val mono">{fmtTokens(today.tokens)}</div>
           <div className="stat-foot mono">
-            {liveCompressPct > 0
+            {today.requests > 0
               ? lang === "zh"
-                ? `智能压缩 −${liveCompressPct}%`
-                : `Smart compress −${liveCompressPct}%`
+                ? `${today.requests} 次 · 均 ${fmtTokens(tokenRate)}/req`
+                : `${today.requests} reqs · avg ${fmtTokens(tokenRate)}/req`
               : tr("gwWaiting")}
           </div>
         </div>
@@ -276,7 +281,9 @@ export function HubView() {
           <div className="stat-lbl">{tr("budgetLeft")}</div>
           <div className="stat-val mono">{fmtMoney(remain, lang)}</div>
           <div className="stat-foot">
-            <span>{tr("daysLeft")}</span>
+              <span>
+                {estimateBudgetDaysLeft(remain, today.spend_yuan, lang)}
+              </span>
           </div>
         </div>
       </div>

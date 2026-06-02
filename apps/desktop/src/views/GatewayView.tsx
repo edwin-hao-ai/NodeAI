@@ -22,6 +22,7 @@ export function GatewayView() {
     smartRouteEnabled,
     setView,
     cursorConnected,
+    setCursorConnected,
     usageSnapshot,
     setAddAppOpen,
   } = useApp();
@@ -160,6 +161,14 @@ export function GatewayView() {
                 <span className="live-dot" />
                 <span>{tr("gwWaiting")}</span>
               </div>
+              <button
+                type="button"
+                className="btn-outlined"
+                style={{ marginBottom: 12 }}
+                onClick={() => setCursorConnected(true)}
+              >
+                {tr("gwDemoConnect")}
+              </button>
               <ol className="setup-steps">
                 {cursor.steps[lang].map((s, i) => (
                   <li key={i}>{s}</li>

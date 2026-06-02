@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { BrandMark } from "./BrandMark";
-import { fmtMoney, fmtRate, fmtTokens } from "../lib/format";
-import { appForLedgerSlug } from "../lib/route";
+import { fmtMoney, fmtRate, fmtTokens, sparkPath } from "../lib/format";
+import { appForLedgerSlug, sparklineFromLedger } from "../lib/route";
 import { useApp } from "../state/AppContext";
 
 type TrayAppRow = {
@@ -25,11 +25,22 @@ export function Menubar() {
 
   const liveSaved = usageSnapshot?.periods?.today?.saved_yuan ?? 0;
 
+  const today = usageSnapshot?.periods?.today;
+  const todayTokens = today?.tokens ?? 0;
+  const todayRequests = today?.requests ?? 0;
   const totalRequests = usageSnapshot
     ? Object.values(usageSnapshot.apps).reduce((sum, n) => sum + n, 0)
     : 0;
 
-  const flowLabel = totalRequests > 0 ? `${fmtTokens(totalRequests)} req` : fmtRate(0);
+  const spark = useMemo(() => sparklineFromLedger(usageSnapshot, 16), [usageSnapshot]);
+  const sparkD = sparkPath(spark, 64, 24);
+
+  const flowLabel =
+    todayTokens > 0
+      ? fmtRate(Math.round(todayTokens / Math.max(todayRequests, 1)))
+      : totalRequests > 0
+        ? `${totalRequests} req`
+        : fmtRate(0);
 
   const trayApps = useMemo((): TrayAppRow[] => {
     if (!usageSnapshot?.apps || Object.keys(usageSnapshot.apps).length === 0) {
@@ -77,6 +88,10 @@ export function Menubar() {
             {routeLine}
           </span>
         </div>
+        <div className="hud-pop-row">
+          <span className="hud-pop-lbl">{tr("tokenFlow")}</span>
+          <span className="mono">{fmtTokens(todayTokens)}</span>
+        </div>
         <div className="tray-stats">
           <div>
             <div className="tray-stat-lbl">{tr("savedToday")}</div>
@@ -86,6 +101,11 @@ export function Menubar() {
             <div className="tray-stat-lbl">{tr("budgetLeft")}</div>
             <div className="tray-stat-val mono">{fmtMoney(remain, lang)}</div>
           </div>
+        </div>
+        <div className="tray-spark-wrap">
+          <svg viewBox="0 0 64 24" aria-hidden>
+            <path d={sparkD} className="hud-spark-path" fill="none" />
+          </svg>
         </div>
         {trayApps.length > 0 && (
           <div className="tray-apps">
@@ -98,9 +118,17 @@ export function Menubar() {
             ))}
           </div>
         )}
-        <button type="button" className="tray-open-hub" onClick={() => { setTrayOpen(false); setView("hub"); }}>
-          {tr("chatLiveLink")}
-        </button>
+        <div className="tray-actions">
+          <button type="button" onClick={() => { setTrayOpen(false); setView("hub"); }}>
+            {tr("navHub")}
+          </button>
+          <button type="button" onClick={() => { setTrayOpen(false); setView("chat"); }}>
+            {tr("navChat")}
+          </button>
+          <button type="button" onClick={() => { setTrayOpen(false); setView("billing"); }}>
+            {tr("navBilling")}
+          </button>
+        </div>
         <div className="tray-foot mono">{proxy?.listen_addr ?? "8787"}</div>
       </div>
     </>

@@ -18,6 +18,8 @@ target
 node_modules/
 apps/desktop/dist/
 apps/desktop/node_modules/
+apps/desktop/src-tauri/binaries/
+.nodeai/
 
 # RustRover
 #  JetBrains specific template is maintained in a separate JetBrains.gitignore that can
