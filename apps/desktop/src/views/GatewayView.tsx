@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { BrandMark } from "../components/BrandMark";
 import { CopyButton } from "../components/ui/CopyButton";
 import { PageHead, PageScroll } from "../components/ui/PageScroll";
-import { DEMO } from "../data/demo";
-import { appName, isExternalApp } from "../lib/route";
+import { fmtMoney } from "../lib/format";
+import { KNOWN_APPS } from "../lib/product/apps";
+import { appName, isExternalApp, lastSeenLabel, liveAppsFromUsage } from "../lib/route";
 import { useApp } from "../state/AppContext";
 
 function statusLabel(s: string) {
@@ -21,20 +22,14 @@ export function GatewayView() {
     smartRouteEnabled,
     setView,
     cursorConnected,
-    setCursorConnected,
-    showToast,
-    showCelebrate,
+    usageSnapshot,
     setAddAppOpen,
   } = useApp();
 
   const [tab, setTab] = useState<"setup" | "connected">("setup");
-  const cursor = DEMO.APPS.find((a) => a.id === "cursor");
-
-  const connectCursorDemo = () => {
-    setCursorConnected(true);
-    showCelebrate();
-    showToast(tr("toastConnected"));
-  };
+  const cursor = KNOWN_APPS.find((a) => a.id === "cursor");
+  const liveApps = useMemo(() => liveAppsFromUsage(usageSnapshot), [usageSnapshot]);
+  const externalApps = liveApps.filter(isExternalApp);
 
   return (
     <PageScroll>
@@ -143,7 +138,7 @@ export function GatewayView() {
             <span className="addr-compact-tag">{tr("modelFieldTag")}</span>
           </div>
 
-          {cursor && !cursorConnected && "steps" in cursor && cursor.steps && (
+          {cursor && !cursorConnected && cursor.steps && (
             <div className="setup-card gw-hero">
               <div className="gw-hero-title">
                 <span
@@ -170,16 +165,10 @@ export function GatewayView() {
                   <li key={i}>{s}</li>
                 ))}
               </ol>
-              <button type="button" className="btn-demo-connect" onClick={connectCursorDemo}>
-                <span className="material-symbols-outlined" style={{ fontSize: 18 }}>
-                  play_circle
-                </span>
-                {tr("gwDemoConnect")}
-              </button>
             </div>
           )}
 
-          {DEMO.APPS.filter(isExternalApp).map((a) => (
+          {externalApps.map((a) => (
             <div key={a.id} className="setup-card compact">
               <div className="setup-row">
                 <span
@@ -194,7 +183,7 @@ export function GatewayView() {
                 </span>
                 <div className="setup-meta">
                   <div className="setup-meta-name">{appName(lang, a)}</div>
-                  <div className="app-last">{a.lastSeen[lang]}</div>
+                  <div className="app-last">{lastSeenLabel(lang, a)}</div>
                 </div>
                 <span className={`app-status ${a.status === "live" ? "live" : "wait"}`}>
                   {statusLabel(a.status)}
@@ -219,33 +208,39 @@ export function GatewayView() {
           <p style={{ fontSize: 13, color: "var(--on-surface-variant)", marginBottom: 12 }}>
             {tr("appsSub")}
           </p>
-          {DEMO.APPS.filter(isExternalApp).map((a) => (
-            <div key={a.id} className="app-card">
-              <div className="app-card-head">
-                <div className="app-card-name">
-                  <span className="app-dot" style={{ background: a.color }} />
-                  {appName(lang, a)}
+          {externalApps.filter((a) => a.status === "live").length === 0 ? (
+            <p style={{ fontSize: 12, color: "var(--on-surface-variant)" }}>{tr("gwWaiting")}</p>
+          ) : (
+            externalApps
+              .filter((a) => a.status === "live")
+              .map((a) => (
+                <div key={a.id} className="app-card">
+                  <div className="app-card-head">
+                    <div className="app-card-name">
+                      <span className="app-dot" style={{ background: a.color }} />
+                      {appName(lang, a)}
+                    </div>
+                    <span className={`app-status ${a.status === "live" ? "live" : "wait"}`}>
+                      {statusLabel(a.status)}
+                    </span>
+                  </div>
+                  <div className="app-card-meta">
+                    <div>
+                      {tr("flow")}
+                      <strong className="mono">{a.requests} req</strong>
+                    </div>
+                    <div>
+                      {tr("todaySpend")}
+                      <strong className="mono">{fmtMoney(a.spendToday, lang)}</strong>
+                    </div>
+                    <div>
+                      {tr("accessCode")}
+                      <strong className="mono key-mask">{a.key.slice(0, 12)}••••</strong>
+                    </div>
+                  </div>
                 </div>
-                <span className={`app-status ${a.status === "live" ? "live" : "wait"}`}>
-                  {statusLabel(a.status)}
-                </span>
-              </div>
-              <div className="app-card-meta">
-                <div>
-                  {tr("flow")}
-                  <strong className="mono">{a.rate}/s</strong>
-                </div>
-                <div>
-                  {tr("todaySpend")}
-                  <strong className="mono">¥{a.today.toFixed(2)}</strong>
-                </div>
-                <div>
-                  {tr("accessCode")}
-                  <strong className="mono key-mask">{a.key.slice(0, 12)}••••</strong>
-                </div>
-              </div>
-            </div>
-          ))}
+              ))
+          )}
         </div>
       )}
     </PageScroll>

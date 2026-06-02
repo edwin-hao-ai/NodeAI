@@ -31,6 +31,8 @@ export function SettingsView() {
     proxy,
     localMode,
     openAuth,
+    cloudUser,
+    signOutWithCloud,
     setView,
     smartRouteEnabled,
     toggleSmartRoute,
@@ -118,23 +120,39 @@ export function SettingsView() {
       <div className="setting-group">{tr("setGrpAccount")}</div>
       <div className="setting">
         <div>
-          <h4>{localMode ? tr("acctLocal") : "demo@nodeai.app"}</h4>
+          <h4>{localMode ? tr("acctLocal") : cloudUser?.email ?? tr("authLoginBtn")}</h4>
           <p style={{ fontSize: 12, color: "var(--on-surface-variant)" }}>
-            {localMode ? tr("acctLocalSub") : tr("acctTrial")}
+            {localMode
+              ? tr("acctLocalSub")
+              : cloudUser
+                ? tr("acctTrial")
+                : tr("catalogSubLogin")}
           </p>
         </div>
-        <button className="btn-outlined" type="button" onClick={() => setView("plan")}>
-          {tr("managePlan")}
-        </button>
+        {cloudUser ? (
+          <button className="btn-outlined" type="button" onClick={() => setView("plan")}>
+            {tr("managePlan")}
+          </button>
+        ) : (
+          <button className="btn-outlined" type="button" onClick={() => openAuth("login")}>
+            {tr("setSignInBtn")}
+          </button>
+        )}
       </div>
-      <div className="setting">
-        <div>
-          <h4>{tr("setLogout")}</h4>
+      {cloudUser && (
+        <div className="setting">
+          <div>
+            <h4>{tr("setLogout")}</h4>
+          </div>
+          <button
+            className="btn-outlined"
+            type="button"
+            onClick={() => void signOutWithCloud()}
+          >
+            {tr("logoutBtn")}
+          </button>
         </div>
-        <button className="btn-outlined" type="button" onClick={() => openAuth("login")}>
-          {tr("logoutBtn")}
-        </button>
-      </div>
+      )}
       {localMode && (
         <div className="setting">
           <div>

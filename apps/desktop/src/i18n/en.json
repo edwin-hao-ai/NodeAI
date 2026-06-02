@@ -491,6 +491,7 @@
   "authLoginSub": "14-day Pro trial, no card required",
   "authEmail": "Email",
   "authPassword": "Password",
+  "authPasswordMin": "Password must be at least 6 characters",
   "authLoginBtn": "Sign in",
   "authRegBtn": "Create account",
   "authGoReg": "No account? Sign up",

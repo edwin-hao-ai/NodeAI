@@ -18,7 +18,7 @@ const MORE_NAV: { view: ViewId; icon: string; i18n: I18nKey }[] = [
 ];
 
 export function Sidebar() {
-  const { view, setView, tr, localMode, setCatalogOpen, cloudUser } = useApp();
+  const { view, setView, tr, localMode, setCatalogOpen, cloudUser, openAuth } = useApp();
   const [moreOpen, setMoreOpen] = useState(false);
   const chatMode = view === "chat";
 
@@ -109,7 +109,21 @@ export function Sidebar() {
       </div>
 
       <div className="sidebar-account">
-        <div className="acct-row" role="button" tabIndex={0} onClick={() => setView("plan")} onKeyDown={() => {}}>
+        <div
+          className="acct-row"
+          role="button"
+          tabIndex={0}
+          onClick={() => {
+            if (!cloudUser && !localMode) openAuth("login");
+            else setView("plan");
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              if (!cloudUser && !localMode) openAuth("login");
+              else setView("plan");
+            }
+          }}
+        >
           <div className="acct-avatar">{localMode ? "L" : "N"}</div>
           <div style={{ minWidth: 0, flex: 1 }}>
             <div className="acct-name">{localMode ? tr("acctLocal") : cloudUser?.name ?? tr("authLoginBtn")}</div>

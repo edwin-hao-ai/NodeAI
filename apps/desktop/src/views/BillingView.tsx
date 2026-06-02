@@ -1,33 +1,71 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { PageHead, PageScroll } from "../components/ui/PageScroll";
-import { DEMO } from "../data/demo";
+import { emptyPeriodStats } from "../lib/bonusApi";
 import { fmtMoney, fmtTokens } from "../lib/format";
-import { appName } from "../lib/route";
+import { appForLedgerSlug, appName } from "../lib/route";
 import { useApp } from "../state/AppContext";
 
 type Period = "today" | "week" | "month";
 type BillPath = "all" | "hosted" | "byok";
+
+function scalePeriod<T extends { spend_yuan: number; tokens: number; requests: number }>(
+  stats: T,
+  scale: number,
+): T {
+  if (scale === 1) return stats;
+  return {
+    ...stats,
+    spend_yuan: stats.spend_yuan * scale,
+    tokens: Math.round(stats.tokens * scale),
+    requests: Math.round(stats.requests * scale),
+  };
+}
 
 export function BillingView() {
   const { lang, tr, localMode, usageSnapshot } = useApp();
   const [period, setPeriod] = useState<Period>("today");
   const [path, setPath] = useState<BillPath>("all");
 
-  const raw = DEMO.BILL_PERIODS[period];
+  const raw =
+    period === "today"
+      ? usageSnapshot?.periods?.today
+      : period === "week"
+        ? usageSnapshot?.periods?.week
+        : usageSnapshot?.periods?.month;
+  const base = raw ?? emptyPeriodStats();
+
   const scale = path === "hosted" ? 0.65 : path === "byok" ? 0.35 : 1;
-  const liveBonus = usageSnapshot?.bonus;
-  const p = {
-    ...raw,
-    spend: raw.spend * scale,
-    saved: liveBonus
-      ? liveBonus.save_compress_yuan + liveBonus.save_concise_yuan + raw.saveRoute * scale
-      : raw.saved * scale,
-    tokens: Math.round(raw.tokens * scale),
-    reqs: Math.round(raw.reqs * scale),
-    saveCompress: liveBonus ? liveBonus.save_compress_yuan : raw.saveCompress * scale,
-    saveConcise: liveBonus ? liveBonus.save_concise_yuan : raw.saveConcise * scale,
-    saveRoute: raw.saveRoute * scale,
-  };
+  const p = useMemo(() => {
+    const scaled = scalePeriod(base, scale);
+    const models = base.by_model.map((m) => ({
+      id: m.model,
+      pct: base.spend_yuan > 0 ? Math.round((m.amount_yuan / base.spend_yuan) * 100) : 0,
+      amount: m.amount_yuan * scale,
+      tokens: Math.round(m.tokens * scale),
+      reqs: Math.round(m.requests * scale),
+    }));
+    return {
+      spend: scaled.spend_yuan,
+      saved: scaled.saved_yuan,
+      tokens: scaled.tokens,
+      reqs: scaled.requests,
+      saveCompress: scaled.save_compress_yuan,
+      saveConcise: scaled.save_concise_yuan,
+      saveRoute: scaled.save_route_yuan,
+      models,
+    };
+  }, [base, scale]);
+
+  const ledgerRows = useMemo(() => {
+    if (!usageSnapshot?.ledger?.length) return [];
+    return usageSnapshot.ledger
+      .filter((row) => {
+        if (path === "hosted") return row.path === "hosted";
+        if (path === "byok") return row.path === "byok";
+        return true;
+      })
+      .slice(0, 30);
+  }, [usageSnapshot, path]);
 
   return (
     <PageScroll>
@@ -97,22 +135,28 @@ export function BillingView() {
             <span>{tr("byModel")}</span>
           </span>
         </div>
-        <div className="model-stack">
-          {p.models.map((m) => (
-            <div
-              key={m.id}
-              className="model-stack-seg"
-              style={{ width: `${m.pct}%`, background: "var(--primary-container)" }}
-            />
-          ))}
-        </div>
-        {p.models.map((m) => (
-          <div key={m.id} className="model-row">
-            <span>{m.id}</span>
-            <span className="mono">{m.pct}%</span>
-            <span className="mono">{fmtMoney(m.amount, lang)}</span>
-          </div>
-        ))}
+        {p.models.length === 0 ? (
+          <p style={{ fontSize: 12, color: "var(--on-surface-variant)", margin: 0 }}>{tr("gwWaiting")}</p>
+        ) : (
+          <>
+            <div className="model-stack">
+              {p.models.map((m) => (
+                <div
+                  key={m.id}
+                  className="model-stack-seg"
+                  style={{ width: `${Math.max(m.pct, 4)}%`, background: "var(--primary-container)" }}
+                />
+              ))}
+            </div>
+            {p.models.map((m) => (
+              <div key={m.id} className="model-row">
+                <span>{m.id}</span>
+                <span className="mono">{m.pct}%</span>
+                <span className="mono">{fmtMoney(m.amount, lang)}</span>
+              </div>
+            ))}
+          </>
+        )}
       </div>
 
       <div className="section-head">
@@ -169,18 +213,30 @@ export function BillingView() {
             </tr>
           </thead>
           <tbody>
-            {DEMO.BILL_LEDGER.map((row, i) => {
-              const app = DEMO.APPS.find((a) => a.id === row.appId);
-              return (
-                <tr key={i}>
-                  <td className="mono">{row.time}</td>
-                  <td>{app ? appName(lang, app) : row.appId}</td>
-                  <td className="mono">{row.modelId}</td>
-                  <td className="mono">{row.tokens.toLocaleString()}</td>
-                  <td className="mono">{fmtMoney(row.cost, lang)}</td>
-                </tr>
-              );
-            })}
+            {ledgerRows.length === 0 ? (
+              <tr>
+                <td colSpan={5} style={{ fontSize: 12, color: "var(--on-surface-variant)" }}>
+                  {tr("gwWaiting")}
+                </td>
+              </tr>
+            ) : (
+              ledgerRows.map((row, i) => {
+                const app = appForLedgerSlug(row.app_slug);
+                const time = new Date(row.ts_ms).toLocaleTimeString(lang === "zh" ? "zh-CN" : "en-US", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                });
+                return (
+                  <tr key={i}>
+                    <td className="mono">{time}</td>
+                    <td>{appName(lang, app)}</td>
+                    <td className="mono">{row.model}</td>
+                    <td className="mono">{(row.prompt_tokens + row.completion_tokens).toLocaleString()}</td>
+                    <td className="mono">{fmtMoney(row.cost_yuan, lang)}</td>
+                  </tr>
+                );
+              })
+            )}
           </tbody>
         </table>
       </div>

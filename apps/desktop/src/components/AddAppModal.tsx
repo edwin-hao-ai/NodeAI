@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { copyText } from "./ui/CopyButton";
 import { Modal } from "./ui/Modal";
-import { DEMO } from "../data/demo";
+import { APP_TEMPLATES } from "../lib/product/apps";
 import { useApp } from "../state/AppContext";
 
 interface AddAppModalProps {
@@ -9,7 +9,7 @@ interface AddAppModalProps {
   onClose: () => void;
 }
 
-type AppTemplate = (typeof DEMO.APP_TEMPLATES)[number];
+type AppTemplate = (typeof APP_TEMPLATES)[number];
 
 export function AddAppModal({ open, onClose }: AddAppModalProps) {
   const { lang, tr, gatewayBaseUrl, showToast } = useApp();
@@ -39,7 +39,7 @@ export function AddAppModal({ open, onClose }: AddAppModalProps) {
             </button>
           </div>
           <div className="app-pick-grid">
-            {DEMO.APP_TEMPLATES.map((t) => (
+            {APP_TEMPLATES.map((t) => (
               <button key={t.id} type="button" className="app-pick-card" onClick={() => setPicked(t)}>
                 <span
                   className="app-icon-wrap"

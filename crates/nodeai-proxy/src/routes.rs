@@ -1,15 +1,20 @@
 use axum::{
-    extract::State,
+    extract::{Path, State},
     http::{HeaderMap, StatusCode},
     response::{IntoResponse, Response},
-    routing::{get, post},
+    routing::{delete, get, post},
     Json, Router,
 };
+use axum::body::{to_bytes, Body};
 use nodeai_core::{CompressionProfile, ModelCatalogEntry, TrafficPath};
+use serde::Deserialize;
 use serde_json::{json, Value};
 
 use crate::auth::parse_nodeai_app_key;
+use crate::memory::MemoryRow;
 use crate::pipeline::parse_memory_header;
+use crate::usage::estimate_prompt_tokens;
+use crate::usage_capture::{record_chat_from_json_body, wrap_stream_for_usage};
 use crate::ProxyState;
 
 pub fn router() -> Router<ProxyState> {
@@ -17,6 +22,8 @@ pub fn router() -> Router<ProxyState> {
         .route("/health", get(health))
         .route("/v1/nodeai/usage", get(usage_stats))
         .route("/v1/nodeai/bonus", get(get_bonus).put(set_bonus))
+        .route("/v1/nodeai/memories", get(list_memories).post(create_memory))
+        .route("/v1/nodeai/memories/:id", delete(delete_memory))
         .route("/v1/nodeai/auth/login", post(cloud_login))
         .route("/v1/nodeai/auth/register", post(cloud_register))
         .route("/v1/models", get(list_models))
@@ -48,12 +55,98 @@ async fn health(State(state): State<ProxyState>) -> impl IntoResponse {
     }))
 }
 
-async fn usage_stats(State(state): State<ProxyState>) -> Json<Value> {
-    let snap = state.usage.full_snapshot();
-    Json(json!({
-        "apps": snap.apps,
-        "bonus": snap.bonus,
-    }))
+async fn usage_stats(State(state): State<ProxyState>, headers: HeaderMap) -> Json<Value> {
+    let plan = headers
+        .get("x-nodeai-plan")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("pro-trial");
+    let snap = state.usage.full_snapshot(plan);
+    Json(serde_json::to_value(snap).unwrap_or_else(|_| json!({})))
+}
+
+async fn list_memories(State(state): State<ProxyState>) -> impl IntoResponse {
+    match state.memory.list() {
+        Ok(rows) => Json(json!({ "memories": rows })).into_response(),
+        Err(err) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({ "error": err })),
+        )
+            .into_response(),
+    }
+}
+
+#[derive(Debug, Deserialize)]
+struct CreateMemoryBody {
+    tag: String,
+    text_zh: String,
+    #[serde(default)]
+    text_en: Option<String>,
+    #[serde(default)]
+    from_zh: Option<String>,
+    #[serde(default)]
+    from_en: Option<String>,
+}
+
+async fn create_memory(
+    State(state): State<ProxyState>,
+    Json(body): Json<CreateMemoryBody>,
+) -> impl IntoResponse {
+    let id = format!("m-{}", uuid_simple());
+    let today = chrono_lite_date();
+    let row = MemoryRow {
+        id: id.clone(),
+        tag: body.tag,
+        text_zh: body.text_zh.clone(),
+        text_en: body.text_en.unwrap_or(body.text_zh),
+        from_zh: body.from_zh.unwrap_or_else(|| "手动添加".into()),
+        from_en: body.from_en.unwrap_or_else(|| "Manual".into()),
+        created_at: today,
+    };
+    match state.memory.insert(&row) {
+        Ok(()) => (StatusCode::CREATED, Json(json!({ "memory": row }))).into_response(),
+        Err(err) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({ "error": err })),
+        )
+            .into_response(),
+    }
+}
+
+async fn delete_memory(
+    State(state): State<ProxyState>,
+    Path(id): Path<String>,
+) -> impl IntoResponse {
+    match state.memory.delete(&id) {
+        Ok(true) => StatusCode::NO_CONTENT.into_response(),
+        Ok(false) => (StatusCode::NOT_FOUND, Json(json!({ "error": "not found" }))).into_response(),
+        Err(err) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({ "error": err })),
+        )
+            .into_response(),
+    }
+}
+
+fn uuid_simple() -> String {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or(0);
+    format!("{nanos:x}")
+}
+
+fn chrono_lite_date() -> String {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let secs = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    let days = secs / 86_400;
+    let y = 1970 + (days / 365);
+    let m = ((days % 365) / 30 + 1).min(12);
+    let d = (days % 30 + 1).min(28);
+    format!("{y:04}-{m:02}-{d:02}")
 }
 
 async fn get_bonus(State(state): State<ProxyState>) -> Json<CompressionProfile> {
@@ -269,7 +362,7 @@ fn apply_request_pipeline(
     nodeai_core::resolve_request_model(body, intent, smart);
 
     let result = apply_bonus_pipeline(state, headers, body);
-    if let Err(err) = state.db.persist(&state.usage.full_snapshot()) {
+    if let Err(err) = state.db.persist(&state.usage.full_snapshot("pro-trial")) {
         tracing::warn!(%err, "usage db persist failed");
     }
     result
@@ -315,16 +408,19 @@ async fn chat_completions(
         .and_then(|m| m.as_str())
         .unwrap_or("unknown")
         .to_string();
-
-    if let Some(slug) = app_slug.as_deref() {
-        state.usage.record(slug);
-    }
+    let is_stream = body.get("stream").and_then(|v| v.as_bool()).unwrap_or(false);
+    let prompt_est = estimate_prompt_tokens(&body);
+    let slug = app_slug.clone().unwrap_or_else(|| "chat".to_string());
+    let path_label = match path {
+        TrafficPath::HostedQuota => "hosted",
+        TrafficPath::ByokLocal => "byok",
+    };
 
     let bonus = apply_request_pipeline(&state, &headers, &mut body);
 
     tracing::info!(?path, ?app_slug, %model, hosted_ready, "chat completion");
 
-    match path {
+    let response = match path {
         TrafficPath::HostedQuota => {
             let cloud_token = headers
                 .get("x-nodeai-cloud-token")
@@ -342,7 +438,7 @@ async fn chat_completions(
                     )
                     .await
                     {
-                        Ok(resp) => return attach_bonus_header(resp, &bonus),
+                        Ok(resp) => attach_bonus_header(resp, &bonus),
                         Err(err) => {
                             tracing::error!(%err, "NodeAI Cloud relay failed");
                             return cloud_error(&err).into_response();
@@ -353,10 +449,65 @@ async fn chat_completions(
             }
         }
         TrafficPath::ByokLocal => {
-            let slug = app_slug.unwrap_or_default();
-            byok_chat_completions(&state, &headers, body, &slug, bonus).await
+            byok_chat_completions(&state, &headers, body.clone(), &slug, bonus).await
         }
+    };
+
+    finalize_chat_response(
+        &state,
+        &body,
+        response,
+        &slug,
+        &model,
+        path_label,
+        prompt_est,
+        is_stream,
+    )
+    .await
+}
+
+async fn finalize_chat_response(
+    state: &ProxyState,
+    body: &Value,
+    response: Response,
+    app_slug: &str,
+    model: &str,
+    path: &str,
+    prompt_est: u64,
+    is_stream: bool,
+) -> Response {
+    let content_type = response
+        .headers()
+        .get(axum::http::header::CONTENT_TYPE)
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("")
+        .to_string();
+    let is_sse = is_stream || content_type.contains("text/event-stream");
+
+    if is_sse {
+        return wrap_stream_for_usage(
+            state.usage.clone(),
+            state.db.clone(),
+            app_slug.to_string(),
+            model.to_string(),
+            path.to_string(),
+            prompt_est,
+            response,
+        );
     }
+
+    let (parts, body_bytes) = response.into_parts();
+    let bytes = to_bytes(body_bytes, 8 * 1024 * 1024).await.unwrap_or_default();
+    record_chat_from_json_body(
+        &state.usage,
+        &state.db,
+        app_slug,
+        model,
+        path,
+        body,
+        &bytes,
+    );
+    Response::from_parts(parts, Body::from(bytes))
 }
 
 fn attach_bonus_header(

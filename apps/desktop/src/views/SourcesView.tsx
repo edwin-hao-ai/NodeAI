@@ -1,13 +1,24 @@
 import { PageHead, PageScroll } from "../components/ui/PageScroll";
-import { DEMO } from "../data/demo";
 import { useApp } from "../state/AppContext";
+
+const HOSTED_SOURCE = {
+  id: "nodeai",
+  name: { zh: "NodeAI 含额度", en: "NodeAI allowance" },
+  url: "gateway://nodeai",
+  status: { zh: "正常 · 经云端", en: "OK · via cloud" },
+};
 
 export function SourcesView() {
   const { lang, tr, modelSources, setSourceModalOpen } = useApp();
 
-  const hosted = DEMO.SOURCES.filter((s) => s.path === "hosted");
   const allSources = [
-    ...hosted.map((s) => ({ id: s.id, name: s.name[lang], url: s.url, path: s.path, status: s.status[lang] })),
+    {
+      id: HOSTED_SOURCE.id,
+      name: HOSTED_SOURCE.name[lang],
+      url: HOSTED_SOURCE.url,
+      path: "hosted" as const,
+      status: HOSTED_SOURCE.status[lang],
+    },
     ...modelSources.map((s) => ({
       id: s.id,
       name: s.name,
@@ -58,44 +69,12 @@ export function SourcesView() {
           <p style={{ fontSize: 12, color: "var(--on-surface-variant)", marginTop: 6 }}>{s.status}</p>
         </div>
       ))}
-      <button className="btn-add-app" type="button" onClick={() => setSourceModalOpen(true)}>
+      <button className="btn-add-app" type="button" style={{ marginTop: 8 }} onClick={() => setSourceModalOpen(true)}>
         <span className="material-symbols-outlined" style={{ fontSize: 20 }}>
           add
         </span>
-        <span>{tr("sourceAdd")}</span>
+        <span>{tr("addApp")}</span>
       </button>
-      <div className="privacy-callout" style={{ marginTop: 16 }}>
-        <strong>{tr("byokPrivacyTitle")}</strong>
-        <span>{tr("byokPrivacyBody")}</span>
-      </div>
-      <div
-        className="stat-card"
-        style={{ marginTop: 12, fontSize: 12, color: "var(--on-surface-variant)", lineHeight: 1.6 }}
-      >
-        {tr("sourcesNote")}
-      </div>
-      <div className="section-head" style={{ marginTop: 16 }}>
-        <span className="section-label">{tr("fallbackHostedTitle")}</span>
-      </div>
-      <div className="fallback-tier cloud-tier">
-        <strong>{tr("fbTier1")}</strong>
-        <span>{tr("fbTier1Sub")}</span>
-      </div>
-      <div className="fallback-tier cloud-tier">
-        <strong>{tr("fbTier3")}</strong>
-        <span>{tr("fbTier3Sub")}</span>
-      </div>
-      <div className="section-head" style={{ marginTop: 12 }}>
-        <span className="section-label">{tr("fallbackByokTitle")}</span>
-      </div>
-      <div className="fallback-tier local-tier">
-        <strong>{tr("fbTier2")}</strong>
-        <span>{tr("fbTier2Sub")}</span>
-      </div>
-      <div className="fallback-tier local-tier">
-        <strong>{tr("fbTierByok2")}</strong>
-        <span>{tr("fbTierByok2Sub")}</span>
-      </div>
     </PageScroll>
   );
 }

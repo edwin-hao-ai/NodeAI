@@ -1,12 +1,19 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import { PageHead, PageScroll } from "../components/ui/PageScroll";
-import { DEMO } from "../data/demo";
+import { emptyPeriodStats } from "../lib/bonusApi";
+import { BONUS_CARDS } from "../lib/product/bonusCards";
+import { loadBonusProfileLocal } from "../lib/bonusApi";
 import { fmtMoney, fmtRate, sparkAreaPath, sparkPath } from "../lib/format";
-import { appName, isExternalApp } from "../lib/route";
+import {
+  appName,
+  dailySpendBars,
+  isExternalApp,
+  lastSeenLabel,
+  liveAppsFromUsage,
+  recentRouteLines,
+  sparklineFromLedger,
+} from "../lib/route";
 import { useApp } from "../state/AppContext";
-
-const SPARK = [12, 18, 14, 22, 28, 24, 30, 26, 32, 28, 34, 30, 36, 32, 38, 34, 40, 36, 38, 34, 36, 32, 34, 30, 32, 28, 30, 26, 28, 24, 26, 22, 24, 20, 22, 18, 20, 16, 18, 16];
-const BAR_VALS = [18, 22, 20, 26, 24, 28, 32];
 
 function statusClass(s: string) {
   return s === "live" ? "live" : s === "new" ? "new" : "wait";
@@ -23,24 +30,27 @@ export function HubView() {
     markViewSavings,
     onboardDismissed,
     dismissOnboard,
-    setView,
     usageSnapshot,
   } = useApp();
 
-  const [routeLines, setRouteLines] = useState<
-    { appId: string; icon: string; color: string; cost: string }[]
-  >([]);
+  const bonusProfile = loadBonusProfileLocal();
+  const today = usageSnapshot?.periods?.today ?? emptyPeriodStats();
+  const budget = usageSnapshot?.budget;
+  const cap = budget?.cap_yuan ?? 48;
+  const used = budget?.used_yuan ?? today.spend_yuan;
+  const pct = cap > 0 ? used / cap : 0;
+  const ringOffset = 138 * (1 - Math.min(pct, 1));
+  const remain = Math.max(cap - used, 0);
+  const liveSaved = today.saved_yuan;
+  const liveApps = liveAppsFromUsage(usageSnapshot);
+  const routeLines = recentRouteLines(usageSnapshot, lang);
+  const spark = sparklineFromLedger(usageSnapshot);
+  const barVals = dailySpendBars(usageSnapshot);
+  const days =
+    lang === "zh"
+      ? ["一", "二", "三", "四", "五", "六", "日"]
+      : ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-  const pct = DEMO.BUDGET.used / DEMO.BUDGET.cap;
-  const ringOffset = 138 * (1 - pct);
-  const remain = DEMO.BUDGET.cap - DEMO.BUDGET.used;
-  const today = DEMO.BILL_PERIODS.today;
-  const liveSaved =
-    usageSnapshot?.bonus != null
-      ? usageSnapshot.bonus.save_compress_yuan +
-        usageSnapshot.bonus.save_concise_yuan +
-        today.saveRoute
-      : DEMO.BUDGET.saved;
   const liveCompressPct =
     usageSnapshot?.bonus?.rtk_tokens_saved && usageSnapshot.bonus.rtk_requests
       ? Math.min(
@@ -51,102 +61,58 @@ export function HubView() {
               100,
           ),
         )
-      : 34;
+      : 0;
 
   useEffect(() => {
     markViewSavings();
   }, [markViewSavings]);
 
-  useEffect(() => {
-    const seed = DEMO.APPS.filter((a) => a.status === "live").slice(0, 3).map((a) => ({
-      appId: a.id,
-      icon: a.icon,
-      color: a.color,
-      cost: fmtMoney(Math.random() * 0.02, lang),
-    }));
-    setRouteLines(seed);
-    const id = window.setInterval(() => {
-      const app = DEMO.APPS.filter((a) => a.status === "live")[
-        Math.floor(Math.random() * 3)
-      ];
-      if (!app) return;
-      setRouteLines((prev) =>
-        [{ appId: app.id, icon: app.icon, color: app.color, cost: fmtMoney(Math.random() * 0.02, lang) }, ...prev].slice(0, 6),
-      );
-    }, 4000);
-    return () => window.clearInterval(id);
-  }, [lang]);
-
   const onboardSteps = useMemo(() => {
-    const state = {
-      sendMsg: firstChatDone,
-      viewSavings: viewSavingsDone,
-      connect: cursorConnected || localMode,
-    };
-    return [
-      { k: "sendMsg", icon: "chat", label: tr("obStep1"), go: "chat" as const },
-      { k: "viewSavings", icon: "savings", label: tr("obStep2"), go: "hub" as const },
-      { k: "connect", icon: "cable", label: tr("obStep3"), go: "gateway" as const },
-    ].map((s) => ({ ...s, done: state[s.k as keyof typeof state] }));
+    const steps = [
+      { id: "chat", done: firstChatDone, label: tr("obStep1") },
+      { id: "savings", done: viewSavingsDone, label: tr("obStep2") },
+      {
+        id: "connect",
+        done: cursorConnected || localMode,
+        label: tr("obStep3"),
+      },
+    ];
+    const doneCount = steps.filter((s) => s.done).length;
+    return { steps, doneCount, total: steps.length };
   }, [firstChatDone, viewSavingsDone, cursorConnected, localMode, tr]);
 
-  const onboardDone = onboardSteps.filter((s) => s.done).length;
-  const showOnboard = !onboardDismissed && onboardDone < 3;
-
-  const days =
-    lang === "zh"
-      ? ["一", "二", "三", "四", "五", "六", "今"]
-      : ["M", "T", "W", "T", "F", "S", "Today"];
+  const externalLive = liveApps.filter((a) => isExternalApp(a) && a.status === "live");
+  const tokenRate =
+    today.requests > 0 ? Math.round(today.tokens / Math.max(today.requests, 1)) : 0;
 
   return (
     <PageScroll>
-      <PageHead title={tr("hubTitle")} compact />
+      <PageHead title={tr("hubTitle")} subtitle={tr("appsSub")} />
 
-      {showOnboard && (
+      {!onboardDismissed && onboardSteps.doneCount < onboardSteps.total && (
         <div className="onboard-card">
           <div className="onboard-head">
-            <div>
-              <strong>{tr("obCardTitle")}</strong>
-              <span className="onboard-progress">
-                {onboardDone} / 3
-              </span>
-            </div>
-            <button type="button" className="onboard-dismiss" onClick={dismissOnboard} aria-label="dismiss">
-              <span className="material-symbols-outlined" style={{ fontSize: 18 }}>
-                close
-              </span>
+            <strong>{tr("obCardTitle")}</strong>
+            <button type="button" className="onboard-dismiss" onClick={dismissOnboard}>
+              {tr("connectLater")}
             </button>
           </div>
           <div className="onboard-steps">
-            {onboardSteps.map((s) => (
-              <button
-                key={s.k}
-                type="button"
-                className={`onboard-step${s.done ? " done" : ""}`}
-                disabled={s.done}
-                onClick={() => setView(s.go)}
-              >
-                <span className="onboard-step-check">
-                  <span className="material-symbols-outlined">{s.done ? "check_circle" : s.icon}</span>
-                </span>
-                <span className="onboard-step-lbl">{s.label}</span>
-                {!s.done && (
-                  <span className="material-symbols-outlined onboard-step-arrow">chevron_right</span>
-                )}
-              </button>
+            {onboardSteps.steps.map((s) => (
+              <div key={s.id} className={`onboard-step${s.done ? " done" : ""}`}>
+                <span className="material-symbols-outlined">{s.done ? "check_circle" : "radio_button_unchecked"}</span>
+                <span>{s.label}</span>
+              </div>
             ))}
+          </div>
+          <div className="onboard-progress">
+            {onboardSteps.doneCount}/{onboardSteps.total}
           </div>
         </div>
       )}
 
-      <div className="hub-live-block">
-        <div className="section-head" style={{ marginBottom: 8 }}>
-          <span className="section-label" style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-            <span className="live-dot" />
-            <span>{tr("liveActivity")}</span>
-          </span>
-        </div>
-        <div className="hub-live-grid">
+      <div className="hub-live-grid">
+        <div className="hub-live-row">
           <div className="stat-card hub-live-budget">
             <div className="stat-lbl">{tr("monthBudget")}</div>
             <div className="budget-ring-wrap">
@@ -165,8 +131,8 @@ export function HubView() {
                 <div className="budget-num mono">{fmtMoney(remain, lang)}</div>
                 <div className="budget-sub">
                   <span>{tr("used")}</span>{" "}
-                  <span className="mono">{fmtMoney(DEMO.BUDGET.used, lang)}</span> /{" "}
-                  <span className="mono">{fmtMoney(DEMO.BUDGET.cap, lang)}</span>
+                  <span className="mono">{fmtMoney(used, lang)}</span> /{" "}
+                  <span className="mono">{fmtMoney(cap, lang)}</span>
                 </div>
               </div>
             </div>
@@ -174,8 +140,10 @@ export function HubView() {
           <div className="stat-card hub-live-spark">
             <div className="stat-lbl">{tr("tokenStream")}</div>
             <div className="spark-meta">
-              <span className="spark-rate mono">{fmtRate(1240)}</span>
-              <span style={{ fontSize: 10, color: "var(--on-surface-variant)" }}>live</span>
+              <span className="spark-rate mono">{fmtRate(tokenRate)}</span>
+              <span style={{ fontSize: 10, color: "var(--on-surface-variant)" }}>
+                {today.requests > 0 ? "live" : "—"}
+              </span>
             </div>
             <svg className="spark-svg" viewBox="0 0 260 40">
               <defs>
@@ -184,46 +152,65 @@ export function HubView() {
                   <stop offset="100%" stopColor="var(--primary)" stopOpacity="0" />
                 </linearGradient>
               </defs>
-              <path className="spark-area" d={sparkAreaPath(SPARK)} />
-              <path className="spark-line" d={sparkPath(SPARK)} />
-              <circle r="3" fill="var(--primary)" cx="260" cy={8} />
+              <path className="spark-area" d={sparkAreaPath(spark)} />
+              <path className="spark-line" d={sparkPath(spark)} />
+              {spark.some((v) => v > 0) && (
+                <circle r="3" fill="var(--primary)" cx="260" cy={8} />
+              )}
             </svg>
           </div>
           <div className="stat-card hub-live-apps">
             <div className="stat-lbl">{tr("connectedApps")}</div>
-            {DEMO.APPS.filter((a) => a.status === "live").map((a) => (
-              <div key={a.id} className="app-live">
-                <div className="app-live-head">
-                  <span>
-                    <span className="app-dot" style={{ background: a.color }} />
-                    {appName(lang, a)}
-                  </span>
-                  <span className="mono app-flow">{a.rate}/s</span>
-                </div>
-                <div className="app-bar">
-                  <div className="app-bar-fill" style={{ width: `${a.share}%`, background: a.color }} />
-                </div>
-              </div>
-            ))}
+            {liveApps.filter((a) => a.status === "live").length === 0 ? (
+              <p style={{ fontSize: 12, color: "var(--on-surface-variant)", margin: 0 }}>
+                {tr("gwWaiting")}
+              </p>
+            ) : (
+              liveApps
+                .filter((a) => a.status === "live")
+                .map((a) => (
+                  <div key={a.id} className="app-live">
+                    <div className="app-live-head">
+                      <span>
+                        <span className="app-dot" style={{ background: a.color }} />
+                        {appName(lang, a)}
+                      </span>
+                      <span className="mono app-flow">{a.requests} req</span>
+                    </div>
+                    <div className="app-bar">
+                      <div
+                        className="app-bar-fill"
+                        style={{ width: `${a.share}%`, background: a.color }}
+                      />
+                    </div>
+                  </div>
+                ))
+            )}
           </div>
         </div>
         <div className="stat-card hub-live-log">
           <div className="stat-lbl">{tr("routeLog")}</div>
           <div className="route-log">
-            {routeLines.map((line, i) => {
-              const app = DEMO.APPS.find((a) => a.id === line.appId);
-              if (!app) return null;
-              return (
-                <div key={i} className="route-line">
-                  <span className="material-symbols-outlined" style={{ color: line.color }}>
-                    {line.icon}
-                  </span>
-                  <span className="route-app">{appName(lang, app)}</span>
-                  <span className="material-symbols-outlined">auto_awesome</span>
-                  <span className="mono">{line.cost}</span>
-                </div>
-              );
-            })}
+            {routeLines.length === 0 ? (
+              <p style={{ fontSize: 12, color: "var(--on-surface-variant)", margin: 0 }}>
+                {tr("gwWaiting")}
+              </p>
+            ) : (
+              routeLines.map((line, i) => {
+                const app = liveApps.find((a) => a.id === line.appId);
+                if (!app) return null;
+                return (
+                  <div key={i} className="route-line">
+                    <span className="material-symbols-outlined" style={{ color: line.color }}>
+                      {line.icon}
+                    </span>
+                    <span className="route-app">{appName(lang, app)}</span>
+                    <span className="material-symbols-outlined">auto_awesome</span>
+                    <span className="mono">{line.cost}</span>
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
         <div className="savings-banner" style={{ marginTop: 10 }}>
@@ -234,15 +221,15 @@ export function HubView() {
               <span className="material-symbols-outlined" style={{ fontSize: 12, verticalAlign: -2 }}>
                 compress
               </span>{" "}
-              −{liveCompressPct}% ·{" "}
+              {liveCompressPct > 0 ? `−${liveCompressPct}%` : "—"} ·{" "}
               <span className="material-symbols-outlined" style={{ fontSize: 12, verticalAlign: -2 }}>
                 short_text
               </span>{" "}
-              {fmtMoney(usageSnapshot?.bonus?.save_concise_yuan ?? today.saveConcise, lang)} ·{" "}
+              {fmtMoney(today.save_concise_yuan, lang)} ·{" "}
               <span className="material-symbols-outlined" style={{ fontSize: 12, verticalAlign: -2 }}>
                 auto_awesome
               </span>{" "}
-              {fmtMoney(today.saveRoute, lang)}
+              {fmtMoney(today.save_route_yuan, lang)}
             </div>
             <div className="failover-pill ok">
               <span className="material-symbols-outlined" style={{ fontSize: 14 }}>
@@ -267,15 +254,18 @@ export function HubView() {
       <div className="grid-3">
         <div className="stat-card highlight">
           <div className="stat-lbl">{tr("savedToday")}</div>
-          <div className="stat-val savings-text mono">{fmtMoney(DEMO.BUDGET.saved, lang)}</div>
+          <div className="stat-val savings-text mono">{fmtMoney(liveSaved, lang)}</div>
           <div className="stat-foot">{tr("savedFoot")}</div>
         </div>
         <div className="stat-card">
           <div className="stat-lbl">{tr("tokenToday")}</div>
-          <div className="stat-val mono">{(DEMO.BUDGET.tokens / 1e6).toFixed(1)}M</div>
-          <div className="stat-foot mono">{lang === "zh" ? "智能压缩 −34%" : "Smart compress −34%"}</div>
-          <div className="stat-foot mono" style={{ marginTop: 2 }}>
-            {lang === "zh" ? "简洁回复 −12%" : "Concise replies −12%"}
+          <div className="stat-val mono">{(today.tokens / 1e6).toFixed(2)}M</div>
+          <div className="stat-foot mono">
+            {liveCompressPct > 0
+              ? lang === "zh"
+                ? `智能压缩 −${liveCompressPct}%`
+                : `Smart compress −${liveCompressPct}%`
+              : tr("gwWaiting")}
           </div>
         </div>
         <div className="stat-card">
@@ -294,24 +284,27 @@ export function HubView() {
         </span>
       </div>
       <div className="bonus-grid">
-        {DEMO.BONUS_ITEMS.map((b) => (
-          <div key={b.id} className={`bonus-card${b.on ? " on" : ""}${!b.on ? " soon" : ""}`}>
-            <span className="material-symbols-outlined">{b.icon}</span>
-            <strong>{b.name[lang]}</strong>
-            <span className="bonus-sub">{b.sub[lang]}</span>
-            <div className="bonus-meta">
-              <span>{b.on ? tr("bonusOn") : tr("capSoon")}</span>
+        {BONUS_CARDS.map((b) => {
+          const on = b.soon ? false : b.isOn(bonusProfile);
+          return (
+            <div key={b.id} className={`bonus-card${on ? " on" : ""}${b.soon ? " soon" : ""}`}>
+              <span className="material-symbols-outlined">{b.icon}</span>
+              <strong>{b.name[lang]}</strong>
+              <span className="bonus-sub">{b.sub[lang]}</span>
+              <div className="bonus-meta">
+                <span>{on ? tr("bonusOn") : tr("capSoon")}</span>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       <div className="grid-2">
         <div className="stat-card">
           <div className="stat-lbl">{tr("spend7d")}</div>
           <div className="bar-chart">
-            {BAR_VALS.map((v, i) => {
-              const max = Math.max(...BAR_VALS);
+            {barVals.map((v, i) => {
+              const max = Math.max(...barVals, 1);
               return (
                 <div key={i} className="bar-col">
                   <div className={`bar${i === 6 ? " today" : ""}`} style={{ height: `${(v / max) * 72}px` }} />
@@ -323,76 +316,75 @@ export function HubView() {
         </div>
         <div className="stat-card">
           <div className="stat-lbl">{tr("byApp")}</div>
-          <div className="donut-row">
-            <svg className="donut-svg" viewBox="0 0 72 72">
-              <circle cx="36" cy="36" r="28" fill="none" stroke="var(--outline-variant)" strokeWidth="8" />
-              <circle
-                cx="36"
-                cy="36"
-                r="28"
-                fill="none"
-                stroke="var(--app-cursor)"
-                strokeWidth="8"
-                strokeDasharray="176"
-                strokeDashoffset="100"
-              />
-            </svg>
-            <div className="legend">
-              {DEMO.APPS.filter((a) => a.share > 0).map((a) => (
-                <div key={a.id} className="legend-item">
-                  <span className="legend-dot" style={{ background: a.color }} />
-                  {appName(lang, a)}
-                  <span className="legend-pct mono">{a.share}%</span>
-                </div>
-              ))}
+          {externalLive.length === 0 ? (
+            <p style={{ fontSize: 12, color: "var(--on-surface-variant)" }}>{tr("gwWaiting")}</p>
+          ) : (
+            <div className="donut-row">
+              <svg className="donut-svg" viewBox="0 0 72 72">
+                <circle cx="36" cy="36" r="28" fill="none" stroke="var(--outline-variant)" strokeWidth="8" />
+                {externalLive.map((a, i) => (
+                  <circle
+                    key={a.id}
+                    cx="36"
+                    cy="36"
+                    r="28"
+                    fill="none"
+                    stroke={a.color.startsWith("var") ? "var(--primary)" : a.color}
+                    strokeWidth="8"
+                    strokeDasharray="176"
+                    strokeDashoffset={176 - (176 * a.share) / 100}
+                    transform={`rotate(${i * 40} 36 36)`}
+                  />
+                ))}
+              </svg>
+              <div className="legend">
+                {externalLive.map((a) => (
+                  <div key={a.id} className="legend-item">
+                    <span className="legend-dot" style={{ background: a.color }} />
+                    {appName(lang, a)}
+                    <span className="legend-pct mono">{a.share}%</span>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
 
-      <div className="section-head" style={{ marginTop: 8 }}>
-        <span className="section-label">{tr("apiCapsTitle")}</span>
-      </div>
-      <p style={{ fontSize: 12, color: "var(--on-surface-variant)", margin: "-4px 0 12px", lineHeight: 1.5 }}>
-        {tr("apiCapsSub")}
-      </p>
-      <div className="cap-grid">
-        {DEMO.API_CAPS.map((c) => (
-          <div key={c.id} className={`cap-card${c.on ? " on" : ""}`}>
-            <span className="material-symbols-outlined">{c.icon}</span>
-            <div className="cap-name">{c.name[lang]}</div>
-            <div className="cap-sub">{c.sub[lang]}</div>
-            <span className="cap-badge">{c.on ? tr("capOn") : tr("capSoon")}</span>
-          </div>
-        ))}
-      </div>
-
       <div className="section-label">{tr("appTraffic")}</div>
-      {DEMO.APPS.filter(isExternalApp).map((a) => (
+      {liveApps.filter(isExternalApp).map((a) => (
         <div key={a.id} className="app-card">
           <div className="app-card-head">
             <div className="app-card-name">
               <span className="app-dot" style={{ background: a.color }} />
               {appName(lang, a)}
             </div>
-            <span className={`app-status ${statusClass(a.status)}`}>{a.status === "live" ? "●" : "○"}</span>
+            <span className={`app-status ${statusClass(a.status)}`}>
+              {a.status === "live" ? "●" : "○"}
+            </span>
           </div>
           <div className="app-card-meta">
             <div>
               {tr("flow")}
-              <strong className="mono">{a.rate}/s</strong>
+              <strong className="mono">{a.requests} req</strong>
             </div>
             <div>
               {tr("todaySpend")}
-              <strong className="mono">{fmtMoney(a.today, lang)}</strong>
+              <strong className="mono">{fmtMoney(a.spendToday, lang)}</strong>
             </div>
             <div>
               {tr("lastActive")}
-              <strong>{a.lastSeen[lang]}</strong>
+              <strong>{lastSeenLabel(lang, a)}</strong>
             </div>
           </div>
         </div>
       ))}
+
+      {!usageSnapshot && (
+        <p style={{ fontSize: 12, color: "var(--on-surface-variant)", marginTop: 12 }}>
+          {tr("gwWaiting")}
+        </p>
+      )}
     </PageScroll>
   );
 }

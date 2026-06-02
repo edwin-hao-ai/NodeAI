@@ -45,7 +45,7 @@ NodeAI/
 | **429 Failover** | 设置 `failover` 开启时 Gateway 429/503 自动换 `gemini-2.5-flash` |
 | **Embeddings** | `POST /v1/embeddings` 经 Cloud relay（需 Session） |
 | **BYOK 路由** | `sources.json` + Keychain Key → proxy `X-NodeAI-Path: byok` 转发 |
-| **Cloud 鉴权** | Keychain session；`NODEAI_CLOUD_BASE_URL` 或 `NODEAI_CLOUD_DEV=1` → 本地 8788 |
+| **Cloud 鉴权** | Keychain session；默认 Cloud = `http://127.0.0.1:8788` |
 | **原生托盘** | macOS/Windows menu bar 图标 + 打开/退出 |
 | **Chat 附件** | 文件/图片 chips，多模态 messages |
 | **UI** | 模型目录（Cloud 价、厂商筛选吸顶）、设置↔bonus API、Hub/Billing/Menubar 读 live metrics |
@@ -54,19 +54,19 @@ NodeAI/
 
 ```bash
 # 终端 1：Cloud API（~/.nodeai/.env 需 AI_GATEWAY_API_KEY，仅服务端）
-NODEAI_CLOUD_DEV=1 cargo run -p nodeai-cloud --bin nodeai-cloud-dev
+cargo run -p nodeai-cloud --bin nodeai-cloud-dev --release
 
-# 终端 2：8787 边缘
-NODEAI_CLOUD_BASE_URL=http://127.0.0.1:8788 cargo run -p nodeai-proxy --bin nodeai-proxy-standalone
+# 终端 2：8787 边缘（可选；Tauri 内嵌代理时可省略）
+cargo run -p nodeai-proxy --bin nodeai-proxy-standalone --release
 
-# 桌面：Settings 登录 demo → 打开模型目录应见完整 registry
+# 桌面：侧栏登录 → 打开模型目录应见完整 registry
 ```
 
 ---
 
 ## 仍待做
 
-- NodeAI Cloud **生产**部署（当前 `nodeai-cloud-dev` 为本地 stub）
+| ☐ | NodeAI Cloud **远程生产**部署（当前仅 localhost:8788） |
 - `nodeai-runtime` 格式转换、Agent 工具确认
 - macOS/Windows CI 打包签名
 

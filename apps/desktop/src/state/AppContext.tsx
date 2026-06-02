@@ -8,16 +8,16 @@ import {
   type ReactNode,
 } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { DEMO } from "../data/demo";
 import {
-  addMemory as pushMemory,
-  loadMemories,
+  createMemory,
+  fetchMemories,
   type MemoryItem,
   type MemoryTag,
 } from "../lib/memoryStore";
 import {
-  countRouteApps,
+  countConnectedApps,
   getRouteLineShort,
+  isCursorConnected,
   type RouteState,
 } from "../lib/route";
 import { fetchGatewayCatalog, fetchGatewayHealth, isLiveGatewayCatalog, type GatewayCatalogEntry, type CloudHealth } from "../lib/gateway";
@@ -27,9 +27,10 @@ import {
   saveStoredCloudUser,
   signInViaProxy,
   registerViaProxy,
+  clearStoredCloudUser,
   type CloudUser,
 } from "../lib/cloudAuth";
-import { getCloudSession, saveCloudSession } from "../lib/cloudSession";
+import { clearCloudSession, getCloudSession, saveCloudSession } from "../lib/cloudSession";
 import { findProductIntent, PRODUCT_INTENTS } from "../lib/product/intents";
 import { syncModelSources } from "../lib/sourcesSync";
 import { findCatalogModel } from "../lib/catalog";
@@ -119,6 +120,7 @@ interface AppContextValue extends RouteState {
   closeAuth: () => void;
   signInWithCloud: (email: string, password: string) => Promise<boolean>;
   signUpWithCloud: (email: string, password: string) => Promise<boolean>;
+  signOutWithCloud: () => Promise<void>;
   showToast: (msg: string) => void;
   tr: (key: I18nKey) => string;
   routeLine: string;
@@ -155,17 +157,11 @@ function loadViewSavingsDone(): boolean {
 function loadModelSources(): ModelSource[] {
   try {
     const raw = JSON.parse(localStorage.getItem(STORAGE_SOURCES) || "[]");
-    if (Array.isArray(raw)) return raw;
+    if (Array.isArray(raw) && raw.length) return raw;
   } catch {
     /* ignore */
   }
-  return DEMO.SOURCES.filter((s) => s.path === "local").map((s) => ({
-    id: s.id,
-    name: s.name.zh,
-    url: s.url,
-    format: s.format,
-    hasKey: true,
-  }));
+  return [];
 }
 
 function loadRoute(): Pick<RouteState, "smartRouteEnabled" | "activeGatewayModel" | "activeIntent"> {
@@ -208,7 +204,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const raw = parseInt(localStorage.getItem(STORAGE_PORT) || "", 10);
     return Number.isFinite(raw) && raw >= 1024 && raw <= 65535 ? raw : DEFAULT_PORT;
   });
-  const [cursorConnected, setCursorConnected] = useState(
+  const [cursorConnectedManual, setCursorConnectedManual] = useState(
     () => localStorage.getItem(STORAGE_CURSOR) === "1",
   );
   const [localMode] = useState(
@@ -229,7 +225,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     () => localStorage.getItem(STORAGE_FIRST_CHAT) === "1",
   );
   const [viewSavingsDone, setViewSavingsDone] = useState(loadViewSavingsDone);
-  const [memories, setMemories] = useState<MemoryItem[]>(() => loadMemories());
+  const [memories, setMemories] = useState<MemoryItem[]>([]);
   const [modelSources, setModelSources] = useState<ModelSource[]>(() => loadModelSources());
   const [celebrateOpen, setCelebrateOpen] = useState(false);
   const [catalogOpen, setCatalogOpen] = useState(false);
@@ -330,7 +326,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
     const load = async () => {
       try {
-        const snap = await fetchUsageSnapshot(gatewayBaseUrl);
+        const snap = await fetchUsageSnapshot(gatewayBaseUrl, cloudUser?.plan);
         if (!cancelled) setUsageSnapshot(snap);
       } catch {
         if (!cancelled) setUsageSnapshot(null);
@@ -342,7 +338,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
       cancelled = true;
       window.clearInterval(id);
     };
+  }, [gatewayBaseUrl, proxy?.running, cloudUser?.plan]);
+
+  useEffect(() => {
+    if (!proxy?.running) return;
+    let cancelled = false;
+    void fetchMemories(gatewayBaseUrl).then((rows) => {
+      if (!cancelled) setMemories(rows);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [gatewayBaseUrl, proxy?.running]);
+
+  const cursorConnected = useMemo(
+    () => isCursorConnected(usageSnapshot) || cursorConnectedManual,
+    [usageSnapshot, cursorConnectedManual],
+  );
 
   const showToast = useCallback((msg: string) => {
     setToast(msg);
@@ -374,7 +386,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
             showToast(
               t(lang, "toastRouteApplied")
                 .replace("{line}", getRouteLineShort(lang, done, gatewayCatalog, cloudConfigured))
-                .replace("{n}", String(countRouteApps(cursorConnected))),
+                .replace("{n}", String(countConnectedApps(usageSnapshot))),
             );
             return done;
           });
@@ -383,7 +395,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setRoute((r) => finish(r));
       }
     },
-    [lang, cursorConnected, persistRoute, showToast, gatewayCatalog, cloudConfigured],
+    [lang, usageSnapshot, persistRoute, showToast, gatewayCatalog, cloudConfigured],
   );
 
   const selectIntent = useCallback(
@@ -467,7 +479,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     () => getRouteLineShort(lang, route, gatewayCatalog, cloudConfigured),
     [lang, route, gatewayCatalog, cloudConfigured],
   );
-  const routeAppCount = useMemo(() => countRouteApps(cursorConnected), [cursorConnected]);
+  const routeAppCount = useMemo(
+    () => countConnectedApps(usageSnapshot),
+    [usageSnapshot],
+  );
 
   const markViewSavings = useCallback(() => {
     try {
@@ -481,33 +496,33 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const rememberText = useCallback(
-    (text: string, tag: MemoryTag = "pref") => {
+    async (text: string, tag: MemoryTag = "pref") => {
       const trimmed = text.trim();
       if (!trimmed) return;
-      const next = pushMemory({
-        tag,
-        text: { zh: trimmed, en: trimmed },
-        from: { zh: "NodeAI 对话", en: "NodeAI Chat" },
-      });
-      setMemories(next);
-      showToast(t(lang, "toastRemembered"));
+      const item = await createMemory(gatewayBaseUrl, trimmed, tag, lang);
+      if (item) {
+        setMemories((prev) => [item, ...prev]);
+        showToast(t(lang, "toastRemembered"));
+      } else {
+        showToast(t(lang, "toastChatFailed"));
+      }
     },
-    [lang, showToast],
+    [gatewayBaseUrl, lang, showToast],
   );
 
   const addMemoryManual = useCallback(
-    (text: string, tag: MemoryTag) => {
+    async (text: string, tag: MemoryTag) => {
       const trimmed = text.trim();
       if (!trimmed) return;
-      const next = pushMemory({
-        tag,
-        text: { zh: trimmed, en: trimmed },
-        from: { zh: "手动添加", en: "Added manually" },
-      });
-      setMemories(next);
-      showToast(t(lang, "toastRemembered"));
+      const item = await createMemory(gatewayBaseUrl, trimmed, tag, lang);
+      if (item) {
+        setMemories((prev) => [item, ...prev]);
+        showToast(t(lang, "toastRemembered"));
+      } else {
+        showToast(t(lang, "toastChatFailed"));
+      }
     },
-    [lang, showToast],
+    [gatewayBaseUrl, lang, showToast],
   );
 
   const addModelSource = useCallback((source: ModelSource) => {
@@ -567,6 +582,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const signUpWithCloud = useCallback(
     async (email: string, password: string) => {
+      if (password.length < 6) {
+        showToast(tr("authPasswordMin"));
+        return false;
+      }
       const reg = await registerViaProxy(gatewayBaseUrl, email, password);
       if (!reg.ok) {
         showToast(reg.error || t(lang, "toastRegisterFailed"));
@@ -574,8 +593,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
       return signInWithCloud(email, password);
     },
-    [gatewayBaseUrl, lang, showToast, signInWithCloud],
+    [gatewayBaseUrl, lang, showToast, signInWithCloud, tr],
   );
+
+  const signOutWithCloud = useCallback(async () => {
+    try {
+      await clearCloudSession();
+    } catch {
+      /* keychain optional */
+    }
+    clearStoredCloudUser();
+    setCloudSession(null);
+    setCloudUser(null);
+    setGatewayCatalog(null);
+  }, []);
 
   const value = useMemo<AppContextValue>(
     () => ({
@@ -618,7 +649,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setGatewayPort,
       setCursorConnected: (v: boolean) => {
         localStorage.setItem(STORAGE_CURSOR, v ? "1" : "0");
-        setCursorConnected(v);
+        setCursorConnectedManual(v);
       },
       dismissRoiBanner: () => {
         localStorage.setItem(STORAGE_ROI, "1");
@@ -651,6 +682,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       closeAuth,
       signInWithCloud,
       signUpWithCloud,
+      signOutWithCloud,
       showToast,
       tr,
       routeLine,
@@ -695,6 +727,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       closeAuth,
       signInWithCloud,
       signUpWithCloud,
+      signOutWithCloud,
       toggleSmartRoute,
       selectIntent,
       selectGatewayModel,

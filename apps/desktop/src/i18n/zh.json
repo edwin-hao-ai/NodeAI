@@ -486,6 +486,7 @@
   "authLoginSub": "14 天专业版试用，无需信用卡",
   "authEmail": "邮箱",
   "authPassword": "密码",
+  "authPasswordMin": "密码至少 6 位",
   "authLoginBtn": "登录",
   "authRegBtn": "创建账号",
   "authGoReg": "没有账号？注册",

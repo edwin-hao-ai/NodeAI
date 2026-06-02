@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { DEMO } from "../data/demo";
 import { getStarterPrompts } from "../data/chatStarters";
+import { fmtMoney } from "../lib/format";
 import { streamChatCompletion } from "../lib/chat";
 import type { ChatAttachment } from "../lib/chat/attachments";
 import { fileToAttachment } from "../lib/chat/attachments";
@@ -31,6 +31,8 @@ function markOnboardSendMsg() {
   }
 }
 
+const CHAT_STORAGE = "nodeai-chat-messages";
+
 export function ChatView() {
   const {
     tr,
@@ -53,6 +55,7 @@ export function ChatView() {
     memories,
     cloudSession,
     localMode,
+    usageSnapshot,
     openAuth,
     showToast,
   } = useApp();
@@ -64,7 +67,18 @@ export function ChatView() {
   const [ctxOpen, setCtxOpen] = useState(false);
   const [input, setInput] = useState("");
   const [startersHidden, setStartersHidden] = useState(firstChatDone);
-  const [extraMessages, setExtraMessages] = useState<ChatMessage[]>([]);
+  const [extraMessages, setExtraMessages] = useState<ChatMessage[]>(() => {
+    try {
+      const raw = localStorage.getItem(CHAT_STORAGE);
+      if (raw) {
+        const parsed = JSON.parse(raw) as ChatMessage[];
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch {
+      /* ignore */
+    }
+    return [];
+  });
   const [sending, setSending] = useState(false);
   const [wsOpen, setWsOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -72,10 +86,12 @@ export function ChatView() {
   const streamCancelRef = useRef<(() => void) | null>(null);
 
   const starterPrompts = getStarterPrompts(lang, "both");
-  const savedLabel =
-    lang === "zh"
-      ? `¥${DEMO.BUDGET.saved.toFixed(2)}`
-      : `¥${DEMO.BUDGET.saved.toFixed(2)}`;
+  const savedLabel = fmtMoney(usageSnapshot?.periods?.today?.saved_yuan ?? 0, lang);
+
+  useEffect(() => {
+    const done = extraMessages.filter((m) => !("streaming" in m && m.streaming));
+    if (done.length) localStorage.setItem(CHAT_STORAGE, JSON.stringify(done));
+  }, [extraMessages]);
 
   const scrollToBottom = useCallback(() => {
     const el = scrollRef.current;
@@ -342,45 +358,11 @@ export function ChatView() {
       <div className="chat-body">
         <div className="chat-scroll" ref={scrollRef}>
           <div className="chat-inner">
-            <div className="msg user">
-              <div className="msg-role">{tr("you")}</div>
-              <div className="msg-body">
-                <p>{tr("demoUser")}</p>
+            {extraMessages.length === 0 && !firstChatDone && (
+              <div className="chat-empty-hint" style={{ fontSize: 13, color: "var(--on-surface-variant)", padding: "12px 0" }}>
+                {tr("startersHead")}
               </div>
-            </div>
-            <div className="msg assistant">
-              <div className="msg-role">NodeAI</div>
-              <div className="msg-body">
-                <p>{tr("demoAssist1")}</p>
-                <div className="tool-card">
-                  <span className="material-symbols-outlined">folder_open</span>
-                  <div>
-                    <div className="tool-name">{tr("toolRead")}</div>
-                    <div className="tool-detail">~/Documents/NodeAI/README.md · 248 lines</div>
-                  </div>
-                </div>
-                <div className="tool-card">
-                  <span className="material-symbols-outlined">edit_document</span>
-                  <div>
-                    <div className="tool-name">{tr("toolWrite")}</div>
-                    <div className="tool-detail">~/Documents/NodeAI/README.md · +Install section</div>
-                  </div>
-                </div>
-                <p>{tr("demoAssist2")}</p>
-                <div className="msg-actions">
-                  <button
-                    type="button"
-                    className="remember-btn"
-                    onClick={() => rememberText(tr("demoAssist2"))}
-                  >
-                    <span className="material-symbols-outlined" style={{ fontSize: 14 }}>
-                      bookmark_add
-                    </span>
-                    <span>{tr("rememberThis")}</span>
-                  </button>
-                </div>
-              </div>
-            </div>
+            )}
             {extraMessages.map((msg) =>
               msg.role === "user" ? (
                 <div key={msg.id} className="msg user">

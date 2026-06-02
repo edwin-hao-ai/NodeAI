@@ -1,4 +1,4 @@
-import { DEMO } from "../data/demo";
+import { fmtMoney } from "../lib/format";
 import { useApp } from "../state/AppContext";
 
 interface CelebrateModalProps {
@@ -7,8 +7,9 @@ interface CelebrateModalProps {
 }
 
 export function CelebrateModal({ open, onClose }: CelebrateModalProps) {
-  const { tr, lang, setView } = useApp();
-  const saved = lang === "zh" ? `+¥${DEMO.BUDGET.today.toFixed(2)}` : `+¥${DEMO.BUDGET.today.toFixed(2)}`;
+  const { tr, lang, setView, usageSnapshot } = useApp();
+  const savedVal = usageSnapshot?.periods?.today?.saved_yuan ?? 0;
+  const saved = fmtMoney(savedVal, lang);
 
   if (!open) return null;
 
@@ -28,7 +29,7 @@ export function CelebrateModal({ open, onClose }: CelebrateModalProps) {
         </div>
         <h2>{tr("celebrateTitle")}</h2>
         <p>{tr("celebrateSub")}</p>
-        <div className="celebrate-stat mono">{saved}</div>
+        <div className="celebrate-stat mono">+{saved}</div>
         <p style={{ fontSize: 12, color: "var(--on-surface-variant)", marginBottom: 16 }}>
           {tr("celebrateFoot")}
         </p>

@@ -1,12 +1,11 @@
 import type { Lang } from "../i18n";
-import { DEMO } from "../data/demo";
 
 export function fmtMoney(n: number, lang: Lang = "zh"): string {
   return lang === "zh" ? `¥${n.toFixed(2)}` : `¥${n.toFixed(2)}`;
 }
 
-export function budgetRemain(): number {
-  return DEMO.BUDGET.cap - DEMO.BUDGET.used;
+export function budgetRemain(cap: number, used: number): number {
+  return Math.max(cap - used, 0);
 }
 
 export function fmtTokens(n: number): string {

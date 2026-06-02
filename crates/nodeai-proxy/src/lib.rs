@@ -10,11 +10,13 @@ pub mod auth;
 pub mod byok;
 pub mod cloud;
 pub mod gateway;
+mod memory;
 mod pipeline;
 pub mod routes;
 mod smart_route;
 mod store;
 mod usage;
+mod usage_capture;
 
 #[derive(Clone)]
 pub struct ProxyState {
@@ -27,6 +29,7 @@ pub struct ProxyState {
     pub gateway: Option<GatewayConfig>,
     pub cloud: CloudConfig,
     pub db: Arc<store::UsageDb>,
+    pub memory: Arc<memory::MemoryDb>,
 }
 
 pub struct ProxyHandle {
@@ -72,6 +75,13 @@ pub async fn start(config: ProxyConfig) -> Result<ProxyHandle, std::io::Error> {
     if let Err(err) = db.init() {
         tracing::warn!(%err, path = ?db.path(), "usage db init failed");
     }
+    let memory_path = db.path().parent().unwrap_or(std::path::Path::new(".")).join("memory.db");
+    let memory = Arc::new(
+        memory::MemoryDb::open(memory_path).unwrap_or_else(|err| {
+            tracing::warn!(%err, "memory db init failed");
+            memory::MemoryDb::open(std::path::PathBuf::from(":memory:")).expect("in-memory db")
+        }),
+    );
     let usage = usage::UsageStore::default();
     if let Err(err) = db.hydrate(&usage) {
         tracing::warn!(%err, "usage db hydrate failed");
@@ -89,6 +99,7 @@ pub async fn start(config: ProxyConfig) -> Result<ProxyHandle, std::io::Error> {
         gateway,
         cloud,
         db,
+        memory,
     };
 
     let app = Router::new()

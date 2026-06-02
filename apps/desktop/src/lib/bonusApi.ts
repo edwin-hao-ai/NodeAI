@@ -16,9 +16,61 @@ export interface BonusTotals {
   save_concise_yuan: number;
 }
 
+export interface LedgerEntry {
+  ts_ms: number;
+  app_slug: string;
+  model: string;
+  path: string;
+  prompt_tokens: number;
+  completion_tokens: number;
+  cost_yuan: number;
+}
+
+export interface AppStats {
+  requests: number;
+  prompt_tokens: number;
+  completion_tokens: number;
+  spend_yuan: number;
+  last_seen_ms: number;
+}
+
+export interface ModelSpend {
+  model: string;
+  amount_yuan: number;
+  tokens: number;
+  requests: number;
+}
+
+export interface PeriodStats {
+  spend_yuan: number;
+  saved_yuan: number;
+  tokens: number;
+  requests: number;
+  save_compress_yuan: number;
+  save_concise_yuan: number;
+  save_route_yuan: number;
+  by_model: ModelSpend[];
+}
+
+export interface PeriodBundle {
+  today: PeriodStats;
+  week: PeriodStats;
+  month: PeriodStats;
+}
+
+export interface BudgetSnapshot {
+  cap_yuan: number;
+  used_yuan: number;
+  plan: string;
+}
+
 export interface UsageSnapshot {
   apps: Record<string, number>;
+  app_stats?: Record<string, AppStats>;
   bonus: BonusTotals;
+  ledger?: LedgerEntry[];
+  periods?: PeriodBundle;
+  budget?: BudgetSnapshot;
 }
 
 export const DEFAULT_BONUS_PROFILE: CompressionProfile = {
@@ -69,9 +121,14 @@ export async function syncBonusProfile(baseUrl: string, profile: CompressionProf
   }
 }
 
-export async function fetchUsageSnapshot(baseUrl: string): Promise<UsageSnapshot | null> {
+export async function fetchUsageSnapshot(
+  baseUrl: string,
+  plan?: string,
+): Promise<UsageSnapshot | null> {
   try {
-    const resp = await fetch(`${baseUrl.replace(/\/$/, "")}/nodeai/usage`);
+    const headers: Record<string, string> = {};
+    if (plan) headers["X-NodeAI-Plan"] = plan;
+    const resp = await fetch(`${baseUrl.replace(/\/$/, "")}/nodeai/usage`, { headers });
     if (!resp.ok) return null;
     return (await resp.json()) as UsageSnapshot;
   } catch {
@@ -97,5 +154,18 @@ export function parseBonusHeader(header: string | null): {
     saved: Number(parts.saved) || 0,
     caveman: parts.caveman === "1",
     memory: parts.memory === "1",
+  };
+}
+
+export function emptyPeriodStats(): PeriodStats {
+  return {
+    spend_yuan: 0,
+    saved_yuan: 0,
+    tokens: 0,
+    requests: 0,
+    save_compress_yuan: 0,
+    save_concise_yuan: 0,
+    save_route_yuan: 0,
+    by_model: [],
   };
 }

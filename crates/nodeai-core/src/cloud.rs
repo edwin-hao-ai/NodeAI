@@ -1,7 +1,8 @@
-/// Production NodeAI Cloud API (override with NODEAI_CLOUD_BASE_URL).
-pub const DEFAULT_CLOUD_BASE_URL: &str = "https://api.nodeai.app";
+/// Default NodeAI Cloud API — local dev server (`nodeai-cloud-dev` on :8788).
+/// Override with `NODEAI_CLOUD_BASE_URL` when staging/production exists.
+pub const DEFAULT_CLOUD_BASE_URL: &str = "http://127.0.0.1:8788";
 
-/// Resolve Cloud API base URL: env override → dev localhost → built-in production URL.
+/// Resolve Cloud API base URL: env override → built-in localhost.
 pub fn cloud_base_url_from_env() -> String {
     if let Some(url) = std::env::var("NODEAI_CLOUD_BASE_URL")
         .ok()
@@ -9,12 +10,6 @@ pub fn cloud_base_url_from_env() -> String {
         .filter(|s| !s.is_empty())
     {
         return url;
-    }
-    let dev = std::env::var("NODEAI_CLOUD_DEV")
-        .ok()
-        .is_some_and(|v| v == "1" || v.eq_ignore_ascii_case("true"));
-    if dev {
-        return "http://127.0.0.1:8788".into();
     }
     DEFAULT_CLOUD_BASE_URL.to_string()
 }
