@@ -23,7 +23,7 @@ pub fn router() -> Router<ProxyState> {
         .route("/v1/nodeai/usage", get(usage_stats))
         .route("/v1/nodeai/bonus", get(get_bonus).put(set_bonus))
         .route("/v1/nodeai/memories", get(list_memories).post(create_memory))
-        .route("/v1/nodeai/memories/:id", delete(delete_memory))
+        .route("/v1/nodeai/memories/{id}", delete(delete_memory))
         .route("/v1/nodeai/auth/login", post(cloud_login))
         .route("/v1/nodeai/auth/register", post(cloud_register))
         .route("/v1/models", get(list_models))
@@ -34,13 +34,22 @@ pub fn router() -> Router<ProxyState> {
 async fn health(State(state): State<ProxyState>) -> impl IntoResponse {
     let profile = state.bonus.get_profile();
     let bonus = state.usage.bonus_totals();
+    let base = state.cloud.base_url.clone();
+    let reachable = nodeai_core::cloud_api_reachable(&base);
+    let gateway_registry = if reachable {
+        probe_cloud_gateway_registry(&base).await
+    } else {
+        false
+    };
     Json(json!({
         "ok": true,
         "service": "nodeai-proxy",
         "cloud": {
-            "configured": true,
+            "reachable": reachable,
+            "configured": reachable && gateway_registry,
             "dev_local": state.cloud.dev_local(),
-            "base_url": state.cloud.base_url,
+            "base_url": base,
+            "gateway_registry": gateway_registry,
             "models": state.catalog.len(),
         },
         "gateway": {
@@ -53,6 +62,28 @@ async fn health(State(state): State<ProxyState>) -> impl IntoResponse {
             "metrics": bonus,
         }
     }))
+}
+
+async fn probe_cloud_gateway_registry(base_url: &str) -> bool {
+    let url = format!("{}/health", base_url.trim_end_matches('/'));
+    let client = match reqwest::Client::builder()
+        .timeout(std::time::Duration::from_millis(1200))
+        .build()
+    {
+        Ok(c) => c,
+        Err(_) => return false,
+    };
+    let Ok(resp) = client.get(&url).send().await else {
+        return false;
+    };
+    if !resp.status().is_success() {
+        return false;
+    }
+    resp.json::<Value>()
+        .await
+        .ok()
+        .and_then(|v| v.get("gateway_registry").and_then(|x| x.as_bool()))
+        .unwrap_or(false)
 }
 
 async fn usage_stats(State(state): State<ProxyState>, headers: HeaderMap) -> Json<Value> {
