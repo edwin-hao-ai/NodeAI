@@ -19,7 +19,7 @@ pub fn router() -> Router<ProxyState> {
         .route("/v1/nodeai/bonus", get(get_bonus).put(set_bonus))
         .route("/v1/models", get(list_models))
         .route("/v1/chat/completions", post(chat_completions))
-        .route("/v1/embeddings", post(not_implemented))
+        .route("/v1/embeddings", post(embeddings))
 }
 
 async fn health(State(state): State<ProxyState>) -> impl IntoResponse {
@@ -172,7 +172,15 @@ async fn chat_completions(
     match path {
         TrafficPath::HostedQuota => {
             if let Some(gw) = state.gateway.as_ref() {
-                match crate::gateway::chat_completions(gw, &body, app_slug.as_deref()).await {
+                let failover = state.bonus.get_profile().failover;
+                match crate::gateway::chat_completions(
+                    gw,
+                    &body,
+                    app_slug.as_deref(),
+                    failover,
+                )
+                .await
+                {
                     Ok(resp) => return attach_bonus_header(resp, &bonus),
                     Err(err) => {
                         tracing::error!(%err, "AI Gateway chat forward failed");
@@ -333,16 +341,20 @@ async fn forward_byok_upstream(
         .map_err(|e| e.to_string())
 }
 
-async fn not_implemented() -> impl IntoResponse {
-    (
-        StatusCode::NOT_IMPLEMENTED,
-        Json(json!({
-            "error": {
-                "message": "Endpoint planned for a later MVP milestone.",
-                "type": "not_implemented"
+async fn embeddings(
+    State(state): State<ProxyState>,
+    Json(body): Json<Value>,
+) -> Response {
+    if let Some(gw) = state.gateway.as_ref() {
+        match crate::gateway::embeddings(gw, &body).await {
+            Ok(resp) => return resp,
+            Err(err) => {
+                tracing::error!(%err, "AI Gateway embeddings forward failed");
+                return gateway_error(&err).into_response();
             }
-        })),
-    )
+        }
+    }
+    hosted_quota_unavailable().into_response()
 }
 
 #[cfg(test)]

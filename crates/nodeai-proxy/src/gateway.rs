@@ -5,6 +5,12 @@ use nodeai_core::{GatewayConfig, ModelCatalogEntry};
 use reqwest::Client;
 use serde_json::{json, Value};
 
+pub const DEFAULT_FAILOVER_MODEL: &str = "google/gemini-2.5-flash";
+
+pub fn is_failover_status(status: StatusCode) -> bool {
+    matches!(status.as_u16(), 429 | 503)
+}
+
 pub async fn fetch_models(gw: &GatewayConfig) -> Result<Vec<ModelCatalogEntry>, String> {
     let url = format!("{}/models", gw.base_url.trim_end_matches('/'));
     let client = Client::new();
@@ -37,12 +43,13 @@ pub async fn fetch_models(gw: &GatewayConfig) -> Result<Vec<ModelCatalogEntry>, 
     Ok(models)
 }
 
-pub async fn chat_completions(
+async fn forward_json_post(
     gw: &GatewayConfig,
+    path: &str,
     body: &Value,
     app_slug: Option<&str>,
 ) -> Result<Response<Body>, String> {
-    let url = format!("{}/chat/completions", gw.base_url.trim_end_matches('/'));
+    let url = format!("{}/{}", gw.base_url.trim_end_matches('/'), path);
     let client = Client::new();
     let mut req = client
         .post(&url)
@@ -87,10 +94,66 @@ pub async fn chat_completions(
         .map_err(|e| e.to_string())
 }
 
+fn with_failover_header(resp: Response<Body>, failovered: bool) -> Response<Body> {
+    if !failovered {
+        return resp;
+    }
+    let (mut parts, body) = resp.into_parts();
+    parts
+        .headers
+        .insert("x-nodeai-failover", "1".parse().unwrap_or_else(|_| "1".parse().unwrap()));
+    Response::from_parts(parts, body)
+}
+
+pub async fn chat_completions(
+    gw: &GatewayConfig,
+    body: &Value,
+    app_slug: Option<&str>,
+    failover_enabled: bool,
+) -> Result<Response<Body>, String> {
+    let original_model = body
+        .get("model")
+        .and_then(|m| m.as_str())
+        .unwrap_or("")
+        .to_string();
+
+    let resp = forward_json_post(gw, "chat/completions", body, app_slug).await?;
+    let status = resp.status();
+
+    if failover_enabled
+        && is_failover_status(status)
+        && original_model != DEFAULT_FAILOVER_MODEL
+    {
+        tracing::warn!(
+            status = %status,
+            %original_model,
+            fallback = DEFAULT_FAILOVER_MODEL,
+            "gateway failover retry"
+        );
+        let mut retry_body = body.clone();
+        retry_body["model"] = json!(DEFAULT_FAILOVER_MODEL);
+        let retry = forward_json_post(gw, "chat/completions", &retry_body, app_slug).await?;
+        return Ok(with_failover_header(retry, true));
+    }
+
+    Ok(with_failover_header(resp, false))
+}
+
+pub async fn embeddings(gw: &GatewayConfig, body: &Value) -> Result<Response<Body>, String> {
+    forward_json_post(gw, "embeddings", body, None).await
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use nodeai_core::load_dotenv;
+
+    #[test]
+    fn detects_failover_status_codes() {
+        assert!(is_failover_status(StatusCode::TOO_MANY_REQUESTS));
+        assert!(is_failover_status(StatusCode::SERVICE_UNAVAILABLE));
+        assert!(!is_failover_status(StatusCode::OK));
+    }
 
     #[tokio::test]
     #[ignore = "requires AI_GATEWAY_API_KEY in .env"]
@@ -112,14 +175,14 @@ mod tests {
             .iter()
             .find(|m| m.id.contains("gemini") || m.id.contains("gpt"))
             .map(|m| m.id.as_str())
-            .unwrap_or("google/gemini-2.5-flash");
+            .unwrap_or(DEFAULT_FAILOVER_MODEL);
 
         let body = json!({
             "model": model,
             "messages": [{"role": "user", "content": "Reply with exactly: ok"}],
             "max_tokens": 16
         });
-        let resp = chat_completions(&gw, &body, Some("chat"))
+        let resp = chat_completions(&gw, &body, Some("chat"), false)
             .await
             .expect("chat");
         assert!(resp.status().is_success());

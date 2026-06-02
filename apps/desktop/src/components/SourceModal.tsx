@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Modal } from "./ui/Modal";
+import { saveSourceKey, testSourceUrl } from "../lib/sourceKeys";
 import { useApp } from "../state/AppContext";
 
 interface SourceModalProps {
@@ -8,11 +9,12 @@ interface SourceModalProps {
 }
 
 export function SourceModal({ open, onClose }: SourceModalProps) {
-  const { tr, addModelSource, showToast } = useApp();
+  const { tr, addModelSource, showToast, lang } = useApp();
   const [name, setName] = useState("");
   const [url, setUrl] = useState("https://api.openai.com/v1");
   const [key, setKey] = useState("");
   const [format, setFormat] = useState("openai");
+  const [busy, setBusy] = useState(false);
 
   const reset = () => {
     setName("");
@@ -26,19 +28,51 @@ export function SourceModal({ open, onClose }: SourceModalProps) {
     onClose();
   };
 
-  const save = () => {
+  const save = async () => {
     if (!name.trim() || !url.trim()) return;
-    addModelSource({ id: `src-${Date.now()}`, name: name.trim(), url: url.trim(), format, hasKey: Boolean(key) });
-    showToast(tr("toastSourceSaved"));
-    close();
+    const id = `src-${Date.now()}`;
+    setBusy(true);
+    try {
+      if (key.trim()) {
+        await saveSourceKey(id, key.trim());
+      }
+      addModelSource({
+        id,
+        name: name.trim(),
+        url: url.trim(),
+        format,
+        hasKey: Boolean(key.trim()),
+      });
+      showToast(tr("toastSourceSaved"));
+      close();
+    } catch (err) {
+      showToast(String(err));
+    } finally {
+      setBusy(false);
+    }
   };
 
-  const test = () => {
-    showToast(tr("toastSourceTest"));
+  const test = async () => {
+    if (!url.trim()) return;
+    if (!key.trim()) {
+      showToast(lang === "zh" ? "请先填写 API Key" : "Enter an API key first");
+      return;
+    }
+    setBusy(true);
+    try {
+      const status = await testSourceUrl(url.trim(), key.trim());
+      showToast(
+        lang === "zh" ? `连接成功（HTTP ${status}）` : `Connected (HTTP ${status})`,
+      );
+    } catch (err) {
+      showToast(String(err));
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
-    <Modal open={open} onClose={close} sheetClassName="" >
+    <Modal open={open} onClose={close} sheetClassName="">
       <div className="modal-head">
         <h3>{tr("sourceModalTitle")}</h3>
         <button className="modal-close" type="button" onClick={close}>
@@ -71,10 +105,16 @@ export function SourceModal({ open, onClose }: SourceModalProps) {
         </p>
       </div>
       <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
-        <button className="btn-outlined" type="button" style={{ flex: 1 }} onClick={test}>
+        <button className="btn-outlined" type="button" style={{ flex: 1 }} onClick={() => void test()} disabled={busy}>
           {tr("sourceTest")}
         </button>
-        <button className="modal-done" type="button" style={{ flex: 1, margin: 0 }} onClick={save}>
+        <button
+          className="modal-done"
+          type="button"
+          style={{ flex: 1, margin: 0 }}
+          onClick={() => void save()}
+          disabled={busy}
+        >
           {tr("sourceSave")}
         </button>
       </div>

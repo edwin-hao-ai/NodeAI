@@ -41,17 +41,20 @@ NodeAI/
 | **Smart Route（代理层）** | `X-NodeAI-Intent` + `X-NodeAI-Smart-Route` → 按场景改 model |
 | **Chat** | 真 SSE 流式；记忆注入 header；首次 Chat 激活 |
 | **SQLite 用量** | `~/.nodeai/usage.db` 持久化 app 计数 + bonus 指标 |
-| **UI** | 模型目录（Gateway 价、厂商筛选吸顶）、设置↔bonus API、Hub/Billing 读 live metrics |
+| **429 Failover** | 设置 `failover` 开启时 Gateway 429/503 自动换 `gemini-2.5-flash` |
+| **Embeddings** | `POST /v1/embeddings` 转发 Gateway |
+| **BYOK Keychain** | Tauri `save_source_key` / `test_source_url`；Key 仅系统钥匙串 |
+| **UI** | 模型目录（Gateway 价、厂商筛选吸顶）、设置↔bonus API、Hub/Billing/Menubar 读 live metrics |
 
 ---
 
 ## 仍待做
 
 - NodeAI Cloud 鉴权计费（当前含额度直连 Gateway）
-- Keychain BYOK、Embeddings、`nodeai-runtime`
-- Chat 附件、Agent 工具确认、系统托盘 HUD
+- BYOK 路由打通（Keychain 存 Key 已完成；proxy 仍缺多来源转发）
+- `nodeai-runtime`、Chat 附件、Agent 工具确认
+- 原生系统托盘 HUD（当前为窗口内 Menubar popover，已接 live 用量）
 - macOS/Windows CI 打包签名
-- 429 Gateway Failover
 
 ---
 

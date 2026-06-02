@@ -1,13 +1,62 @@
-import { useState } from "react";
-import { fmtMoney, fmtRate } from "../lib/format";
+import { useMemo, useState } from "react";
+import { fmtMoney, fmtRate, fmtTokens } from "../lib/format";
 import { DEMO } from "../data/demo";
-import { appName } from "../lib/route";
+import { type AppRecord } from "../lib/route";
 import { useApp } from "../state/AppContext";
 
+type TrayAppRow = {
+  id: string;
+  color: string;
+  label: { zh: string; en: string };
+  count: number;
+};
+
+function appForUsageSlug(slug: string): AppRecord | undefined {
+  return DEMO.APPS.find(
+    (a) => a.key === `sk-nodeai-${slug}` || a.id === slug || a.id === `nodeai-${slug}`,
+  );
+}
+
+function toTrayRow(slug: string, count: number): TrayAppRow {
+  const app = appForUsageSlug(slug);
+  if (app) {
+    return { id: app.id, color: app.color, label: app.name, count };
+  }
+  return {
+    id: slug,
+    color: "var(--secondary)",
+    label: { zh: slug, en: slug },
+    count,
+  };
+}
+
 export function Menubar() {
-  const { lang, proxy, toggleLang, tr, setView, routeLine } = useApp();
+  const { lang, proxy, toggleLang, tr, setView, routeLine, usageSnapshot } = useApp();
   const [trayOpen, setTrayOpen] = useState(false);
   const remain = DEMO.BUDGET.cap - DEMO.BUDGET.used;
+
+  const liveSaved =
+    usageSnapshot?.bonus != null
+      ? usageSnapshot.bonus.save_compress_yuan + usageSnapshot.bonus.save_concise_yuan
+      : DEMO.BUDGET.saved;
+
+  const totalRequests = usageSnapshot
+    ? Object.values(usageSnapshot.apps).reduce((sum, n) => sum + n, 0)
+    : 0;
+
+  const flowLabel = totalRequests > 0 ? `${fmtTokens(totalRequests)} req` : fmtRate(0);
+
+  const trayApps = useMemo((): TrayAppRow[] => {
+    if (!usageSnapshot?.apps || Object.keys(usageSnapshot.apps).length === 0) {
+      return DEMO.APPS.filter((a) => a.status === "live")
+        .slice(0, 4)
+        .map((a) => ({ id: a.id, color: a.color, label: a.name, count: a.today ?? 0 }));
+    }
+    return Object.entries(usageSnapshot.apps)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 4)
+      .map(([slug, count]) => toTrayRow(slug, count));
+  }, [usageSnapshot]);
 
   return (
     <>
@@ -25,7 +74,7 @@ export function Menubar() {
             <span className="material-symbols-outlined" style={{ fontSize: 16, color: "var(--savings)" }}>
               shield
             </span>
-            <span className="mono">1.2K/s</span>
+            <span className="mono">{flowLabel}</span>
           </button>
         </div>
       </header>
@@ -39,7 +88,7 @@ export function Menubar() {
         </div>
         <div className="hud-pop-row">
           <span className="hud-pop-lbl">{tr("tokenFlow")}</span>
-          <span className="mono">{fmtRate(1240)}</span>
+          <span className="mono">{fmtRate(totalRequests > 0 ? Math.max(totalRequests * 8, 120) : 0)}</span>
         </div>
         <div className="hud-pop-row">
           <span className="hud-pop-lbl">{tr("budgetLeft")}</span>
@@ -47,14 +96,14 @@ export function Menubar() {
         </div>
         <div className="hud-pop-row">
           <span className="hud-pop-lbl">{tr("savedToday")}</span>
-          <span className="mono savings-text">{fmtMoney(DEMO.BUDGET.saved, lang)}</span>
+          <span className="mono savings-text">{fmtMoney(liveSaved, lang)}</span>
         </div>
         <div className="tray-apps-mini">
-          {DEMO.APPS.filter((a) => a.status === "live").map((a) => (
-            <div key={a.id} className="tray-app-row">
-              <span className="app-dot" style={{ background: a.color }} />
-              {appName(lang, a)}
-              <span className="mono">{a.rate}/s</span>
+          {trayApps.map((row) => (
+            <div key={row.id} className="tray-app-row">
+              <span className="app-dot" style={{ background: row.color }} />
+              {row.label[lang]}
+              <span className="mono">{row.count}</span>
             </div>
           ))}
         </div>

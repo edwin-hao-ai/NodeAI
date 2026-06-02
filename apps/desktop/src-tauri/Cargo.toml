@@ -18,6 +18,8 @@ nodeai-core = { path = "../../../crates/nodeai-core" }
 nodeai-proxy = { path = "../../../crates/nodeai-proxy" }
 tauri = { version = "2", features = [] }
 tauri-plugin-opener = "2"
+keyring = "3"
+reqwest = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 tokio = { workspace = true }
