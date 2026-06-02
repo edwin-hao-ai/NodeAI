@@ -39,6 +39,11 @@ export function PlanView() {
         <div className="allowance-bar">
           <div className="allowance-fill" style={{ width: `${usedPct}%` }} />
         </div>
+        {isTrialPlan(cloudUser?.plan) && (
+          <p style={{ marginTop: 10, fontSize: 12, color: "var(--savings)" }}>
+            {tr("planTrialLeft")} <strong className="mono">14</strong> {tr("planDays")} · {tr("planTrialStatic")}
+          </p>
+        )}
         <div className="stat-foot" style={{ marginTop: 8 }}>
           {tr("planAllowFoot")}
         </div>

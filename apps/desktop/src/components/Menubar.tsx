@@ -17,13 +17,15 @@ function toTrayRow(slug: string, count: number): TrayAppRow {
 }
 
 export function Menubar() {
-  const { lang, proxy, toggleLang, tr, setView, routeLine, usageSnapshot } = useApp();
+  const { lang, proxy, toggleLang, tr, setView, routeLine, usageSnapshot, cloudLoggedIn, localMode } =
+    useApp();
   const [trayOpen, setTrayOpen] = useState(false);
-  const cap = usageSnapshot?.budget?.cap_yuan ?? 48;
+  const traySignedIn = cloudLoggedIn || localMode;
+  const cap = traySignedIn ? usageSnapshot?.budget?.cap_yuan : undefined;
   const used = usageSnapshot?.budget?.used_yuan ?? 0;
-  const remain = Math.max(cap - used, 0);
+  const remain = cap != null ? Math.max(cap - used, 0) : null;
 
-  const liveSaved = usageSnapshot?.periods?.today?.saved_yuan ?? 0;
+  const liveSaved = traySignedIn ? (usageSnapshot?.periods?.today?.saved_yuan ?? 0) : 0;
 
   const today = usageSnapshot?.periods?.today;
   const todayTokens = today?.tokens ?? 0;
@@ -35,8 +37,9 @@ export function Menubar() {
   const spark = useMemo(() => sparklineFromLedger(usageSnapshot, 16), [usageSnapshot]);
   const sparkD = sparkPath(spark, 64, 24);
 
-  const flowLabel =
-    todayTokens > 0
+  const flowLabel = !traySignedIn
+    ? tr("trayNotLoggedIn")
+    : todayTokens > 0
       ? fmtRate(Math.round(todayTokens / Math.max(todayRequests, 1)))
       : totalRequests > 0
         ? `${totalRequests} req`
@@ -78,7 +81,9 @@ export function Menubar() {
       <div className={`tray-popover${trayOpen ? " open" : ""}`}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, fontSize: 13, fontWeight: 500 }}>
           <span className="live-dot" style={{ width: 8, height: 8 }} />
-          <span>{tr("trayRunning")}</span>
+          <span>
+            {!traySignedIn ? tr("trayNotLoggedIn") : localMode && !cloudLoggedIn ? tr("trayLocalMode") : tr("trayRunning")}
+          </span>
         </div>
         <div className="tray-route">
           <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
@@ -99,7 +104,9 @@ export function Menubar() {
           </div>
           <div>
             <div className="tray-stat-lbl">{tr("budgetLeft")}</div>
-            <div className="tray-stat-val mono">{fmtMoney(remain, lang)}</div>
+            <div className="tray-stat-val mono">
+              {remain != null ? fmtMoney(remain, lang) : "—"}
+            </div>
           </div>
         </div>
         <div className="tray-spark-wrap">

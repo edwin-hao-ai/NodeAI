@@ -1,8 +1,8 @@
 # NodeAI 项目任务清单
 
 **版本：** 0.1.0  
-**最后更新：** 2026-06-02（登录态统一 / 账单 path 真聚合 / BYOK 本地模式 / Chat 上下文条 / 托盘对齐）  
-**最新打包：** 需重新 `npm run tauri build`（本批 UI 修复尚未打 DMG）
+**最后更新：** 2026-06-02（审计收尾：托盘未登录态 / Plan 试用文案 / 去 demoModelPool 导出）  
+**最新打包：** 本批 `npm run tauri build` 后更新 DMG 时间戳
 
 | 产物 | 路径 |
 |------|------|
@@ -145,6 +145,7 @@
 | ☑️ | Hub/Billing 移除重复 LoginPrompt（侧栏已有登录 CTA） |
 | ☑️ | ModelsView 场景副标题：目录加载中 / defaultModel slug 回退 |
 | ☑️ | 「全自动」文案诚实化（默认模型 + Intent 场景，非 per-request 分类） |
+| ☑️ | 托盘 HUD 未登录 / 本地模式诚实文案（无假 ¥48 余额） |
 | ☐ | 托盘 HUD 与原型 100% 一致（sparkline 速率语义、系统托盘用量） |
 
 ---
@@ -178,7 +179,9 @@
 | ☐ | **账单页** 趋势图 / donut / 应用×模型矩阵 / 折叠明细 | 仅 hero + 表 |
 | ☐ | **Hub** apiCapGrid、按模型 stack、sparkline 速率 | 部分静态文案已改 |
 | ☐ | **设置** 回复语言 / BYOK 路由 / Cursor 写记忆 / 预算告警 持久化 | 已禁用并标「即将推出」；待接 API |
-| ☐ | **Plan** 试用剩余天数、商业透明三块 | |
+| ☑️ | **Plan** 试用静态标签（14 天 · 无 Stripe 倒计时 API） | |
+| ☐ | **Plan** 试用剩余天数真 API、商业透明三块 | |
+| ☑️ | 生产路径移除 `demoModelPool` 导出 | `lib/model/index.ts` |
 | ☐ | **OAuth** Google/GitHub | 按钮仍走邮箱登录 |
 | ☐ | **Release 开箱 E2E** | DMG + Cloud sidecar 人工验收 |
 | ☐ | **桌面 UI E2E** | Playwright / Tauri WebDriver |
