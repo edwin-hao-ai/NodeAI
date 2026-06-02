@@ -6,8 +6,8 @@
 
 | 产物 | 路径 |
 |------|------|
-| macOS App | `~/.cargo/shared-target/release/bundle/macos/NodeAI.app` |
-| DMG | `~/.cargo/shared-target/release/bundle/dmg/NodeAI_0.1.0_aarch64.dmg` |
+| macOS App | DMG 挂载：`/Volumes/NodeAI/NodeAI.app`（`tauri build --bundles dmg` 会清理 `bundle/macos/NodeAI.app`） |
+| DMG | `~/.cargo/shared-target/release/bundle/dmg/NodeAI_0.1.0_aarch64.dmg`（2026-06-02 审计收尾包） |
 
 > **诚实说明：** 后端 L1/L2 脚本可通过，但 **桌面 UI 与 `prototypes/` 仍有差距**（见下方「UI 原型对齐 · 未完成」）。勿将 tasks 中 ☑️ 等同于「用户验收无 bug」。
 
