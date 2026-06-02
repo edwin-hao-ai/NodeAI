@@ -1,10 +1,10 @@
 import { DEMO } from "../data/demo";
+import { catalogModelPool, findCatalogModel } from "../lib/catalog";
 import {
   MODEL_TYPE_ICON,
   fmtModelPrice,
-  gatewayModelById,
   intentLabel,
-  resolvedModelForIntent,
+  resolvedModelForRoute,
 } from "../lib/route";
 import { useApp } from "../state/AppContext";
 
@@ -21,17 +21,18 @@ export function ModelsView() {
     selectGatewayModel,
     routeAppCount,
     setCatalogOpen,
+    gatewayCatalog,
   } = useApp();
+
+  const modelPool = catalogModelPool(gatewayCatalog);
 
   const autoMode = smartRouteEnabled && activeIntent === "auto";
   const resolved = smartRouteEnabled
-    ? resolvedModelForIntent({
-        smartRouteEnabled,
-        activeIntent,
-        activeGatewayModel,
-        routeApplying,
-      })
-    : gatewayModelById(activeGatewayModel);
+    ? resolvedModelForRoute(
+        { smartRouteEnabled, activeIntent, activeGatewayModel },
+        gatewayCatalog,
+      )
+    : findCatalogModel(activeGatewayModel, gatewayCatalog);
 
   const title = autoMode
     ? tr("autoRouteTitle")
@@ -125,7 +126,7 @@ export function ModelsView() {
               </button>
               <div className="vpn-scene-label">{tr("vpnSceneLabel")}</div>
               {DEMO.INTENTS.map((i) => {
-                const m = gatewayModelById(i.defaultModel);
+                const m = findCatalogModel(i.defaultModel, gatewayCatalog);
                 const active = i.id === activeIntent;
                 return (
                   <button
@@ -150,7 +151,7 @@ export function ModelsView() {
             </>
           ) : (
             DEMO.CURATED_MODEL_IDS.map((id) => {
-              const m = gatewayModelById(id);
+              const m = findCatalogModel(id, gatewayCatalog);
               if (!m) return null;
               const active = id === activeGatewayModel;
               return (
@@ -183,7 +184,7 @@ export function ModelsView() {
             <span>{tr("modelsBrowse")}</span>
             <small>{tr("modelsBrowseSub")}</small>
           </span>
-          <span className="models-browse-count mono">{DEMO.GATEWAY_MODELS.length}+</span>
+          <span className="models-browse-count mono">{modelPool.length}+</span>
         </button>
       </div>
     </div>

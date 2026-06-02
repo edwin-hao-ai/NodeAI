@@ -9,20 +9,23 @@ type Period = "today" | "week" | "month";
 type BillPath = "all" | "hosted" | "byok";
 
 export function BillingView() {
-  const { lang, tr, localMode } = useApp();
+  const { lang, tr, localMode, usageSnapshot } = useApp();
   const [period, setPeriod] = useState<Period>("today");
   const [path, setPath] = useState<BillPath>("all");
 
   const raw = DEMO.BILL_PERIODS[period];
   const scale = path === "hosted" ? 0.65 : path === "byok" ? 0.35 : 1;
+  const liveBonus = usageSnapshot?.bonus;
   const p = {
     ...raw,
     spend: raw.spend * scale,
-    saved: raw.saved * scale,
+    saved: liveBonus
+      ? liveBonus.save_compress_yuan + liveBonus.save_concise_yuan + raw.saveRoute * scale
+      : raw.saved * scale,
     tokens: Math.round(raw.tokens * scale),
     reqs: Math.round(raw.reqs * scale),
-    saveCompress: raw.saveCompress * scale,
-    saveConcise: raw.saveConcise * scale,
+    saveCompress: liveBonus ? liveBonus.save_compress_yuan : raw.saveCompress * scale,
+    saveConcise: liveBonus ? liveBonus.save_concise_yuan : raw.saveConcise * scale,
     saveRoute: raw.saveRoute * scale,
   };
 

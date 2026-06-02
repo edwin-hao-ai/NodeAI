@@ -24,6 +24,7 @@ export function HubView() {
     onboardDismissed,
     dismissOnboard,
     setView,
+    usageSnapshot,
   } = useApp();
 
   const [routeLines, setRouteLines] = useState<
@@ -34,6 +35,23 @@ export function HubView() {
   const ringOffset = 138 * (1 - pct);
   const remain = DEMO.BUDGET.cap - DEMO.BUDGET.used;
   const today = DEMO.BILL_PERIODS.today;
+  const liveSaved =
+    usageSnapshot?.bonus != null
+      ? usageSnapshot.bonus.save_compress_yuan +
+        usageSnapshot.bonus.save_concise_yuan +
+        today.saveRoute
+      : DEMO.BUDGET.saved;
+  const liveCompressPct =
+    usageSnapshot?.bonus?.rtk_tokens_saved && usageSnapshot.bonus.rtk_requests
+      ? Math.min(
+          40,
+          Math.round(
+            (usageSnapshot.bonus.rtk_tokens_saved /
+              Math.max(usageSnapshot.bonus.rtk_requests * 200, 1)) *
+              100,
+          ),
+        )
+      : 34;
 
   useEffect(() => {
     markViewSavings();
@@ -211,16 +229,16 @@ export function HubView() {
         <div className="savings-banner" style={{ marginTop: 10 }}>
           <span className="material-symbols-outlined">savings</span>
           <div>
-            <div className="savings-big mono">{fmtMoney(DEMO.BUDGET.saved, lang)}</div>
+            <div className="savings-big mono">{fmtMoney(liveSaved, lang)}</div>
             <div className="savings-sub">
               <span className="material-symbols-outlined" style={{ fontSize: 12, verticalAlign: -2 }}>
                 compress
               </span>{" "}
-              −34% ·{" "}
+              −{liveCompressPct}% ·{" "}
               <span className="material-symbols-outlined" style={{ fontSize: 12, verticalAlign: -2 }}>
                 short_text
               </span>{" "}
-              {fmtMoney(today.saveConcise, lang)} ·{" "}
+              {fmtMoney(usageSnapshot?.bonus?.save_concise_yuan ?? today.saveConcise, lang)} ·{" "}
               <span className="material-symbols-outlined" style={{ fontSize: 12, verticalAlign: -2 }}>
                 auto_awesome
               </span>{" "}

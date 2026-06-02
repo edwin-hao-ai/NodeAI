@@ -339,7 +339,7 @@
   "modelsBrowse": "Pin a model · browse all",
   "modelsBrowseSub": "Filter by provider / type / price · with search",
   "catalogTitle": "Browse all models",
-  "catalogSub": "Powered by Vercel · all via one URL, no Model change in apps",
+  "catalogSub": "Live Vercel AI Gateway catalog · prices in USD per 1M tokens (matches Gateway billing)",
   "catalogSearchPh": "Search model, provider or slug…",
   "catSortFeatured": "Recommended",
   "catSortCheap": "Cheapest",

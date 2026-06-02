@@ -1,0 +1,50 @@
+---
+description: NodeAI 代码分层与解耦——避免堆叠、单一职责
+alwaysApply: true
+---
+
+# NodeAI 架构与解耦
+
+**目标：** 可读、可测、可改；新功能加模块，而不是把逻辑堆进现有大文件。
+
+## 分层（不可混写）
+
+| 层 | 目录 | 职责 |
+|----|------|------|
+| UI | `apps/desktop/src/views/`、`components/` | 展示与交互，不含 HTTP / localStorage 细节 |
+| 状态 | `state/` | 组合 hooks、持久化触发；不写 Gateway 解析 |
+| 领域 | `lib/model/`、`lib/catalog/`、`lib/gateway/` | 类型、定价、目录查询、Gateway 归一化 |
+| 基础设施 | `lib/*Api.ts`、`lib/chat.ts` | fetch、8787 请求 |
+| Rust 核心 | `crates/nodeai-core/` | 类型、Bonus 算法、配置；**无 HTTP** |
+| Rust 边缘 | `crates/nodeai-proxy/` | 路由、转发、计量；Bonus 调用 core，不内联算法 |
+
+## 必须遵守
+
+1. **单一职责**：一个文件只做一类事（例如「收藏 localStorage」与「目录分节」分开）。
+2. **数据源头唯一**：模型价格只来自 Gateway `/v1/models` 的 `pricing`；禁止用 `demo.ts` 覆盖 live 价。
+3. **禁止上帝文件**：单文件超过 ~200 行且含 2+ 领域时，拆模块并用 `index.ts` 薄导出。
+4. **UI 不直连 demo**：View 通过 `AppContext` 或 `lib/model/pool` 取模型；Settings 开关走 `bonusApi`，不复制一份 state。
+5. **Rust**：`routes.rs` 编排管道；压缩在 `nodeai-core/bonus.rs`；计量在 `usage.rs`；不在 `chat_completions` 里写 100 行逻辑。
+6. **最小 diff**：解耦时优先提取函数/模块，不顺手改文案、样式、无关 refactor。
+
+## 新增功能放哪
+
+| 功能 | 位置 |
+|------|------|
+| Gateway 字段解析 | `lib/gateway/normalize.ts` |
+| 模型列表 UI 逻辑 | `lib/catalog/sections.ts` |
+| 定价展示 | `lib/model/pricing.ts` |
+| 代理新 endpoint | `crates/nodeai-proxy/src/routes.rs` + 独立 `*.rs` 模块 |
+| Bonus 算法 | `crates/nodeai-core/src/bonus.rs` |
+
+## 反例 → 正例
+
+```typescript
+// ❌ View 里 fetch + 解析 pricing + 写 localStorage
+// ✅ View → useApp() → fetchGatewayCatalog (api) → catalogModelPool (pool)
+```
+
+```rust
+// ❌ routes.rs 内 80 行 RTK 字符串处理
+// ✅ apply_bonus_pipeline(&mut body, &profile, &memories) in nodeai-core
+```

@@ -371,7 +371,7 @@
   "modelsBrowse": "固定某模型 · 浏览全部",
   "modelsBrowseSub": "按厂商 / 类型 / 价格筛选 · 含搜索",
   "catalogTitle": "浏览全部模型",
-  "catalogSub": "由 Vercel 提供 · 全部经统一地址，无需在应用里改 Model",
+  "catalogSub": "由 Vercel AI Gateway 实时目录 · 价格为美元/1M tokens（与 Gateway 计费一致）",
   "catalogSearchPh": "搜索模型、厂商或 slug…",
   "catSortFeatured": "推荐",
   "catSortCheap": "最便宜",

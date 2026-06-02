@@ -71,6 +71,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
+            nodeai_core::load_dotenv();
             let settings = AppSettings::default();
             let proxy_config = settings.proxy.clone();
 

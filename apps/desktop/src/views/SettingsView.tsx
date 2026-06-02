@@ -1,6 +1,13 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { PageHead, PageScroll } from "../components/ui/PageScroll";
 import { Switch } from "../components/ui/Switch";
+import {
+  DEFAULT_BONUS_PROFILE,
+  loadBonusProfileLocal,
+  saveBonusProfileLocal,
+  syncBonusProfile,
+  type CompressionProfile,
+} from "../lib/bonusApi";
 import { useApp } from "../state/AppContext";
 
 const THEMES = [
@@ -25,24 +32,51 @@ export function SettingsView() {
     localMode,
     openAuth,
     setView,
+    smartRouteEnabled,
+    toggleSmartRoute,
   } = useApp();
 
   const [portInput, setPortInput] = useState(String(gatewayPort));
   const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [bonus, setBonus] = useState<CompressionProfile>(() => loadBonusProfileLocal());
   const [sw, setSw] = useState({
     localServer: true,
     crossMem: true,
     cursorWrite: false,
-    smartRoute: true,
     byokRoute: true,
     failover: true,
     hybridFb: false,
-    compress: true,
-    concise: true,
     budgetAlert: true,
     agentFiles: true,
-    prune: false,
   });
+
+  const pushBonus = useCallback(
+    async (next: CompressionProfile) => {
+      setBonus(next);
+      saveBonusProfileLocal(next);
+      if (proxy?.running) {
+        await syncBonusProfile(gatewayBaseUrl, next);
+      }
+    },
+    [gatewayBaseUrl, proxy?.running],
+  );
+
+  useEffect(() => {
+    if (!proxy?.running) return;
+    void (async () => {
+      const remote = await fetch(`${gatewayBaseUrl.replace(/\/$/, "")}/nodeai/bonus`)
+        .then((r) => (r.ok ? r.json() : null))
+        .catch(() => null);
+      if (remote) {
+        const merged = { ...DEFAULT_BONUS_PROFILE, ...remote } as CompressionProfile;
+        setBonus(merged);
+        saveBonusProfileLocal(merged);
+      } else {
+        await syncBonusProfile(gatewayBaseUrl, bonus);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [proxy?.running, gatewayBaseUrl]);
 
   const savePort = () => {
     void setGatewayPort(parseInt(portInput, 10));
@@ -174,7 +208,14 @@ export function SettingsView() {
           <h4>{tr("setCrossMem")}</h4>
           <p style={{ fontSize: 12, color: "var(--on-surface-variant)" }}>{tr("setCrossMemSub")}</p>
         </div>
-        <Switch on={sw.crossMem} onToggle={() => setSw((s) => ({ ...s, crossMem: !s.crossMem }))} />
+        <Switch
+          on={bonus.memory_inject && sw.crossMem}
+          onToggle={() => {
+            const nextMem = !sw.crossMem;
+            setSw((s) => ({ ...s, crossMem: nextMem }));
+            void pushBonus({ ...bonus, memory_inject: nextMem });
+          }}
+        />
       </div>
       <div className="setting">
         <div>
@@ -190,7 +231,7 @@ export function SettingsView() {
           <h4>{tr("setSmartRoute")}</h4>
           <p style={{ fontSize: 12, color: "var(--on-surface-variant)" }}>{tr("setSmartRouteSub")}</p>
         </div>
-        <Switch on={sw.smartRoute} onToggle={() => setSw((s) => ({ ...s, smartRoute: !s.smartRoute }))} />
+        <Switch on={smartRouteEnabled} onToggle={toggleSmartRoute} />
       </div>
       <div className="setting">
         <div>
@@ -204,7 +245,14 @@ export function SettingsView() {
           <h4>{tr("setFailover")}</h4>
           <p style={{ fontSize: 12, color: "var(--on-surface-variant)" }}>{tr("setFailoverSub")}</p>
         </div>
-        <Switch on={sw.failover} onToggle={() => setSw((s) => ({ ...s, failover: !s.failover }))} />
+        <Switch
+          on={bonus.failover && sw.failover}
+          onToggle={() => {
+            const next = !sw.failover;
+            setSw((s) => ({ ...s, failover: next }));
+            void pushBonus({ ...bonus, failover: next });
+          }}
+        />
       </div>
       <div className="setting">
         <div>
@@ -227,14 +275,25 @@ export function SettingsView() {
           <h4>{tr("setCompress")}</h4>
           <p style={{ fontSize: 12, color: "var(--on-surface-variant)" }}>{tr("setCompressSub")}</p>
         </div>
-        <Switch on={sw.compress} onToggle={() => setSw((s) => ({ ...s, compress: !s.compress }))} />
+        <Switch
+          on={bonus.rtk}
+          onToggle={() => void pushBonus({ ...bonus, rtk: !bonus.rtk })}
+        />
       </div>
       <div className="setting">
         <div>
           <h4>{tr("setConcise")}</h4>
           <p style={{ fontSize: 12, color: "var(--on-surface-variant)" }}>{tr("setConciseSub")}</p>
         </div>
-        <Switch on={sw.concise} onToggle={() => setSw((s) => ({ ...s, concise: !s.concise }))} />
+        <Switch
+          on={bonus.caveman_level >= 1}
+          onToggle={() =>
+            void pushBonus({
+              ...bonus,
+              caveman_level: bonus.caveman_level >= 1 ? 0 : 1,
+            })
+          }
+        />
       </div>
       <div className="setting">
         <div>
@@ -266,7 +325,10 @@ export function SettingsView() {
               <h4>{tr("setPrune")}</h4>
               <p style={{ fontSize: 12, color: "var(--on-surface-variant)" }}>{tr("setPruneSub")}</p>
             </div>
-            <Switch on={sw.prune} onToggle={() => setSw((s) => ({ ...s, prune: !s.prune }))} />
+            <Switch
+              on={bonus.prune}
+              onToggle={() => void pushBonus({ ...bonus, prune: !bonus.prune })}
+            />
           </div>
         </div>
       )}

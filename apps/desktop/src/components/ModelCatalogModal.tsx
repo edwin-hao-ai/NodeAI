@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { DEMO } from "../data/demo";
 import type { I18nKey } from "../i18n";
 import {
   buildCatalogSections,
+  catalogModelPool,
   catalogProviders,
   CATALOG_TYPES,
+  findCatalogModel,
   fmtCtx,
   loadFavModels,
   loadRecentModels,
@@ -15,7 +16,7 @@ import {
   type CatalogSort,
   type CatalogType,
 } from "../lib/catalog";
-import { fmtModelPrice, gatewayModelById } from "../lib/route";
+import { fmtModelPrice } from "../lib/route";
 import { useApp } from "../state/AppContext";
 import { Modal } from "./ui/Modal";
 
@@ -40,7 +41,7 @@ interface ModelCatalogModalProps {
 }
 
 export function ModelCatalogModal({ open, onClose }: ModelCatalogModalProps) {
-  const { lang, tr, smartRouteEnabled, activeGatewayModel, selectGatewayModel, selectIntent, showToast } =
+  const { lang, tr, smartRouteEnabled, activeGatewayModel, selectGatewayModel, selectIntent, showToast, gatewayCatalog } =
     useApp();
 
   const [query, setQuery] = useState("");
@@ -60,17 +61,22 @@ export function ModelCatalogModal({ open, onClose }: ModelCatalogModalProps) {
     setRecents(loadRecentModels());
   }, [open]);
 
-  const providers = useMemo(() => catalogProviders(catalogType), [catalogType]);
+  const providers = useMemo(
+    () => catalogProviders(catalogType, gatewayCatalog),
+    [catalogType, gatewayCatalog],
+  );
+  const modelPool = useMemo(() => catalogModelPool(gatewayCatalog), [gatewayCatalog]);
   const sections = useMemo(
-    () => buildCatalogSections(query, catalogType, catalogProvider, sort, favs, recents),
-    [query, catalogType, catalogProvider, sort, favs, recents],
+    () =>
+      buildCatalogSections(query, catalogType, catalogProvider, sort, favs, recents, gatewayCatalog),
+    [query, catalogType, catalogProvider, sort, favs, recents, gatewayCatalog],
   );
 
   const pickModel = (id: string) => {
     pushRecentModel(id);
     selectGatewayModel(id);
     onClose();
-    const m = gatewayModelById(id);
+    const m = findCatalogModel(id, gatewayCatalog);
     showToast(tr("toastModelPinned").replace("{m}", m?.displayName[lang] || id));
   };
 
@@ -85,83 +91,83 @@ export function ModelCatalogModal({ open, onClose }: ModelCatalogModalProps) {
           <span className="material-symbols-outlined">close</span>
         </button>
       </div>
-      <div className="catalog-controls">
-        <div className="catalog-search">
-          <span className="material-symbols-outlined">search</span>
-          <input
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder={tr("catalogSearchPh")}
-            autoComplete="off"
-          />
-          {query && (
-            <button type="button" className="catalog-search-clear" aria-label="clear" onClick={() => setQuery("")}>
-              <span className="material-symbols-outlined" style={{ fontSize: 18 }}>
-                close
-              </span>
-            </button>
-          )}
-        </div>
-        <select
-          className="catalog-sort"
-          value={sort}
-          onChange={(e) => setSort(e.target.value as CatalogSort)}
-          aria-label="sort"
-        >
-          <option value="featured">{tr("catSortFeatured")}</option>
-          <option value="cheap">{tr("catSortCheap")}</option>
-          <option value="fast">{tr("catSortFast")}</option>
-          <option value="context">{tr("catSortContext")}</option>
-        </select>
-      </div>
-      <div className="catalog-types">
-        {CATALOG_TYPES.map((ty) => {
-          const n =
-            ty === "all" ? DEMO.GATEWAY_MODELS.length : DEMO.GATEWAY_MODELS.filter((m) => m.type === ty).length;
-          return (
-            <button
-              key={ty}
-              type="button"
-              className={`cat-type${catalogType === ty ? " active" : ""}`}
-              onClick={() => {
-                setCatalogType(ty);
-                setCatalogProvider("all");
-              }}
-            >
-              {tr(TYPE_KEY[ty])}
-              <span className="cat-type-n">{n}</span>
-            </button>
-          );
-        })}
-      </div>
-      <div className="catalog-providers">
-        <button
-          type="button"
-          className={`cat-prov${catalogProvider === "all" ? " active" : ""}`}
-          onClick={() => setCatalogProvider("all")}
-        >
-          {tr("catProvAll")}
-        </button>
-        {providers.map((p) => (
-          <button
-            key={p}
-            type="button"
-            className={`cat-prov${catalogProvider === p ? " active" : ""}`}
-            onClick={() => setCatalogProvider(p)}
+      <div className="catalog-toolbar">
+        <div className="catalog-controls">
+          <div className="catalog-search">
+            <span className="material-symbols-outlined">search</span>
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={tr("catalogSearchPh")}
+              autoComplete="off"
+            />
+            {query && (
+              <button type="button" className="catalog-search-clear" aria-label="clear" onClick={() => setQuery("")}>
+                <span className="material-symbols-outlined" style={{ fontSize: 18 }}>
+                  close
+                </span>
+              </button>
+            )}
+          </div>
+          <select
+            className="catalog-sort"
+            value={sort}
+            onChange={(e) => setSort(e.target.value as CatalogSort)}
+            aria-label="sort"
           >
-            <span
-              className="cat-prov-badge"
-              style={{
-                background: `color-mix(in srgb, ${providerColor(p)} 22%, var(--surface-highest))`,
-                color: providerColor(p),
-              }}
-            >
-              {p.slice(0, 1)}
-            </span>
-            {p}
+            <option value="featured">{tr("catSortFeatured")}</option>
+            <option value="cheap">{tr("catSortCheap")}</option>
+            <option value="fast">{tr("catSortFast")}</option>
+            <option value="context">{tr("catSortContext")}</option>
+          </select>
+        </div>
+        <div className="catalog-providers" role="toolbar" aria-label={tr("catProvAll")}>
+          <button
+            type="button"
+            className={`cat-prov${catalogProvider === "all" ? " active" : ""}`}
+            onClick={() => setCatalogProvider("all")}
+          >
+            {tr("catProvAll")}
           </button>
-        ))}
+          {providers.map((p) => (
+            <button
+              key={p}
+              type="button"
+              className={`cat-prov${catalogProvider === p ? " active" : ""}`}
+              onClick={() => setCatalogProvider(p)}
+            >
+              <span
+                className="cat-prov-badge"
+                style={{
+                  background: `color-mix(in srgb, ${providerColor(p)} 22%, var(--surface-highest))`,
+                  color: providerColor(p),
+                }}
+              >
+                {p.slice(0, 1)}
+              </span>
+              {p}
+            </button>
+          ))}
+        </div>
+        <div className="catalog-types">
+          {CATALOG_TYPES.map((ty) => {
+            const n = ty === "all" ? modelPool.length : modelPool.filter((m) => m.type === ty).length;
+            return (
+              <button
+                key={ty}
+                type="button"
+                className={`cat-type${catalogType === ty ? " active" : ""}`}
+                onClick={() => {
+                  setCatalogType(ty);
+                }}
+              >
+                {tr(TYPE_KEY[ty])}
+                <span className="cat-type-n">{n}</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
       <div className="catalog-list">
         {sections.length === 0 ? (

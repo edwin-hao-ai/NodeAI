@@ -18,9 +18,13 @@ pub struct ProxyConfig {
 
 impl Default for ProxyConfig {
     fn default() -> Self {
+        let port = std::env::var("NODEAI_PROXY_PORT")
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(crate::DEFAULT_PROXY_PORT);
         Self {
             host: crate::DEFAULT_LISTEN_HOST.to_string(),
-            port: crate::DEFAULT_PROXY_PORT,
+            port,
             byok_upstream_url: std::env::var("NODEAI_BYOK_UPSTREAM")
                 .ok()
                 .filter(|s| !s.is_empty()),

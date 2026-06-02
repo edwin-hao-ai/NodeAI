@@ -17,10 +17,18 @@ import {
 } from "../lib/memoryStore";
 import {
   countRouteApps,
-  gatewayModelById,
   getRouteLineShort,
   type RouteState,
 } from "../lib/route";
+import { fetchGatewayCatalog, type GatewayCatalogEntry } from "../lib/gateway";
+import {
+  fetchUsageSnapshot,
+  loadBonusProfileLocal,
+  saveBonusProfileLocal,
+  syncBonusProfile,
+  type UsageSnapshot,
+} from "../lib/bonusApi";
+import { findCatalogModel } from "../lib/catalog";
 import { type I18nKey, type Lang, t } from "../i18n";
 
 export type ViewId =
@@ -58,6 +66,8 @@ interface AppContextValue extends RouteState {
   proxy: ProxyStatus | null;
   gatewayPort: number;
   gatewayBaseUrl: string;
+  gatewayCatalog: GatewayCatalogEntry[] | null;
+  usageSnapshot: UsageSnapshot | null;
   cursorConnected: boolean;
   localMode: boolean;
   roiBannerHidden: boolean;
@@ -181,6 +191,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     routeApplying: false,
   }));
   const [proxy, setProxy] = useState<ProxyStatus | null>(null);
+  const [gatewayCatalog, setGatewayCatalog] = useState<GatewayCatalogEntry[] | null>(null);
+  const [usageSnapshot, setUsageSnapshot] = useState<UsageSnapshot | null>(null);
   const [gatewayPort, setGatewayPortState] = useState(() => {
     const raw = parseInt(localStorage.getItem(STORAGE_PORT) || "", 10);
     return Number.isFinite(raw) && raw >= 1024 && raw <= 65535 ? raw : DEFAULT_PORT;
@@ -242,6 +254,50 @@ export function AppProvider({ children }: { children: ReactNode }) {
     };
   }, [gatewayPort]);
 
+  useEffect(() => {
+    if (!proxy?.running) {
+      setGatewayCatalog(null);
+      return;
+    }
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const models = await fetchGatewayCatalog(gatewayBaseUrl);
+        if (!cancelled) setGatewayCatalog(models.length ? models : null);
+      } catch {
+        if (!cancelled) setGatewayCatalog(null);
+      }
+    };
+    load();
+    const id = window.setInterval(load, 60_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [gatewayBaseUrl, proxy?.running]);
+
+  useEffect(() => {
+    if (!proxy?.running) {
+      setUsageSnapshot(null);
+      return;
+    }
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const snap = await fetchUsageSnapshot(gatewayBaseUrl);
+        if (!cancelled) setUsageSnapshot(snap);
+      } catch {
+        if (!cancelled) setUsageSnapshot(null);
+      }
+    };
+    load();
+    const id = window.setInterval(load, 10_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [gatewayBaseUrl, proxy?.running]);
+
   const showToast = useCallback((msg: string) => {
     setToast(msg);
     window.setTimeout(() => setToast(null), 2800);
@@ -271,7 +327,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
             const done = finish(cur);
             showToast(
               t(lang, "toastRouteApplied")
-                .replace("{line}", getRouteLineShort(lang, done))
+                .replace("{line}", getRouteLineShort(lang, done, gatewayCatalog))
                 .replace("{n}", String(countRouteApps(cursorConnected))),
             );
             return done;
@@ -281,7 +337,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setRoute((r) => finish(r));
       }
     },
-    [lang, cursorConnected, persistRoute, showToast],
+    [lang, cursorConnected, persistRoute, showToast, gatewayCatalog],
   );
 
   const selectIntent = useCallback(
@@ -289,20 +345,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setRoute((r) => {
         const intent = DEMO.INTENTS.find((i) => i.id === id);
         let activeGatewayModel = r.activeGatewayModel;
-        if (intent?.defaultModel && gatewayModelById(intent.defaultModel)) {
+        if (intent?.defaultModel && findCatalogModel(intent.defaultModel, gatewayCatalog)) {
           activeGatewayModel = intent.defaultModel;
         }
         return { ...r, activeIntent: id, activeGatewayModel };
       });
       applyRouteChanged(true);
     },
-    [applyRouteChanged],
+    [applyRouteChanged, gatewayCatalog],
   );
 
   const selectGatewayModel = useCallback(
     (id: string) => {
       setRoute((r) => {
-        const m = gatewayModelById(id);
+        const m = findCatalogModel(id, gatewayCatalog);
         let activeIntent = r.activeIntent;
         const match = DEMO.INTENTS.find((i) => i.defaultModel === id);
         if (match) activeIntent = match.id;
@@ -319,13 +375,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
       });
       applyRouteChanged(true);
     },
-    [applyRouteChanged],
+    [applyRouteChanged, gatewayCatalog],
   );
 
   const toggleSmartRoute = useCallback(() => {
-    setRoute((r) => ({ ...r, smartRouteEnabled: !r.smartRouteEnabled }));
+    setRoute((r) => {
+      const smartRouteEnabled = !r.smartRouteEnabled;
+      const profile = loadBonusProfileLocal();
+      const nextProfile = { ...profile, smart_route: smartRouteEnabled };
+      saveBonusProfileLocal(nextProfile);
+      if (proxy?.running) {
+        void syncBonusProfile(gatewayBaseUrl, nextProfile);
+      }
+      return { ...r, smartRouteEnabled };
+    });
     applyRouteChanged(false);
-  }, [applyRouteChanged]);
+  }, [applyRouteChanged, gatewayBaseUrl, proxy?.running]);
 
   const setTheme = useCallback((id: string) => {
     setThemeState(id);
@@ -352,7 +417,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const tr = useCallback((key: I18nKey) => t(lang, key), [lang]);
 
-  const routeLine = useMemo(() => getRouteLineShort(lang, route), [lang, route]);
+  const routeLine = useMemo(
+    () => getRouteLineShort(lang, route, gatewayCatalog),
+    [lang, route, gatewayCatalog],
+  );
   const routeAppCount = useMemo(() => countRouteApps(cursorConnected), [cursorConnected]);
 
   const markViewSavings = useCallback(() => {
@@ -443,6 +511,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       proxy,
       gatewayPort,
       gatewayBaseUrl,
+      gatewayCatalog,
+      usageSnapshot,
       cursorConnected,
       localMode,
       roiBannerHidden,
@@ -512,6 +582,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       view,
       proxy,
       gatewayPort,
+      gatewayCatalog,
+      usageSnapshot,
       cursorConnected,
       localMode,
       roiBannerHidden,

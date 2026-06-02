@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { DEMO } from "../data/demo";
 import { getStarterPrompts } from "../data/chatStarters";
-import { requestChatCompletion } from "../lib/chat";
+import { streamChatCompletion } from "../lib/chat";
 import { streamText } from "../lib/streamText";
 import { useApp } from "../state/AppContext";
 
@@ -37,8 +37,11 @@ export function ChatView() {
     markFirstChatDone,
     gatewayBaseUrl,
     activeGatewayModel,
+    smartRouteEnabled,
+    activeIntent,
     rememberText,
     cycleWorkspace,
+    memories,
   } = useApp();
 
   const [ctxOpen, setCtxOpen] = useState(false);
@@ -77,42 +80,6 @@ export function ChatView() {
     [],
   );
 
-  const appendStreamingReply = useCallback(
-    (assistantText: string, withAha: boolean) => {
-      const msgId = `a-${Date.now()}`;
-      setExtraMessages((msgs) => [
-        ...msgs,
-        {
-          id: msgId,
-          role: "assistant",
-          text: "",
-          aha: withAha,
-          streaming: true,
-        },
-      ]);
-      streamCancelRef.current?.();
-      streamCancelRef.current = streamText(
-        assistantText,
-        (partial) => {
-          setExtraMessages((msgs) =>
-            msgs.map((m) => (m.id === msgId && m.role === "assistant" ? { ...m, text: partial } : m)),
-          );
-          scrollToBottom();
-        },
-        () => {
-          setExtraMessages((msgs) =>
-            msgs.map((m) =>
-              m.id === msgId && m.role === "assistant" ? { ...m, streaming: false } : m,
-            ),
-          );
-          setSending(false);
-          scrollToBottom();
-        },
-      );
-    },
-    [scrollToBottom],
-  );
-
   const sendMessage = useCallback(
     async (text: string) => {
       const trimmed = text.trim();
@@ -127,32 +94,103 @@ export function ChatView() {
       setSending(true);
       scrollToBottom();
 
-      const proxyReply = await requestChatCompletion(
-        gatewayBaseUrl,
-        trimmed,
-        activeGatewayModel,
-      );
-      const fallbackReply =
-        lang === "zh"
-          ? "（演示）已收到你的消息，NodeAI 会按当前线路自动选模型并作答。"
-          : "(demo) Got your message — NodeAI will pick a model on your current route.";
-      const assistantText = proxyReply ?? (wasFirst ? tr("ahaReply") : fallbackReply);
+      const msgId = `a-${Date.now()}`;
+      setExtraMessages((msgs) => [
+        ...msgs,
+        {
+          id: msgId,
+          role: "assistant",
+          text: "",
+          aha: wasFirst,
+          streaming: true,
+        },
+      ]);
 
-      if (wasFirst) {
-        markOnboardSendMsg();
-        markFirstChatDone();
+      try {
+        const { content, bonus, streamed } = await streamChatCompletion(
+          gatewayBaseUrl,
+          trimmed,
+          {
+            memories,
+            lang,
+            memoryInject: true,
+            route: { smartRouteEnabled, activeIntent, activeGatewayModel },
+          },
+          (partial) => {
+            setExtraMessages((msgs) =>
+              msgs.map((m) =>
+                m.id === msgId && m.role === "assistant" ? { ...m, text: partial } : m,
+              ),
+            );
+            scrollToBottom();
+          },
+        );
+
+        const fallbackReply =
+          lang === "zh"
+            ? "（演示）已收到你的消息，NodeAI 会按当前线路自动选模型并作答。"
+            : "(demo) Got your message — NodeAI will pick a model on your current route.";
+        let assistantText = content ?? (wasFirst ? tr("ahaReply") : fallbackReply);
+        if (bonus?.rtk && bonus.saved > 0) {
+          assistantText += lang === "zh"
+            ? `\n\n（智能压缩已生效，约省 ${bonus.saved} tokens）`
+            : `\n\n(Smart compress saved ~${bonus.saved} tokens)`;
+        }
+
+        if (wasFirst) {
+          markOnboardSendMsg();
+          markFirstChatDone();
+        }
+
+        if (!streamed && content) {
+          streamCancelRef.current?.();
+          streamCancelRef.current = streamText(
+            assistantText,
+            (partial) => {
+              setExtraMessages((msgs) =>
+                msgs.map((m) =>
+                  m.id === msgId && m.role === "assistant" ? { ...m, text: partial } : m,
+                ),
+              );
+              scrollToBottom();
+            },
+            () => {
+              setExtraMessages((msgs) =>
+                msgs.map((m) =>
+                  m.id === msgId && m.role === "assistant" ? { ...m, streaming: false } : m,
+                ),
+              );
+              setSending(false);
+              scrollToBottom();
+            },
+          );
+          return;
+        }
+
+        setExtraMessages((msgs) =>
+          msgs.map((m) =>
+            m.id === msgId && m.role === "assistant"
+              ? { ...m, text: assistantText, streaming: false }
+              : m,
+          ),
+        );
+        setSending(false);
+        scrollToBottom();
+      } catch {
+        setSending(false);
       }
-      appendStreamingReply(assistantText, wasFirst);
     },
     [
       activeGatewayModel,
-      appendStreamingReply,
+      activeIntent,
       firstChatDone,
       gatewayBaseUrl,
       lang,
       markFirstChatDone,
+      memories,
       scrollToBottom,
       sending,
+      smartRouteEnabled,
       tr,
     ],
   );
