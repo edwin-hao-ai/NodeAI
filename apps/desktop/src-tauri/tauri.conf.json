@@ -21,6 +21,19 @@
         "resizable": true,
         "hiddenTitle": true,
         "titleBarStyle": "Overlay"
+      },
+      {
+        "label": "tray-hud",
+        "title": "NodeAI",
+        "width": 280,
+        "height": 400,
+        "resizable": false,
+        "decorations": false,
+        "transparent": true,
+        "alwaysOnTop": true,
+        "visible": false,
+        "skipTaskbar": true,
+        "shadow": true
       }
     ],
     "security": {

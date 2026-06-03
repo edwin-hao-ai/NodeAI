@@ -82,6 +82,33 @@ body {
   width: 260px;
   z-index: 350;
 }
+
+/* System-tray HUD window (menu bar popover) */
+html.tray-hud-html,
+html.tray-hud-html body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: transparent;
+}
+#root.tray-hud-root {
+  min-height: 0;
+  height: 100%;
+  background: transparent;
+}
+.tray-hud-shell {
+  box-sizing: border-box;
+  padding: 12px;
+  min-height: 100%;
+  background: var(--surface-highest);
+  border: 1px solid var(--outline-variant);
+  border-radius: 12px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45);
+}
+.tray-hud-panel--window {
+  display: block;
+  width: 100%;
+}
 #root.shell-native-root .workspace-chip .ws-path {
   max-width: min(180px, 32vw);
   overflow: hidden;

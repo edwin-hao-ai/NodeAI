@@ -1,8 +1,8 @@
 # NodeAI 项目任务清单
 
 **版本：** 0.1.0  
-**最后更新：** 2026-06-03（托盘 Popover 锚定 / 关窗隐藏保托盘）  
-**最新打包：** 2026-06-03 `npm run tauri build --bundles dmg`（commit `6b1cfec`）
+**最后更新：** 2026-06-03（菜单栏托盘 HUD 独立小窗）  
+**最新打包：** （待 `tray-hud` 构建后更新 commit）
 
 | 产物 | 路径 |
 |------|------|
@@ -142,6 +142,7 @@
 | ☑️ | 原生托盘 HUD + 总览/对话/账单/打开/退出（`tray.rs` · 左键开 App 内 Popover） |
 | ☑️ | 关窗仅隐藏（× / CloseRequested → `hide`）；彻底退出仅托盘「退出」；Dock 点击 `Reopen` 恢复 |
 | ☑️ | App 内托盘 Popover 锚定顶栏盾牌按钮（`menubar-tray-anchor`） |
+| ☑️ | 菜单栏托盘左键 → 独立 `tray-hud` 小窗（`positioner` TrayBottomCenter）；总览/对话/账单再开主窗口 |
 | ☑️ | `countConnectedApps` 无 live 应用时返回 0（去 `|| 1`） |
 | ☑️ | GatewayView 移除 demo「模拟 Cursor 已连接」 |
 | ☑️ | Hub/Billing 移除重复 LoginPrompt（侧栏已有登录 CTA） |

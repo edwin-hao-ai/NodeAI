@@ -306,6 +306,10 @@ pub fn run() {
 
             app.manage(Mutex::new(AppState { settings, proxy }));
 
+            app.handle()
+                .plugin(tauri_plugin_positioner::init())
+                .map_err(|e| e.to_string())?;
+
             tray::install_tray(app)?;
 
             Ok(())
@@ -328,8 +332,12 @@ pub fn run() {
             pick_agent_workspace,
             ensure_cloud_dev,
             tray::sync_native_tray_menu,
+            tray::open_main_view,
         ])
         .on_window_event(|window, event| {
+            if window.label() != "main" {
+                return;
+            }
             if let WindowEvent::CloseRequested { api, .. } = event {
                 api.prevent_close();
                 let _ = window.hide();

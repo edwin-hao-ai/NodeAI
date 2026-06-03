@@ -4,8 +4,10 @@ use serde::Deserialize;
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{Emitter, Manager};
+use tauri_plugin_positioner::{Position, WindowExt};
 
 pub const TRAY_ID: &str = "main-tray";
+const TRAY_HUD_LABEL: &str = "tray-hud";
 
 /// Cloned menu rows updated from the webview (`sync_native_tray_menu`).
 #[derive(Clone)]
@@ -80,33 +82,26 @@ pub fn install_tray(app: &tauri::App) -> tauri::Result<()> {
         .tooltip("NodeAI")
         .show_menu_on_left_click(false)
         .on_tray_icon_event(|tray, event| {
+            tauri_plugin_positioner::on_tray_event(tray.app_handle(), &event);
             if let TrayIconEvent::Click {
                 button: MouseButton::Left,
                 button_state: MouseButtonState::Up,
                 ..
             } = event
             {
-                let app = tray.app_handle();
-                show_main_window(&app);
-                let _ = app.emit("tray-open-popover", ());
+                toggle_tray_hud(tray.app_handle());
             }
         })
         .on_menu_event(|app, event| {
             let id = event.id.as_ref();
             match id {
-                "tray-open-hub" => {
+                "tray-open-hub" => open_main_from_tray(app, "hub"),
+                "tray-open-chat" => open_main_from_tray(app, "chat"),
+                "tray-open-bill" => open_main_from_tray(app, "billing"),
+                "tray-show" => {
+                    hide_tray_hud(app);
                     show_main_window(app);
-                    let _ = app.emit("tray-navigate", "hub");
                 }
-                "tray-open-chat" => {
-                    show_main_window(app);
-                    let _ = app.emit("tray-navigate", "chat");
-                }
-                "tray-open-bill" => {
-                    show_main_window(app);
-                    let _ = app.emit("tray-navigate", "billing");
-                }
-                "tray-show" => show_main_window(app),
                 "tray-quit" => app.exit(0),
                 _ => {}
             }
@@ -122,6 +117,40 @@ pub fn show_main_window(app: &tauri::AppHandle) {
         let _ = w.unminimize();
         let _ = w.set_focus();
     }
+}
+
+pub fn hide_tray_hud(app: &tauri::AppHandle) {
+    if let Some(w) = app.get_webview_window(TRAY_HUD_LABEL) {
+        let _ = w.hide();
+    }
+}
+
+fn toggle_tray_hud(app: &tauri::AppHandle) {
+    let Some(hud) = app.get_webview_window(TRAY_HUD_LABEL) else {
+        tracing::warn!("tray-hud window missing");
+        return;
+    };
+    if hud.is_visible().unwrap_or(false) {
+        let _ = hud.hide();
+        return;
+    }
+    if let Err(err) = hud.move_window(Position::TrayBottomCenter) {
+        tracing::warn!(%err, "tray hud position failed");
+    }
+    let _ = hud.show();
+    let _ = hud.set_focus();
+}
+
+fn open_main_from_tray(app: &tauri::AppHandle, view: &str) {
+    hide_tray_hud(app);
+    show_main_window(app);
+    let _ = app.emit("tray-navigate", view);
+}
+
+#[tauri::command]
+pub fn open_main_view(app: tauri::AppHandle, view: String) -> Result<(), String> {
+    open_main_from_tray(&app, &view);
+    Ok(())
 }
 
 #[tauri::command]
