@@ -18,6 +18,7 @@ import {
 } from "../lib/catalog";
 import { fmtModelPrice } from "../lib/route";
 import { useApp } from "../state/AppContext";
+import { CatalogError } from "./CatalogError";
 import { CatalogLoading } from "./CatalogLoading";
 import { LoginPrompt } from "./LoginPrompt";
 import { Modal } from "./ui/Modal";
@@ -43,8 +44,26 @@ interface ModelCatalogModalProps {
 }
 
 export function ModelCatalogModal({ open, onClose }: ModelCatalogModalProps) {
-  const { lang, tr, smartRouteEnabled, activeGatewayModel, selectGatewayModel, selectIntent, showToast, gatewayCatalog, gatewayLive, gatewayHealth, cloudLoggedIn, authReady, cloudConfigured, openSignIn, catalogLoading, needsCloudLogin } =
-    useApp();
+  const {
+    lang,
+    tr,
+    smartRouteEnabled,
+    activeGatewayModel,
+    selectGatewayModel,
+    selectIntent,
+    showToast,
+    gatewayCatalog,
+    gatewayLive,
+    gatewayHealth,
+    cloudLoggedIn,
+    authReady,
+    cloudConfigured,
+    openSignIn,
+    catalogLoading,
+    catalogError,
+    refreshGatewayCatalog,
+    needsCloudLogin,
+  } = useApp();
 
   const [query, setQuery] = useState("");
   const [catalogType, setCatalogType] = useState<CatalogType>("all");
@@ -208,6 +227,14 @@ export function ModelCatalogModal({ open, onClose }: ModelCatalogModalProps) {
       <div className="catalog-list">
         {catalogLoading && cloudLoggedIn ? (
           <CatalogLoading />
+        ) : catalogError && cloudLoggedIn && !catalogLoading ? (
+          <CatalogError
+            onRetry={refreshGatewayCatalog}
+            onSignIn={() => {
+              openSignIn("login");
+              onClose();
+            }}
+          />
         ) : sections.length === 0 ? (
           needsCloudLogin ? (
             <LoginPrompt titleKey="loginPromptTitle" subKey="loginPromptModelsSub" />

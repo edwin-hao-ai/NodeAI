@@ -53,7 +53,16 @@ export async function waitForGatewayReady(
 
 export type CatalogFetchResult =
   | { ok: true; data: GatewayCatalogEntry[] }
-  | { ok: false; status: number | "network" };
+  | { ok: false; status: number | "network"; message?: string };
+
+async function catalogErrorMessage(resp: Response): Promise<string | undefined> {
+  try {
+    const data = (await resp.json()) as { error?: { message?: string } };
+    return data.error?.message?.trim() || undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 export async function fetchGatewayCatalog(
   baseUrl: string,
@@ -66,8 +75,12 @@ export async function fetchGatewayCatalog(
   }
   try {
     const resp = await fetch(url, { headers });
-    if (resp.status === 401) return { ok: false, status: 401 };
-    if (!resp.ok) return { ok: false, status: resp.status };
+    if (resp.status === 401) {
+      return { ok: false, status: 401, message: await catalogErrorMessage(resp) };
+    }
+    if (!resp.ok) {
+      return { ok: false, status: resp.status, message: await catalogErrorMessage(resp) };
+    }
     const data = (await resp.json()) as { data?: GatewayCatalogEntry[] };
     return { ok: true, data: data.data ?? [] };
   } catch {

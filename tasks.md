@@ -1,8 +1,8 @@
 # NodeAI 项目任务清单
 
 **版本：** 0.1.0  
-**最后更新：** 2026-06-03（菜单栏托盘 HUD 独立小窗）  
-**最新打包：** 2026-06-03 `npm run tauri build --bundles dmg`（commit `9bc23b5`）
+**最后更新：** 2026-06-03（模型目录加载失败显式错误 + 会话读取）  
+**最新打包：** （待 catalog fix 构建后更新 commit）
 
 | 产物 | 路径 |
 |------|------|
@@ -174,6 +174,7 @@
 | 状态 | 项 | 说明 |
 |:----:|-----|------|
 | ☑️ | 登录态 / 模型目录 / 401 清 session | 本轮修复 |
+| ☑️ | 模型目录失败停转圈 + CatalogError 重试；`get_cloud_session` 校验 token 格式 | `AppContext` · `CatalogError.tsx` |
 | ☑️ | 账单 path Tab 真 ledger 聚合 | 移除 0.65/0.35 假缩放 |
 | ☑️ | Chat 上下文条（回复语言 + live 记忆 + 单对话 prefs → system） | `userPrefs.ts` · `contextStrip.ts` · `contextPref.ts` |
 | ☑️ | Tauri 单壳（Overlay titlebar，无内嵌假交通灯） | `tauri.conf.json` · `shell-native-root` |

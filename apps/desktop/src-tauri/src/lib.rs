@@ -3,7 +3,10 @@ mod tray;
 use std::sync::Mutex;
 
 use keyring::Entry;
-use nodeai_core::{nodeai_data_dir, save_sources_file, AppSettings, ByokSourceRecord, ProxyStatus, SourcesFile};
+use nodeai_core::{
+    is_valid_session_token, nodeai_data_dir, save_sources_file, AppSettings, ByokSourceRecord,
+    ProxyStatus, SourcesFile,
+};
 use nodeai_proxy::{ProxyHandle, status_from_config};
 use nodeai_runtime::{default_workspace_path, ensure_workspace, execute_tool, AgentToolCall, RuntimeContext};
 use serde::Deserialize;
@@ -184,10 +187,14 @@ fn cloud_session_status() -> Result<bool, String> {
 
 #[tauri::command]
 fn get_cloud_session() -> Result<Option<String>, String> {
-    if let Some(token) = keychain_token() {
-        return Ok(Some(token));
+    for candidate in [read_cloud_session_file(), keychain_token()] {
+        if let Some(token) = candidate {
+            if is_valid_session_token(&token) {
+                return Ok(Some(token));
+            }
+        }
     }
-    Ok(read_cloud_session_file())
+    Ok(None)
 }
 
 #[tauri::command]

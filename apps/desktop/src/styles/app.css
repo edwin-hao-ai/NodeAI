@@ -140,6 +140,32 @@ html.tray-hud-html body {
   font-weight: 500;
   color: var(--savings);
 }
+.catalog-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 32px 20px;
+  text-align: center;
+  color: var(--on-surface-variant);
+}
+.catalog-error strong {
+  font-size: 15px;
+  color: var(--on-surface);
+}
+.catalog-error p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  max-width: 320px;
+}
+.catalog-error-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 8px;
+}
 #root .ws-popover .ws-pop-pick {
   display: flex;
   align-items: center;

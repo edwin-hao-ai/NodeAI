@@ -93,6 +93,8 @@ interface AppContextValue extends RouteState {
   authReady: boolean;
   needsCloudLogin: boolean;
   catalogLoading: boolean;
+  catalogError: "auth" | "registry" | "network" | "empty" | null;
+  refreshGatewayCatalog: () => void;
   roiBannerHidden: boolean;
   connectBannerHidden: boolean;
   onboardDismissed: boolean;
@@ -229,6 +231,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [cloudUser, setCloudUser] = useState<CloudUser | null>(() => loadStoredCloudUser());
   const [authReady, setAuthReady] = useState(false);
   const [catalogFetching, setCatalogFetching] = useState(false);
+  const [catalogError, setCatalogError] = useState<"auth" | "registry" | "network" | "empty" | null>(
+    null,
+  );
+  const [catalogReloadTick, setCatalogReloadTick] = useState(0);
   const [roiBannerHidden, setRoiBannerHidden] = useState(
     () => localStorage.getItem(STORAGE_ROI) === "1",
   );
@@ -369,12 +375,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  const refreshGatewayCatalog = useCallback(() => {
+    setCatalogReloadTick((n) => n + 1);
+  }, []);
+
   useEffect(() => {
     if (!proxy?.running) {
       setGatewayCatalog(null);
       setGatewayHealth(null);
+      setCatalogError(null);
       return;
     }
+    if (!authReady) return;
+
     let cancelled = false;
     const load = async () => {
       if (!cancelled) setCatalogFetching(true);
@@ -385,20 +398,41 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const session = cloudSession ?? (await getCloudSession());
         if (session && !cloudSession) setCloudSession(session);
 
+        if (!session) {
+          if (!cancelled) {
+            setCatalogError(null);
+            setGatewayCatalog(null);
+          }
+          return;
+        }
+
         const result = await fetchGatewayCatalog(gatewayBaseUrl, session);
         if (cancelled) return;
         if (result.ok) {
+          const live = isLiveGatewayCatalog(result.data);
           setGatewayCatalog(result.data.length ? result.data : null);
-        } else if (result.status === 401 && session && gatewayHealth?.reachable) {
-          const check = await validateCloudSessionViaProxy(gatewayBaseUrl, session);
-          if (check.kind === "invalid") void signOutRef.current();
-        } else if (!gatewayCatalogRef.current) {
-          setGatewayCatalog(null);
+          if (!cancelled) {
+            setCatalogError(live || result.data.length === 0 ? null : "empty");
+          }
+        } else if (result.status === 401) {
+          if (!cancelled) setCatalogError("auth");
+          if (session && health?.reachable) {
+            const check = await validateCloudSessionViaProxy(gatewayBaseUrl, session);
+            if (check.kind === "invalid") void signOutRef.current();
+          }
+          if (!gatewayCatalogRef.current && !cancelled) setGatewayCatalog(null);
+        } else if (result.status === 502 || result.status === 503) {
+          if (!cancelled) setCatalogError("registry");
+          if (!gatewayCatalogRef.current) setGatewayCatalog(null);
+        } else {
+          if (!cancelled) setCatalogError("network");
+          if (!gatewayCatalogRef.current) setGatewayCatalog(null);
         }
       } catch {
         if (!cancelled) {
           setGatewayCatalog(null);
           setGatewayHealth(null);
+          setCatalogError("network");
         }
       } finally {
         if (!cancelled) setCatalogFetching(false);
@@ -410,7 +444,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       cancelled = true;
       window.clearInterval(id);
     };
-  }, [gatewayBaseUrl, gatewayPort, proxy?.running, cloudSession]);
+  }, [gatewayBaseUrl, gatewayPort, proxy?.running, cloudSession, authReady, catalogReloadTick]);
 
   useEffect(() => {
     if (!proxy?.running) return;
@@ -444,16 +478,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const catalogLoading = useMemo(() => {
     if (localMode || !cloudLoggedIn || !authReady) return false;
     if (gatewayLive) return false;
-    return catalogFetching || Boolean(proxy?.running && gatewayHealth?.configured);
-  }, [
-    localMode,
-    cloudLoggedIn,
-    authReady,
-    gatewayLive,
-    catalogFetching,
-    proxy?.running,
-    gatewayHealth?.configured,
-  ]);
+    return catalogFetching;
+  }, [localMode, cloudLoggedIn, authReady, gatewayLive, catalogFetching]);
 
   const cloudReachable = Boolean(gatewayHealth?.reachable ?? gatewayHealth?.configured);
   const cloudConfigured = Boolean(gatewayHealth?.configured);
@@ -878,6 +904,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       authReady,
       needsCloudLogin,
       catalogLoading,
+      catalogError,
+      refreshGatewayCatalog,
       roiBannerHidden,
       connectBannerHidden,
       onboardDismissed,
@@ -967,6 +995,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       authReady,
       needsCloudLogin,
       catalogLoading,
+      catalogError,
+      refreshGatewayCatalog,
       roiBannerHidden,
       connectBannerHidden,
       onboardDismissed,
