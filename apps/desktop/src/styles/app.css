@@ -70,6 +70,18 @@ body {
 #root.shell-native-root .menubar-native .menubar-drag {
   padding-left: 78px;
 }
+/* Tray HUD popover: anchor to shield trigger (not viewport fixed top/right) */
+#root .menubar-tray-anchor {
+  position: relative;
+}
+#root .menubar-tray-anchor .tray-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  left: auto;
+  width: 260px;
+  z-index: 350;
+}
 #root.shell-native-root .workspace-chip .ws-path {
   max-width: min(180px, 32vw);
   overflow: hidden;

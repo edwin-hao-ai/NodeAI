@@ -140,6 +140,8 @@
 | ☑️ | 登录态统一（`cloudLoggedIn` + `/v1/nodeai/auth/me` 启动校验） |
 | ☑️ | BYOK 零登录本地模式（`authByokOnly` → `localMode` 持久化） |
 | ☑️ | 原生托盘 HUD + 总览/对话/账单/打开/退出（`tray.rs` · 左键开 App 内 Popover） |
+| ☑️ | 关窗仅隐藏（× / CloseRequested → `hide`）；彻底退出仅托盘「退出」；Dock 点击 `Reopen` 恢复 |
+| ☑️ | App 内托盘 Popover 锚定顶栏盾牌按钮（`menubar-tray-anchor`） |
 | ☑️ | `countConnectedApps` 无 live 应用时返回 0（去 `|| 1`） |
 | ☑️ | GatewayView 移除 demo「模拟 Cursor 已连接」 |
 | ☑️ | Hub/Billing 移除重复 LoginPrompt（侧栏已有登录 CTA） |

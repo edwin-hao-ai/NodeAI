@@ -94,7 +94,7 @@ export function Menubar({ nativeShell = false }: { nativeShell?: boolean }) {
           <BrandMark size={15} />
           NodeAI
         </div>
-        <div className="menubar-right">
+        <div className="menubar-right menubar-tray-anchor">
           <button className="lang-btn" type="button" onClick={toggleLang}>
             {lang === "zh" ? "EN" : "中文"}
           </button>
@@ -111,84 +111,84 @@ export function Menubar({ nativeShell = false }: { nativeShell?: boolean }) {
             </span>
             <span className="mono">{rateLabel}</span>
           </button>
+          <div
+            className={`tray-popover${trayOpen ? " open" : ""}`}
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-label={tr("tipTray")}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, fontSize: 13, fontWeight: 500 }}>
+              <span className="live-dot" style={{ width: 8, height: 8 }} />
+              <span>
+                {!traySignedIn ? tr("trayNotLoggedIn") : localMode && !cloudLoggedIn ? tr("trayLocalMode") : tr("trayRunning")}
+              </span>
+            </div>
+            <div className="tray-route">
+              {routeApplying ? (
+                tr("routeApplying")
+              ) : (
+                <>
+                  {tr("trayRouteLbl")}
+                  <strong>{routeLine}</strong>
+                </>
+              )}
+            </div>
+            <div className="hud-pop-row">
+              <span className="hud-pop-lbl">{tr("tokenFlow")}</span>
+              <span className="mono">{fmtTokens(todayTokens)}</span>
+            </div>
+            <div className="hud-pop-row">
+              <span className="hud-pop-lbl">{tr("budgetLeft")}</span>
+              <span className="mono">{remain != null ? fmtMoney(remain, lang) : "—"}</span>
+            </div>
+            <div className="hud-pop-row">
+              <span className="hud-pop-lbl">{tr("savedToday")}</span>
+              <span className="mono savings-text">{fmtMoney(liveSaved, lang)}</span>
+            </div>
+            <div className="tray-spark-wrap">
+              <svg viewBox="0 0 64 24" aria-hidden>
+                <path d={sparkD} className="hud-spark-path" fill="none" />
+              </svg>
+            </div>
+            <div className="tray-apps-mini">
+              {trayApps.length > 0 ? (
+                trayApps.map((a) => (
+                  <span
+                    key={a.id}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 4,
+                      marginRight: 8,
+                      color: "var(--on-surface-variant)",
+                    }}
+                  >
+                    <span className="app-dot" style={{ background: a.color }} />
+                    {a.label[lang]}
+                    <span className="mono" style={{ color: "var(--primary)" }}>
+                      {a.count}
+                    </span>
+                  </span>
+                ))
+              ) : (
+                <span style={{ color: "var(--on-surface-variant)" }}>{tr("trayNoApps")}</span>
+              )}
+            </div>
+            <div className="hud-pop-actions">
+              <button type="button" onClick={() => { setTrayOpen(false); setView("hub"); }}>
+                {tr("navHub")}
+              </button>
+              <button type="button" onClick={() => { setTrayOpen(false); setView("chat"); }}>
+                {tr("navChat")}
+              </button>
+              <button type="button" onClick={() => { setTrayOpen(false); setView("billing"); }}>
+                {tr("navBilling")}
+              </button>
+            </div>
+          </div>
         </div>
       </header>
-      <div
-        className={`tray-popover${trayOpen ? " open" : ""}`}
-        onClick={(e) => e.stopPropagation()}
-        onKeyDown={(e) => e.stopPropagation()}
-        role="dialog"
-        aria-label={tr("tipTray")}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, fontSize: 13, fontWeight: 500 }}>
-          <span className="live-dot" style={{ width: 8, height: 8 }} />
-          <span>
-            {!traySignedIn ? tr("trayNotLoggedIn") : localMode && !cloudLoggedIn ? tr("trayLocalMode") : tr("trayRunning")}
-          </span>
-        </div>
-        <div className="tray-route">
-          {routeApplying ? (
-            tr("routeApplying")
-          ) : (
-            <>
-              {tr("trayRouteLbl")}
-              <strong>{routeLine}</strong>
-            </>
-          )}
-        </div>
-        <div className="hud-pop-row">
-          <span className="hud-pop-lbl">{tr("tokenFlow")}</span>
-          <span className="mono">{fmtTokens(todayTokens)}</span>
-        </div>
-        <div className="hud-pop-row">
-          <span className="hud-pop-lbl">{tr("budgetLeft")}</span>
-          <span className="mono">{remain != null ? fmtMoney(remain, lang) : "—"}</span>
-        </div>
-        <div className="hud-pop-row">
-          <span className="hud-pop-lbl">{tr("savedToday")}</span>
-          <span className="mono savings-text">{fmtMoney(liveSaved, lang)}</span>
-        </div>
-        <div className="tray-spark-wrap">
-          <svg viewBox="0 0 64 24" aria-hidden>
-            <path d={sparkD} className="hud-spark-path" fill="none" />
-          </svg>
-        </div>
-        <div className="tray-apps-mini">
-          {trayApps.length > 0 ? (
-            trayApps.map((a) => (
-              <span
-                key={a.id}
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 4,
-                  marginRight: 8,
-                  color: "var(--on-surface-variant)",
-                }}
-              >
-                <span className="app-dot" style={{ background: a.color }} />
-                {a.label[lang]}
-                <span className="mono" style={{ color: "var(--primary)" }}>
-                  {a.count}
-                </span>
-              </span>
-            ))
-          ) : (
-            <span style={{ color: "var(--on-surface-variant)" }}>{tr("trayNoApps")}</span>
-          )}
-        </div>
-        <div className="hud-pop-actions">
-          <button type="button" onClick={() => { setTrayOpen(false); setView("hub"); }}>
-            {tr("navHub")}
-          </button>
-          <button type="button" onClick={() => { setTrayOpen(false); setView("chat"); }}>
-            {tr("navChat")}
-          </button>
-          <button type="button" onClick={() => { setTrayOpen(false); setView("billing"); }}>
-            {tr("navBilling")}
-          </button>
-        </div>
-      </div>
     </>
   );
 }

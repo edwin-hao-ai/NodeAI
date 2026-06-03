@@ -8,7 +8,7 @@ use nodeai_proxy::{ProxyHandle, status_from_config};
 use nodeai_runtime::{default_workspace_path, ensure_workspace, execute_tool, AgentToolCall, RuntimeContext};
 use serde::Deserialize;
 use serde_json::json;
-use tauri::Manager;
+use tauri::{Manager, RunEvent, WindowEvent};
 
 const KEYCHAIN_SERVICE: &str = "nodeai-desktop";
 const CLOUD_SESSION_ACCOUNT: &str = "cloud-session";
@@ -329,6 +329,17 @@ pub fn run() {
             ensure_cloud_dev,
             tray::sync_native_tray_menu,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .on_window_event(|window, event| {
+            if let WindowEvent::CloseRequested { api, .. } = event {
+                api.prevent_close();
+                let _ = window.hide();
+            }
+        })
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app_handle, event| {
+            if let RunEvent::Reopen { .. } = event {
+                tray::show_main_window(app_handle);
+            }
+        });
 }
