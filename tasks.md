@@ -1,13 +1,13 @@
 # NodeAI 项目任务清单
 
 **版本：** 0.1.0  
-**最后更新：** 2026-06-03（对话 Composer 固定底栏 / 设置项接通 / Agent 中性文案）  
-**最新打包：** 2026-06-03 `npm run tauri build --bundles dmg`（commit `a2c6f0a`）
+**最后更新：** 2026-06-03（Composer 固定 / 登录持久化 / 原生托盘 HUD）  
+**最新打包：** 2026-06-03 `npm run tauri build --bundles dmg`（commit `0ac1eff`）
 
 | 产物 | 路径 |
 |------|------|
-| macOS App | 打开 DMG 后拖入应用程序；或 `open ~/.cargo/shared-target/release/bundle/macos/NodeAI.app`（打包后可能被清理，以 DMG 为准） |
-| DMG | `~/.cargo/shared-target/release/bundle/dmg/NodeAI_0.1.0_aarch64.dmg`（2026-06-03 · Composer + 设置 + 文案） |
+| macOS App | 打开 DMG 后拖入「应用程序」；打包后 `.app` 可能被清理，以 DMG 为准 |
+| DMG | `~/.cargo/shared-target/release/bundle/dmg/NodeAI_0.1.0_aarch64.dmg`（Composer + Session + Tray HUD） |
 
 > **诚实说明：** 后端 L1/L2 脚本可通过，但 **桌面 UI 与 `prototypes/` 仍有差距**（见下方「UI 原型对齐 · 未完成」）。勿将 tasks 中 ☑️ 等同于「用户验收无 bug」。
 
