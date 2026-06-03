@@ -1,0 +1,70 @@
+/* Syntax colors for Chat code fences — M3 tokens only (DESIGN.md) */
+
+.chat-code-pre code.hljs {
+  display: block;
+  background: transparent;
+  color: var(--on-surface);
+}
+
+.chat-code-pre .hljs-comment,
+.chat-code-pre .hljs-quote {
+  color: var(--on-surface-variant);
+  font-style: italic;
+}
+
+.chat-code-pre .hljs-keyword,
+.chat-code-pre .hljs-selector-tag,
+.chat-code-pre .hljs-literal,
+.chat-code-pre .hljs-section {
+  color: color-mix(in srgb, var(--primary) 88%, var(--on-surface));
+  font-weight: 500;
+}
+
+.chat-code-pre .hljs-string,
+.chat-code-pre .hljs-regexp,
+.chat-code-pre .hljs-addition {
+  color: color-mix(in srgb, var(--savings) 82%, var(--on-surface));
+}
+
+.chat-code-pre .hljs-number,
+.chat-code-pre .hljs-symbol,
+.chat-code-pre .hljs-bullet {
+  color: color-mix(in srgb, var(--tertiary, #d0bcff) 75%, var(--on-surface));
+  font-variant-numeric: tabular-nums;
+}
+
+.chat-code-pre .hljs-title,
+.chat-code-pre .hljs-title.function_,
+.chat-code-pre .hljs-function,
+.chat-code-pre .hljs-built_in,
+.chat-code-pre .hljs-type,
+.chat-code-pre .hljs-class .hljs-title {
+  color: color-mix(in srgb, var(--secondary) 88%, var(--on-surface));
+}
+
+.chat-code-pre .hljs-attr,
+.chat-code-pre .hljs-attribute,
+.chat-code-pre .hljs-variable,
+.chat-code-pre .hljs-template-variable,
+.chat-code-pre .hljs-name {
+  color: var(--on-surface);
+}
+
+.chat-code-pre .hljs-meta,
+.chat-code-pre .hljs-meta .hljs-keyword,
+.chat-code-pre .hljs-selector-id,
+.chat-code-pre .hljs-selector-class {
+  color: var(--on-surface-variant);
+}
+
+.chat-code-pre .hljs-deletion {
+  color: color-mix(in srgb, var(--error, #ffb4ab) 80%, var(--on-surface));
+}
+
+.chat-code-pre .hljs-emphasis {
+  font-style: italic;
+}
+
+.chat-code-pre .hljs-strong {
+  font-weight: 500;
+}

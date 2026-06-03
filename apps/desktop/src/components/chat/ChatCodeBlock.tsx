@@ -28,13 +28,24 @@ function langLabel(raw: string): string {
   return LANG_LABELS[id] ?? id.charAt(0).toUpperCase() + id.slice(1);
 }
 
+function reactNodeText(node: ReactNode): string {
+  if (node == null || typeof node === "boolean") return "";
+  if (typeof node === "string" || typeof node === "number") return String(node);
+  if (Array.isArray(node)) return node.map(reactNodeText).join("");
+  if (isValidElement<{ children?: ReactNode }>(node)) {
+    return reactNodeText(node.props.children);
+  }
+  return "";
+}
+
 function extractCode(children: ReactNode): { lang: string; text: string } {
   const child = Children.toArray(children)[0];
   if (!isValidElement(child)) return { lang: "", text: "" };
   const props = (child as ReactElement<{ className?: string; children?: ReactNode }>).props;
   const className = props.className ?? "";
-  const lang = className.replace(/^language-/, "").split(/\s/)[0] ?? "";
-  const text = String(props.children ?? "").replace(/\n$/, "");
+  const langMatch = className.match(/language-([\w-]+)/);
+  const lang = langMatch?.[1] ?? "";
+  const text = reactNodeText(props.children).replace(/\n$/, "");
   return { lang, text };
 }
 

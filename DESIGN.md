@@ -432,6 +432,7 @@ App 色 token：`--app-cursor` · `--app-claude` · `--app-chat`
 - 结构：`.chat-code-block` — 顶栏（语言标签 + **复制**）+ `Roboto Mono` 正文区
 - 背景：`surface-low` / 边框 `outline-variant`；横向滚动，不撑破 680px 消息宽
 - 流式输出与完成后 **同一套 Markdown 渲染**（避免纯文本 → MD 跳变）
+- **语法高亮**：`rehype-highlight`（lowlight / highlight.js 子集）+ `hljs-chat.css` 仅用 M3 token 配色
 - 表格：外层横向滚动；链接：主题色 + 系统浏览器打开
 
 ### Gateway Page（外部接入 · 二级）

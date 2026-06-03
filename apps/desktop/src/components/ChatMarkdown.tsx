@@ -2,6 +2,7 @@ import type { Components } from "react-markdown";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { openUrl } from "@tauri-apps/plugin-opener";
+import { chatRehypePlugins } from "../lib/markdown/rehypeHighlight";
 import { isTauriShell } from "../lib/platform";
 import { ChatCodeBlock } from "./chat/ChatCodeBlock";
 
@@ -75,7 +76,11 @@ const markdownComponents: Components = {
 export function ChatMarkdown({ text, streaming = false }: ChatMarkdownProps) {
   return (
     <div className={`chat-md${streaming ? " chat-md-streaming" : ""}`}>
-      <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        rehypePlugins={chatRehypePlugins}
+        components={markdownComponents}
+      >
         {text}
       </ReactMarkdown>
       {streaming ? <span className="chat-stream-cursor" aria-hidden /> : null}

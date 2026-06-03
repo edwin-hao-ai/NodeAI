@@ -1,5 +1,6 @@
 @import "./tokens.css";
 @import "./prototype.css";
+@import "./hljs-chat.css";
 
 #root {
   min-height: 100vh;

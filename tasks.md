@@ -121,7 +121,7 @@
 | ☑️ | Chat `contextWindow` 按 resolved model 查找（非仅 `activeGatewayModel`） |
 | ☑️ | Agent `delete_file` + 确认弹窗 |
 | ☑️ | Agent **文件夹选择器**（Tauri dialog） |
-| ☑️ | Chat **Markdown** 渲染（GFM + 代码块复制 + 流式同渲染 + 表/链接） | `ChatMarkdown.tsx` · `ChatCodeBlock.tsx` |
+| ☑️ | Chat **Markdown** 渲染（GFM + 高亮 + 复制 + 流式同渲染） | `ChatMarkdown.tsx` · `hljs-chat.css` · `rehypeHighlight.ts` |
 | ☑️ | Agent 写文件 **diff 预览**（确认弹窗） |
 | ☑️ | 模型排序「**最新旗舰优先**」（`flagshipScore` + 精选列表） |
 
