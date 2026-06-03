@@ -25,8 +25,11 @@ impl AuthStore {
             std::fs::create_dir_all(parent).map_err(|e| AuthError::Message(e.to_string()))?;
         }
         let conn = Connection::open(&path)?;
+        conn.busy_timeout(std::time::Duration::from_secs(5))
+            .map_err(|e| AuthError::Message(e.to_string()))?;
         conn.execute_batch(
-            "CREATE TABLE IF NOT EXISTS users (
+            "PRAGMA journal_mode=WAL;
+            CREATE TABLE IF NOT EXISTS users (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 email TEXT NOT NULL UNIQUE,
                 name TEXT NOT NULL,

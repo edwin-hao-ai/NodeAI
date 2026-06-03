@@ -9,6 +9,7 @@ import { loadHybridFallbackConfirmed, loadHybridFallbackEnabled } from "../lib/h
 import { runAgentChat, streamChatRound, toApiMessages } from "../lib/chat";
 import { contextStripSummaryText, shouldShowContextStrip } from "../lib/chat/contextStrip";
 import { loadChatContextPref, saveChatContextPref } from "../lib/chat/contextPref";
+import { loadBonusProfileLocal } from "../lib/bonusApi";
 import { loadUserPrefs } from "../lib/userPrefs";
 import { pickAgentWorkspace } from "../lib/chat/agentInvoke";
 import type { ChatAttachment } from "../lib/chat/attachments";
@@ -70,9 +71,16 @@ export function ChatView() {
     cloudConfigured,
     needsCloudLogin,
     catalogLoading,
+    modelSources,
   } = useApp();
 
   const { messages, setMessages, activeSessionId } = useChat();
+  const [bonusTick, setBonusTick] = useState(0);
+  useEffect(() => {
+    const onBonus = () => setBonusTick((n) => n + 1);
+    window.addEventListener("nodeai-bonus-profile", onBonus);
+    return () => window.removeEventListener("nodeai-bonus-profile", onBonus);
+  }, []);
 
   const [attachments, setAttachments] = useState<ChatAttachment[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -170,13 +178,23 @@ export function ChatView() {
     return entry?.context_window ?? 32_768;
   }, [resolvedChatModel, gatewayCatalog, activeGatewayModel]);
 
+  const chatTraffic = useMemo(() => {
+    const profile = loadBonusProfileLocal();
+    const source = modelSources.find((s) => s.hasKey) ?? modelSources[0] ?? null;
+    if (localMode || (profile.byok_route && source?.hasKey)) {
+      return { trafficPath: "byok" as const, sourceId: source?.id ?? null };
+    }
+    return { trafficPath: "hosted" as const, sourceId: null as string | null };
+  }, [localMode, modelSources, bonusTick]);
+
   const chatOptions = useMemo(
     () => ({
       memories,
       lang,
       memoryInject: true,
       cloudToken: cloudSession,
-      trafficPath: localMode ? ("byok" as const) : ("hosted" as const),
+      trafficPath: chatTraffic.trafficPath,
+      sourceId: chatTraffic.sourceId,
       route: {
         smartRouteEnabled,
         activeIntent,
@@ -205,6 +223,7 @@ export function ChatView() {
       localMode,
       memories,
       smartRouteEnabled,
+      chatTraffic,
     ],
   );
 
@@ -452,7 +471,7 @@ export function ChatView() {
     messages.length === 0;
 
   return (
-    <>
+    <div className="chat-view">
       <header className="chat-header">
         <button
           type="button"
@@ -836,6 +855,6 @@ export function ChatView() {
           setActionConfirm(null);
         }}
       />
-    </>
+    </div>
   );
 }

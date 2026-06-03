@@ -244,10 +244,18 @@ export function SettingsView() {
       </div>
       <div className="setting">
         <div>
-          <h4>{tr("setCursorWrite")}</h4>
-          <p style={{ fontSize: 12, color: "var(--on-surface-variant)" }}>{tr("comingSoon")}</p>
+          <h4>{tr("setAgentMemoryWrite")}</h4>
+          <p style={{ fontSize: 12, color: "var(--on-surface-variant)" }}>{tr("setAgentMemoryWriteSub")}</p>
         </div>
-        <Switch on={false} onToggle={() => {}} disabled />
+        <Switch
+          on={Boolean(bonus.external_memory_write)}
+          onToggle={() =>
+            void pushBonus({
+              ...bonus,
+              external_memory_write: !bonus.external_memory_write,
+            })
+          }
+        />
       </div>
 
       <div className="setting-group">{tr("setGrpRoute")}</div>
@@ -261,9 +269,12 @@ export function SettingsView() {
       <div className="setting">
         <div>
           <h4>{tr("setByokRoute")}</h4>
-          <p style={{ fontSize: 12, color: "var(--on-surface-variant)" }}>{tr("comingSoon")}</p>
+          <p style={{ fontSize: 12, color: "var(--on-surface-variant)" }}>{tr("setByokRouteSub")}</p>
         </div>
-        <Switch on={false} onToggle={() => {}} disabled />
+        <Switch
+          on={Boolean(bonus.byok_route)}
+          onToggle={() => void pushBonus({ ...bonus, byok_route: !bonus.byok_route })}
+        />
       </div>
       <div className="setting">
         <div>
@@ -303,7 +314,15 @@ export function SettingsView() {
           <h4>{tr("setTranslator")}</h4>
           <p style={{ fontSize: 12, color: "var(--on-surface-variant)" }}>{tr("setTranslatorSub")}</p>
         </div>
-        <Switch on disabled />
+        <Switch
+          on={bonus.format_translate !== false}
+          onToggle={() =>
+            void pushBonus({
+              ...bonus,
+              format_translate: bonus.format_translate === false,
+            })
+          }
+        />
       </div>
 
       <div className="setting-group">{tr("setGrpSave")}</div>
@@ -335,9 +354,17 @@ export function SettingsView() {
       <div className="setting">
         <div>
           <h4>{tr("setBudgetAlert")}</h4>
-          <p style={{ fontSize: 12, color: "var(--on-surface-variant)" }}>{tr("comingSoon")}</p>
+          <p style={{ fontSize: 12, color: "var(--on-surface-variant)" }}>{tr("setBudgetAlertSub")}</p>
         </div>
-        <Switch on={false} onToggle={() => {}} disabled />
+        <Switch
+          on={bonus.budget_alert !== false}
+          onToggle={() =>
+            void pushBonus({
+              ...bonus,
+              budget_alert: bonus.budget_alert === false,
+            })
+          }
+        />
       </div>
 
       <button

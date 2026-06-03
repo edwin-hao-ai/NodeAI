@@ -5,6 +5,10 @@ export interface CompressionProfile {
   memory_inject: boolean;
   smart_route: boolean;
   failover: boolean;
+  external_memory_write?: boolean;
+  byok_route?: boolean;
+  budget_alert?: boolean;
+  format_translate?: boolean;
 }
 
 export interface BonusTotals {
@@ -84,6 +88,10 @@ export const DEFAULT_BONUS_PROFILE: CompressionProfile = {
   memory_inject: true,
   smart_route: true,
   failover: true,
+  external_memory_write: false,
+  byok_route: false,
+  budget_alert: true,
+  format_translate: true,
 };
 
 const STORAGE_BONUS = "nodeai-bonus-profile";
@@ -100,6 +108,7 @@ export function loadBonusProfileLocal(): CompressionProfile {
 
 export function saveBonusProfileLocal(profile: CompressionProfile) {
   localStorage.setItem(STORAGE_BONUS, JSON.stringify(profile));
+  window.dispatchEvent(new CustomEvent("nodeai-bonus-profile", { detail: profile }));
 }
 
 export async function fetchBonusProfile(baseUrl: string): Promise<CompressionProfile | null> {

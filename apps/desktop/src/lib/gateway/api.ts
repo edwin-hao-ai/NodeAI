@@ -37,6 +37,20 @@ export async function fetchGatewayHealth(proxyPort: number): Promise<CloudHealth
   }
 }
 
+/** Poll 8787 /health until the embedded proxy responds (login/catalog depend on it). */
+export async function waitForGatewayReady(
+  proxyPort: number,
+  attempts = 24,
+  intervalMs = 250,
+): Promise<boolean> {
+  for (let i = 0; i < attempts; i++) {
+    const health = await fetchGatewayHealth(proxyPort);
+    if (health?.reachable) return true;
+    await new Promise((resolve) => window.setTimeout(resolve, intervalMs));
+  }
+  return false;
+}
+
 export type CatalogFetchResult =
   | { ok: true; data: GatewayCatalogEntry[] }
   | { ok: false; status: number | "network" };

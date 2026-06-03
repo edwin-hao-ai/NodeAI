@@ -61,11 +61,16 @@ pub async fn forward_chat(
     headers: &HeaderMap,
     body: &Value,
     app_slug: &str,
+    format_translate: bool,
 ) -> Result<Response<Body>, String> {
     let api_key = api_key_for_source(&source.id)?;
     let format = ApiFormat::from_label(&source.format);
     let url = resolve_chat_url(&source.url, format);
-    let payload = convert_chat_request(body, format);
+    let payload = if format_translate {
+        convert_chat_request(body, format)
+    } else {
+        body.clone()
+    };
 
     let client = Client::new();
     let mut req = client.post(&url).json(&payload);
@@ -89,7 +94,7 @@ pub async fn forward_chat(
         StatusCode::from_u16(resp.status().as_u16()).unwrap_or(StatusCode::BAD_GATEWAY);
     let bytes = resp.bytes().await.map_err(|e| e.to_string())?;
 
-    let body_bytes = if format == ApiFormat::OpenAi {
+    let body_bytes = if !format_translate || format == ApiFormat::OpenAi {
         bytes.to_vec()
     } else {
         let value: Value = serde_json::from_slice(&bytes).unwrap_or(json!({}));

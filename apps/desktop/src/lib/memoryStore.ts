@@ -50,7 +50,10 @@ export async function createMemory(
   try {
     const resp = await fetch(`${baseUrl.replace(/\/$/, "")}/nodeai/memories`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "X-NodeAI-Client": "desktop",
+      },
       body: JSON.stringify({
         tag,
         text_zh: text,

@@ -16,6 +16,16 @@ pub struct CompressionProfile {
     pub smart_route: bool,
     #[serde(default = "default_true")]
     pub failover: bool,
+    /// Allow external apps (sk-nodeai-*) to POST /v1/nodeai/memories. Default OFF.
+    #[serde(default)]
+    pub external_memory_write: bool,
+    /// Prefer configured BYOK sources for desktop chat when keys exist.
+    #[serde(default)]
+    pub byok_route: bool,
+    #[serde(default = "default_true")]
+    pub budget_alert: bool,
+    #[serde(default = "default_true")]
+    pub format_translate: bool,
 }
 
 fn default_true() -> bool {
@@ -35,6 +45,10 @@ impl Default for CompressionProfile {
             memory_inject: true,
             smart_route: true,
             failover: true,
+            external_memory_write: false,
+            byok_route: false,
+            budget_alert: true,
+            format_translate: true,
         }
     }
 }

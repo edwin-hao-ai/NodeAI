@@ -137,6 +137,7 @@ async fn byok_forwards_with_env_key() {
         &axum::http::HeaderMap::new(),
         &body,
         "chat",
+        true,
     )
     .await
     .expect("byok forward");
@@ -175,6 +176,7 @@ async fn byok_converts_anthropic_response() {
         &axum::http::HeaderMap::new(),
         &body,
         "chat",
+        true,
     )
     .await
     .expect("anthropic byok");

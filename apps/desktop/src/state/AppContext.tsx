@@ -21,7 +21,8 @@ import {
   isCursorConnected,
   type RouteState,
 } from "../lib/route";
-import { fetchGatewayCatalog, fetchGatewayHealth, isLiveGatewayCatalog, type GatewayCatalogEntry, type CloudHealth } from "../lib/gateway";
+import { fetchGatewayCatalog, fetchGatewayHealth, isLiveGatewayCatalog, waitForGatewayReady, type GatewayCatalogEntry, type CloudHealth } from "../lib/gateway";
+import { checkBudgetAlerts } from "../lib/budgetAlert";
 import { fetchUsageSnapshot, loadBonusProfileLocal, saveBonusProfileLocal, syncBonusProfile, type UsageSnapshot } from "../lib/bonusApi";
 import {
   loadStoredCloudUser,
@@ -33,7 +34,7 @@ import {
   type CloudUser,
 } from "../lib/cloudAuth";
 import { clearCloudSession, getCloudSession, saveCloudSession } from "../lib/cloudSession";
-import { ensureCloudDev } from "../lib/cloudDev";
+import { ensureCloudDev, isCloudConnectivityAuthError } from "../lib/cloudDev";
 import { findProductIntent, PRODUCT_INTENTS } from "../lib/product/intents";
 import { syncModelSources } from "../lib/sourcesSync";
 import { findCatalogModel } from "../lib/catalog";
@@ -325,6 +326,42 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [gatewayPort]);
 
   useEffect(() => {
+    let cancelled = false;
+    void invoke<{ proxy: { port: number } }>("get_settings")
+      .then(async (settings) => {
+        if (cancelled) return;
+        const tauriPort = settings.proxy.port;
+        const raw = localStorage.getItem(STORAGE_PORT);
+        const stored = raw ? parseInt(raw, 10) : NaN;
+        const port =
+          Number.isFinite(stored) && stored >= 1024 && stored <= 65535 ? stored : tauriPort;
+        if (port !== tauriPort) {
+          try {
+            const status = await invoke<ProxyStatus>("set_proxy_port", { port });
+            if (!cancelled) {
+              setGatewayPortState(port);
+              setProxy(status);
+            }
+          } catch {
+            if (!cancelled) {
+              setGatewayPortState(tauriPort);
+              localStorage.setItem(STORAGE_PORT, String(tauriPort));
+            }
+          }
+        } else if (gatewayPort !== tauriPort) {
+          setGatewayPortState(tauriPort);
+          localStorage.setItem(STORAGE_PORT, String(tauriPort));
+        }
+      })
+      .catch(() => {
+        /* browser dev without tauri */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
     if (!proxy?.running) {
       setGatewayCatalog(null);
       setGatewayHealth(null);
@@ -461,6 +498,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setToast(msg);
     window.setTimeout(() => setToast(null), 2800);
   }, []);
+
+  useEffect(() => {
+    if (!usageSnapshot) return;
+    const profile = loadBonusProfileLocal();
+    checkBudgetAlerts(usageSnapshot, profile.budget_alert !== false, lang, showToast);
+  }, [usageSnapshot, lang, showToast]);
 
   const signOutWithCloud = useCallback(async () => {
     try {
@@ -728,7 +771,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
         showToast(t(lang, "toastCloudUnreachable"));
         return false;
       }
-      const result = await signInViaProxy(gatewayBaseUrl, email, password);
+      const proxyUp = await waitForGatewayReady(gatewayPort);
+      if (!proxyUp) {
+        showToast(t(lang, "toastProxyUnreachable"));
+        return false;
+      }
+      let result = await signInViaProxy(gatewayBaseUrl, email, password);
+      if (!result.ok && isCloudConnectivityAuthError(result.error || "")) {
+        const restarted = await ensureCloudDev(true);
+        if (restarted) {
+          result = await signInViaProxy(gatewayBaseUrl, email, password);
+        }
+      }
       if (!result.ok) {
         showToast(result.error || t(lang, "toastLoginFailed"));
         return false;
@@ -748,7 +802,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setView("models");
       return true;
     },
-    [gatewayBaseUrl, lang, showToast],
+    [gatewayBaseUrl, gatewayPort, lang, showToast],
   );
 
   const signUpWithCloud = useCallback(

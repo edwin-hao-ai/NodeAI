@@ -221,8 +221,8 @@ fn pick_agent_workspace(app: tauri::AppHandle) -> Result<Option<String>, String>
 }
 
 #[tauri::command]
-fn ensure_cloud_dev(app: tauri::AppHandle) -> bool {
-    cloud_dev::ensure_cloud_dev(&app)
+fn ensure_cloud_dev(app: tauri::AppHandle, force: Option<bool>) -> bool {
+    cloud_dev::ensure_cloud_dev(&app, force.unwrap_or(false))
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -249,7 +249,17 @@ pub fn run() {
             let proxy_config = settings.proxy.clone();
 
             let proxy = tauri::async_runtime::block_on(async {
-                nodeai_proxy::start(proxy_config).await.ok()
+                match nodeai_proxy::start(proxy_config.clone()).await {
+                    Ok(handle) => Some(handle),
+                    Err(err) => {
+                        tracing::error!(
+                            %err,
+                            port = proxy_config.port,
+                            "proxy failed to start (port in use?)"
+                        );
+                        None
+                    }
+                }
             });
 
             app.manage(Mutex::new(AppState { settings, proxy }));

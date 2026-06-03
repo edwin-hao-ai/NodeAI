@@ -181,7 +181,7 @@
 | ☐ | **auth.html 完整 onboarding** | persona 网格、ROI 预览、回复语言、套餐预览 |
 | ☐ | **账单页** 趋势图 / donut / 应用×模型矩阵 / 折叠明细 | 仅 hero + 表 |
 | ☐ | **Hub** apiCapGrid、按模型 stack、sparkline 速率 | 部分静态文案已改 |
-| ☐ | **设置** 回复语言 / BYOK 路由 / Cursor 写记忆 / 预算告警 持久化 | 已禁用并标「即将推出」；待接 API |
+| ☑️ | **设置** 回复语言 / BYOK 路由 / 外部 Agent 写记忆 / 预算告警 | `userPrefs` + `CompressionProfile` 扩展；8787 记忆写入门禁；`budgetAlert.ts` |
 | ☑️ | **Plan** 试用静态标签（14 天 · 无 Stripe 倒计时 API） | |
 | ☐ | **Plan** 试用剩余天数真 API、商业透明三块 | |
 | ☑️ | 生产路径移除 `demoModelPool` 导出 | `lib/model/index.ts` |

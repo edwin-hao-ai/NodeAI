@@ -49,7 +49,7 @@ export const BONUS_CARDS: BonusCardDef[] = [
     id: "appbill",
     icon: "apps",
     name: { zh: "按应用账单", en: "Per-app billing" },
-    sub: { zh: "Cursor / Chat 分开算", en: "Split Cursor vs Chat" },
+    sub: { zh: "外部 Agent / 对话分开算", en: "Split external apps vs chat" },
     isOn: () => true,
   },
   {

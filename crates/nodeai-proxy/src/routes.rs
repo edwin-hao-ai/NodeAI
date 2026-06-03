@@ -119,10 +119,34 @@ struct CreateMemoryBody {
     from_en: Option<String>,
 }
 
+fn is_external_memory_client(headers: &HeaderMap, auth: Option<&str>) -> bool {
+    if headers
+        .get("x-nodeai-client")
+        .and_then(|v| v.to_str().ok())
+        == Some("desktop")
+    {
+        return false;
+    }
+    parse_nodeai_app_key(auth).is_some()
+}
+
 async fn create_memory(
     State(state): State<ProxyState>,
+    headers: HeaderMap,
     Json(body): Json<CreateMemoryBody>,
 ) -> impl IntoResponse {
+    let profile = state.bonus.get_profile();
+    let auth = bearer_token(&headers);
+    if is_external_memory_client(&headers, auth.as_deref()) && !profile.external_memory_write {
+        return (
+            StatusCode::FORBIDDEN,
+            Json(json!({
+                "error": "external_memory_write_disabled",
+                "message": "External agent memory write is disabled in NodeAI settings"
+            })),
+        )
+            .into_response();
+    }
     let id = format!("m-{}", uuid_simple());
     let today = chrono_lite_date();
     let row = MemoryRow {
@@ -801,8 +825,9 @@ async fn byok_chat_completions(
         .get("x-nodeai-source")
         .and_then(|v| v.to_str().ok());
     let sources = nodeai_core::load_sources_file();
+    let format_translate = state.bonus.get_profile().format_translate;
     if let Some(source) = crate::byok::resolve_source(&sources, source_id) {
-        match crate::byok::forward_chat(source, headers, &body, app_slug).await {
+        match crate::byok::forward_chat(source, headers, &body, app_slug, format_translate).await {
             Ok(resp) if resp.status().is_success() => return attach_bonus_header(resp, &bonus),
             Ok(resp) => {
                 if let Some(fallback) =

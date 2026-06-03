@@ -3,24 +3,62 @@ use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
-use nodeai_core::{cloud_api_healthy, cloud_dev_port_free, CloudConfig};
+use nodeai_core::{
+    cloud_dev_port_free, cloud_fully_ready, cloud_listener_is_foreign, kill_dev_cloud_listener,
+    CloudConfig,
+};
 use tauri::AppHandle;
+use tauri::Manager;
 use tauri_plugin_shell::ShellExt;
 
 static SPAWN_IN_FLIGHT: AtomicBool = AtomicBool::new(false);
 
 /// Ensure localhost Cloud dev API is listening (idempotent).
-pub fn ensure_cloud_dev(app: &AppHandle) -> bool {
+pub fn ensure_cloud_dev(app: &AppHandle, force: bool) -> bool {
     let cloud = CloudConfig::from_env();
     if !cloud.dev_local() {
         return true;
     }
-    if cloud_api_healthy(&cloud.base_url) {
+
+    if force {
+        if !cloud_dev_port_free(&cloud.base_url) {
+            tracing::warn!(url = %cloud.base_url, "Force-restarting Cloud listener");
+            let _ = kill_dev_cloud_listener(&cloud.base_url);
+            std::thread::sleep(Duration::from_millis(400));
+        }
+    } else if let Some(bundled) = bundled_cloud_dev_path(app) {
+        if !cloud_dev_port_free(&cloud.base_url)
+            && cloud_listener_is_foreign(&cloud.base_url, &bundled)
+        {
+            tracing::warn!(
+                url = %cloud.base_url,
+                bundled = %bundled.display(),
+                "Replacing foreign Cloud sidecar with bundled binary"
+            );
+            let _ = kill_dev_cloud_listener(&cloud.base_url);
+            std::thread::sleep(Duration::from_millis(400));
+        }
+    }
+
+    if cloud_fully_ready(&cloud.base_url) {
         SPAWN_IN_FLIGHT.store(false, Ordering::SeqCst);
         return true;
     }
 
-    // Port already taken (e.g. packaged NodeAI.app sidecar) — wait, do not spawn a duplicate.
+    // Stale listener: /health OK but auth/session broken (login returns empty reply).
+    if !cloud_dev_port_free(&cloud.base_url) && !cloud_fully_ready(&cloud.base_url) {
+        tracing::warn!(url = %cloud.base_url, "Cloud auth probe failed — restarting listener");
+        if kill_dev_cloud_listener(&cloud.base_url) {
+            std::thread::sleep(Duration::from_millis(400));
+        }
+    }
+
+    if cloud_fully_ready(&cloud.base_url) {
+        SPAWN_IN_FLIGHT.store(false, Ordering::SeqCst);
+        return true;
+    }
+
+    // Port already taken — wait for an existing healthy listener.
     if !cloud_dev_port_free(&cloud.base_url) {
         tracing::info!(url = %cloud.base_url, "Cloud port busy — waiting for existing listener");
         let ok = wait_for_cloud(&cloud.base_url);
@@ -28,7 +66,6 @@ pub fn ensure_cloud_dev(app: &AppHandle) -> bool {
         return ok;
     }
 
-    SPAWN_IN_FLIGHT.store(false, Ordering::SeqCst);
     if SPAWN_IN_FLIGHT
         .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
         .is_ok()
@@ -44,8 +81,14 @@ pub fn ensure_cloud_dev(app: &AppHandle) -> bool {
 pub fn ensure_cloud_dev_background(app: &AppHandle) {
     let handle = app.clone();
     std::thread::spawn(move || {
-        ensure_cloud_dev(&handle);
+        ensure_cloud_dev(&handle, false);
     });
+}
+
+fn bundled_cloud_dev_path(app: &AppHandle) -> Option<PathBuf> {
+    let dir = app.path().executable_dir().ok()?;
+    let sidecar = dir.join("nodeai-cloud-dev");
+    sidecar.is_file().then_some(sidecar)
 }
 
 fn spawn_cloud_dev(app: &AppHandle) {
@@ -89,7 +132,11 @@ fn try_shared_target_binary() -> bool {
     if !bin.is_file() {
         return false;
     }
-    match Command::new(&bin).stdout(Stdio::null()).stderr(Stdio::null()).spawn() {
+    match Command::new(&bin)
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+    {
         Ok(_) => {
             tracing::info!(path = %bin.display(), "spawned nodeai-cloud-dev from target dir");
             true
@@ -121,7 +168,7 @@ fn try_cargo_run() {
 
 fn wait_for_cloud(base_url: &str) -> bool {
     for _ in 0..90 {
-        if cloud_api_healthy(base_url) {
+        if cloud_fully_ready(base_url) {
             tracing::info!(%base_url, "Cloud API ready");
             return true;
         }

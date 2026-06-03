@@ -132,6 +132,36 @@
 
 #root .view-panel.active {
   display: flex;
+  overflow: hidden;
+}
+
+/* Chat: messages scroll; composer stays in viewport */
+#root .chat-view {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  width: 100%;
+}
+#root .main {
+  min-height: 0;
+  overflow: hidden;
+}
+#root.shell-native-root .shell-body {
+  overflow: hidden;
+}
+#root .chat-body {
+  overflow: hidden;
+}
+#root .chat-scroll {
+  min-height: 0;
+}
+#root .composer-wrap {
+  position: relative;
+  z-index: 2;
+  background: var(--surface);
+  box-shadow: 0 -6px 20px color-mix(in srgb, var(--surface) 88%, transparent);
 }
 
 .auth-screen {

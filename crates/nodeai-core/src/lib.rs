@@ -13,9 +13,10 @@ pub use bonus::{
 };
 pub mod virtual_models;
 pub use cloud::{
-    cloud_api_reachable, cloud_api_healthy, cloud_base_url_from_env, cloud_dev_port_free,
-    cloud_is_dev_local, is_valid_session_token,
-    CloudConfig, DEFAULT_CLOUD_BASE_URL,
+    cloud_api_reachable, cloud_api_healthy, cloud_auth_ready, cloud_base_url_from_env,
+    cloud_dev_port_free, cloud_fully_ready, cloud_is_dev_local, cloud_listener_command,
+    cloud_listener_is_foreign, is_valid_session_token, kill_dev_cloud_listener, CloudConfig,
+    DEFAULT_CLOUD_BASE_URL,
 };
 pub use virtual_models::{resolve_request_model, resolve_virtual_model_id};
 pub use config::{AppSettings, ProxyConfig, TrafficPath};
