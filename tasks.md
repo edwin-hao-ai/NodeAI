@@ -2,12 +2,12 @@
 
 **版本：** 0.1.0  
 **最后更新：** 2026-06-03（模型目录加载失败显式错误 + 会话读取）  
-**最新打包：** （待 catalog fix 构建后更新 commit）
+**最新打包：** 2026-06-03 `npm run tauri build --bundles dmg`（commit `e2f07d2`）
 
 | 产物 | 路径 |
 |------|------|
 | macOS App | 打开 DMG 后拖入「应用程序」；打包后 `.app` 可能被清理，以 DMG 为准 |
-| DMG | `~/.cargo/shared-target/release/bundle/dmg/NodeAI_0.1.0_aarch64.dmg`（菜单栏托盘 HUD 小窗 + 关窗隐藏） |
+| DMG | `~/.cargo/shared-target/release/bundle/dmg/NodeAI_0.1.0_aarch64.dmg`（模型目录错误提示 + 托盘 HUD） |
 
 > **诚实说明：** 后端 L1/L2 脚本可通过，但 **桌面 UI 与 `prototypes/` 仍有差距**（见下方「UI 原型对齐 · 未完成」）。勿将 tasks 中 ☑️ 等同于「用户验收无 bug」。
 
