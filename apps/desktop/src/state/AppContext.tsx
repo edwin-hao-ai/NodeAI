@@ -37,6 +37,7 @@ import { clearCloudSession, getCloudSession, saveCloudSession } from "../lib/clo
 import { ensureCloudDev, isCloudConnectivityAuthError } from "../lib/cloudDev";
 import { findProductIntent, PRODUCT_INTENTS } from "../lib/product/intents";
 import { syncModelSources } from "../lib/sourcesSync";
+import { syncNativeTrayMenu } from "../lib/traySync";
 import { findCatalogModel } from "../lib/catalog";
 import { type I18nKey, type Lang, t } from "../i18n";
 
@@ -135,6 +136,7 @@ interface AppContextValue extends RouteState {
   showToast: (msg: string) => void;
   tr: (key: I18nKey) => string;
   routeLine: string;
+  routeApplying: boolean;
   routeAppCount: number;
   workspace: string;
   agentEnabled: boolean;
@@ -275,13 +277,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
           if (storedUser) setCloudUser(storedUser);
         }
         if (proxy?.running) {
-          const check = await validateCloudSessionViaProxy(gatewayBaseUrl, token);
+          const health = await fetchGatewayHealth(gatewayPort);
           if (cancelled) return;
-          if (check.kind === "ok") {
-            setCloudUser(check.user);
-            saveStoredCloudUser(check.user);
-          } else if (check.kind === "invalid") {
-            await signOutRef.current();
+          if (!health?.reachable) {
+            /* Cloud sidecar still starting — keep keychain/file token */
+          } else {
+            const check = await validateCloudSessionViaProxy(gatewayBaseUrl, token);
+            if (cancelled) return;
+            if (check.kind === "ok") {
+              setCloudUser(check.user);
+              saveStoredCloudUser(check.user);
+            } else if (check.kind === "invalid") {
+              await signOutRef.current();
+            }
           }
         }
       } else {
@@ -381,7 +389,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         if (cancelled) return;
         if (result.ok) {
           setGatewayCatalog(result.data.length ? result.data : null);
-        } else if (result.status === 401 && session) {
+        } else if (result.status === 401 && session && gatewayHealth?.reachable) {
           const check = await validateCloudSessionViaProxy(gatewayBaseUrl, session);
           if (check.kind === "invalid") void signOutRef.current();
         } else if (!gatewayCatalogRef.current) {
@@ -673,6 +681,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [usageSnapshot],
   );
 
+  useEffect(() => {
+    void syncNativeTrayMenu({
+      lang,
+      routeLine,
+      routeApplying: route.routeApplying,
+      cloudLoggedIn,
+      localMode,
+      usageSnapshot,
+    });
+  }, [
+    lang,
+    routeLine,
+    route.routeApplying,
+    cloudLoggedIn,
+    localMode,
+    usageSnapshot,
+  ]);
+
   const markViewSavings = useCallback(() => {
     try {
       const done = JSON.parse(localStorage.getItem(STORAGE_VIEW_SAVINGS) || "{}") as Record<string, boolean>;
@@ -913,6 +939,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       showToast,
       tr,
       routeLine,
+      routeApplying: route.routeApplying,
       routeAppCount,
     }),
     [

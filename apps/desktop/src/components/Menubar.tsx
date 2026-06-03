@@ -1,8 +1,11 @@
-import { useMemo, useState } from "react";
+import { listen } from "@tauri-apps/api/event";
+import { useEffect, useMemo, useState } from "react";
 import { BrandMark } from "./BrandMark";
 import { fmtMoney, fmtTokens, sparkPath } from "../lib/format";
 import { appForLedgerSlug, sparklineFromLedger } from "../lib/route";
+import { isTauriShell } from "../lib/platform";
 import { useApp } from "../state/AppContext";
+import type { ViewId } from "../state/AppContext";
 
 type TrayAppRow = {
   id: string;
@@ -49,6 +52,27 @@ export function Menubar({ nativeShell = false }: { nativeShell?: boolean }) {
         ? tr("trayHudSaved").replace("{v}", fmtMoney(liveSaved, lang))
         : tr("trayRunningShort");
 
+  useEffect(() => {
+    if (!isTauriShell()) return;
+    const unsubs: Array<() => void> = [];
+    void listen("tray-open-popover", () => setTrayOpen(true)).then((u) => unsubs.push(u));
+    void listen<string>("tray-navigate", (e) => {
+      setTrayOpen(false);
+      const v = e.payload as ViewId;
+      if (v === "hub" || v === "chat" || v === "billing") setView(v);
+    }).then((u) => unsubs.push(u));
+    return () => {
+      unsubs.forEach((f) => f());
+    };
+  }, [setView]);
+
+  useEffect(() => {
+    if (!trayOpen) return;
+    const close = () => setTrayOpen(false);
+    document.addEventListener("click", close);
+    return () => document.removeEventListener("click", close);
+  }, [trayOpen]);
+
   const trayApps = useMemo((): TrayAppRow[] => {
     if (!usageSnapshot?.apps || Object.keys(usageSnapshot.apps).length === 0) {
       return [];
@@ -77,7 +101,10 @@ export function Menubar({ nativeShell = false }: { nativeShell?: boolean }) {
           <button
             className="tray-trigger"
             type="button"
-            onClick={() => setTrayOpen((o) => !o)}
+            onClick={(e) => {
+              e.stopPropagation();
+              setTrayOpen((o) => !o);
+            }}
           >
             <span className="material-symbols-outlined" style={{ fontSize: 16, color: "var(--savings)" }}>
               shield
@@ -86,7 +113,13 @@ export function Menubar({ nativeShell = false }: { nativeShell?: boolean }) {
           </button>
         </div>
       </header>
-      <div className={`tray-popover${trayOpen ? " open" : ""}`}>
+      <div
+        className={`tray-popover${trayOpen ? " open" : ""}`}
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-label={tr("tipTray")}
+      >
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, fontSize: 13, fontWeight: 500 }}>
           <span className="live-dot" style={{ width: 8, height: 8 }} />
           <span>

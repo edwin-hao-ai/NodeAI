@@ -1,14 +1,13 @@
 mod cloud_dev;
+mod tray;
 use std::sync::Mutex;
 
 use keyring::Entry;
-use nodeai_core::{save_sources_file, AppSettings, ByokSourceRecord, ProxyStatus, SourcesFile};
+use nodeai_core::{nodeai_data_dir, save_sources_file, AppSettings, ByokSourceRecord, ProxyStatus, SourcesFile};
 use nodeai_proxy::{ProxyHandle, status_from_config};
 use nodeai_runtime::{default_workspace_path, ensure_workspace, execute_tool, AgentToolCall, RuntimeContext};
 use serde::Deserialize;
 use serde_json::json;
-use tauri::menu::{Menu, MenuItem};
-use tauri::tray::TrayIconBuilder;
 use tauri::Manager;
 
 const KEYCHAIN_SERVICE: &str = "nodeai-desktop";
@@ -30,6 +29,32 @@ struct SourcePayload {
 
 fn keychain_entry(account: &str) -> Result<Entry, String> {
     Entry::new(KEYCHAIN_SERVICE, account).map_err(|e| e.to_string())
+}
+
+fn cloud_session_file() -> std::path::PathBuf {
+    nodeai_data_dir().join("cloud-session")
+}
+
+fn write_cloud_session_file(token: &str) -> Result<(), String> {
+    let path = cloud_session_file();
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    std::fs::write(&path, token.trim()).map_err(|e| e.to_string())
+}
+
+fn read_cloud_session_file() -> Option<String> {
+    let raw = std::fs::read_to_string(cloud_session_file()).ok()?;
+    let t = raw.trim();
+    if t.is_empty() {
+        None
+    } else {
+        Some(t.to_string())
+    }
+}
+
+fn delete_cloud_session_file() {
+    let _ = std::fs::remove_file(cloud_session_file());
 }
 
 #[tauri::command]
@@ -121,31 +146,48 @@ async fn test_source_url(url: String, api_key: String) -> Result<u16, String> {
 
 #[tauri::command]
 fn save_cloud_session(token: String) -> Result<(), String> {
-    keychain_entry(CLOUD_SESSION_ACCOUNT)?
-        .set_password(token.trim())
-        .map_err(|e| e.to_string())
+    let trimmed = token.trim();
+    if trimmed.is_empty() {
+        return Err("empty session token".into());
+    }
+    write_cloud_session_file(trimmed)?;
+    if let Ok(entry) = keychain_entry(CLOUD_SESSION_ACCOUNT) {
+        let _ = entry.set_password(trimmed);
+    }
+    Ok(())
 }
 
 #[tauri::command]
 fn clear_cloud_session() -> Result<(), String> {
-    keychain_entry(CLOUD_SESSION_ACCOUNT)?
-        .delete_credential()
-        .map_err(|e| e.to_string())
+    delete_cloud_session_file();
+    if let Ok(entry) = keychain_entry(CLOUD_SESSION_ACCOUNT) {
+        let _ = entry.delete_credential();
+    }
+    Ok(())
+}
+
+fn keychain_token() -> Option<String> {
+    let entry = keychain_entry(CLOUD_SESSION_ACCOUNT).ok()?;
+    let token = entry.get_password().ok()?;
+    let t = token.trim();
+    if t.is_empty() {
+        None
+    } else {
+        Some(t.to_string())
+    }
 }
 
 #[tauri::command]
 fn cloud_session_status() -> Result<bool, String> {
-    Ok(keychain_entry(CLOUD_SESSION_ACCOUNT)?
-        .get_password()
-        .is_ok())
+    Ok(read_cloud_session_file().is_some() || keychain_token().is_some())
 }
 
 #[tauri::command]
 fn get_cloud_session() -> Result<Option<String>, String> {
-    match keychain_entry(CLOUD_SESSION_ACCOUNT)?.get_password() {
-        Ok(token) if !token.trim().is_empty() => Ok(Some(token)),
-        _ => Ok(None),
+    if let Some(token) = keychain_token() {
+        return Ok(Some(token));
     }
+    Ok(read_cloud_session_file())
 }
 
 #[tauri::command]
@@ -264,27 +306,7 @@ pub fn run() {
 
             app.manage(Mutex::new(AppState { settings, proxy }));
 
-            let show = MenuItem::with_id(app, "tray-show", "打开 NodeAI", true, None::<&str>)?;
-            let quit = MenuItem::with_id(app, "tray-quit", "退出", true, None::<&str>)?;
-            let menu = Menu::with_items(app, &[&show, &quit])?;
-            if let Some(icon) = app.default_window_icon().cloned() {
-                let _tray = TrayIconBuilder::new()
-                    .icon(icon)
-                    .menu(&menu)
-                    .tooltip("NodeAI")
-                    .on_menu_event(|app, event| match event.id.as_ref() {
-                        "tray-show" => {
-                            if let Some(w) = app.get_webview_window("main") {
-                                let _ = w.show();
-                                let _ = w.unminimize();
-                                let _ = w.set_focus();
-                            }
-                        }
-                        "tray-quit" => app.exit(0),
-                        _ => {}
-                    })
-                    .build(app)?;
-            }
+            tray::install_tray(app)?;
 
             Ok(())
         })
@@ -305,6 +327,7 @@ pub fn run() {
             agent_execute_tool,
             pick_agent_workspace,
             ensure_cloud_dev,
+            tray::sync_native_tray_menu,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

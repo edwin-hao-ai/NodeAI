@@ -139,14 +139,14 @@
 | ☑️ | Session 存 Keychain + 侧栏显示 cloudUser |
 | ☑️ | 登录态统一（`cloudLoggedIn` + `/v1/nodeai/auth/me` 启动校验） |
 | ☑️ | BYOK 零登录本地模式（`authByokOnly` → `localMode` 持久化） |
-| ☑️ | 原生托盘（打开 / 退出） |
+| ☑️ | 原生托盘 HUD + 总览/对话/账单/打开/退出（`tray.rs` · 左键开 App 内 Popover） |
 | ☑️ | `countConnectedApps` 无 live 应用时返回 0（去 `|| 1`） |
 | ☑️ | GatewayView 移除 demo「模拟 Cursor 已连接」 |
 | ☑️ | Hub/Billing 移除重复 LoginPrompt（侧栏已有登录 CTA） |
 | ☑️ | ModelsView 场景副标题：目录加载中 / defaultModel slug 回退 |
 | ☑️ | 「全自动」文案诚实化（默认模型 + Intent 场景，非 per-request 分类） |
 | ☑️ | 托盘 HUD 未登录 / 本地模式诚实文案（无假 ¥48 余额） |
-| ☐ | 托盘 HUD 与原型 100% 一致（sparkline 速率语义、系统托盘用量） |
+| ☐ | 托盘 sparkline 进原生菜单（macOS 仅 App 内 Popover 有曲线；系统菜单为文字行） |
 
 ---
 
